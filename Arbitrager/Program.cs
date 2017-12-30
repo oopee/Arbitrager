@@ -35,6 +35,7 @@ namespace Arbitrager
             }, isSandbox: false);
 
             Do(buyer, seller).Wait();
+            Console.ReadLine();
         }
 
         static async Task Do(IBuyer buyer, ISeller seller)
@@ -70,9 +71,8 @@ namespace Arbitrager
 
             Func<Task> buyerTaskFunc = async () =>
             {
-                await Task.Delay(0);
-                // buyerBalance = await m_buyer.GetCurrentBalance();
-                // askOrderBook = await m_buyer.GetAsks();
+                buyerBalance = await m_buyer.GetCurrentBalance();
+                askOrderBook = await m_buyer.GetAsks();
             };
 
             Func<Task> sellerTaskFunc = async () =>
