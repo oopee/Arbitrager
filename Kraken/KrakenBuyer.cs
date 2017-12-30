@@ -13,6 +13,7 @@ namespace Kraken
         KrakenClient.KrakenClient m_client;
         ILogger m_logger;
 
+        public string Name => "Kraken";
         public KrakenConfiguration Configuration { get; private set; }        
 
         public KrakenBuyer(KrakenConfiguration configuration, ILogger logger)

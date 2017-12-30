@@ -62,6 +62,7 @@ namespace Common
             {
                 buyerStatus = new BuyerStatus()
                 {
+                    Name = m_buyer.Name,
                     Asks = askOrderBook,
                     Balance = buyerBalance
                 };
@@ -72,6 +73,7 @@ namespace Common
             {
                 sellerStatus = new SellerStatus()
                 {
+                    Name = m_seller.Name,
                     Bids = bidOrderBook,
                     Balance = sellerBalance
                 };

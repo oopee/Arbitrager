@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Interface
 {
-    public interface ISeller : IUser
+    public interface ISeller : IExchange
     {
         Task<BalanceResult> GetCurrentBalance();
         Task<IBidOrderBook> GetBids();

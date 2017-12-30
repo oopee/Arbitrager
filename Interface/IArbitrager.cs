@@ -53,14 +53,15 @@ namespace Interface
             }
             else
             {
+                b.AppendLine("\t{0}", Buyer.Name);
                 if (Buyer.Balance != null)
                 {
                     b.AppendLine("\tBalance:");
                     b.AppendLine("\t\tEUR: {0}", Buyer.Balance.Eur);
                     b.AppendLine("\t\tETH: {0}", Buyer.Balance.Eth);
                 }
-                b.AppendLine("\tAsks (max 5)");
-                b.AppendLine("\t\t{0}", string.Join("\n\t\t", Buyer.Asks.Asks.Take(5)));
+                b.AppendLine("\tAsks (best)");
+                b.AppendLine("\t\t{0}", string.Join("\n\t\t", Buyer.Asks.Asks.Take(1)));
             }
 
             b.AppendLine();
@@ -71,6 +72,7 @@ namespace Interface
             }
             else
             {
+                b.AppendLine("\t{0}", Seller.Name);
                 if (Seller.Balance != null)
                 {
                     b.AppendLine("\tBalance:");
@@ -80,8 +82,8 @@ namespace Interface
                 /*b.AppendLine("\tChunk");
                 b.AppendLine("\t\tMax euros to use: {0}", ChunkEur);
                 b.AppendLine("\t\tActual euros to use: {0}", eurToBuy);*/
-                b.AppendLine("\tBids (max 5)");
-                b.AppendLine("\t\t{0}", string.Join("\n\t\t", Seller.Bids.Bids.Take(5)));
+                b.AppendLine("\tBids (best)");
+                b.AppendLine("\t\t{0}", string.Join("\n\t\t", Seller.Bids.Bids.Take(1)));
             }
 
             b.AppendLine();
@@ -102,12 +104,14 @@ namespace Interface
 
     public class BuyerStatus
     {
+        public string Name { get; set; }
         public BalanceResult Balance { get; set; }
         public IAskOrderBook Asks { get; set; }
     }
 
     public class SellerStatus
     {
+        public string Name { get; set; }
         public BalanceResult Balance { get; set; }
         public IBidOrderBook Bids { get; set; }
     }

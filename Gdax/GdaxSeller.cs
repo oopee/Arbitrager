@@ -15,6 +15,8 @@ namespace Gdax
         GDAXClient.GDAXClient m_client;
         ILogger m_logger;
 
+        public string Name => "GDAX";
+
         public GdaxSeller(GdaxConfiguration configuration, ILogger logger, bool isSandbox)
         {
             m_logger = logger;
