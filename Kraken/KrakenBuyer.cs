@@ -11,10 +11,11 @@ namespace Kraken
     public class KrakenBuyer : Interface.IBuyer
     {
         KrakenClient.KrakenClient m_client;
+        ILogger m_logger;
 
         public KrakenConfiguration Configuration { get; private set; }        
 
-        public KrakenBuyer(KrakenConfiguration configuration)
+        public KrakenBuyer(KrakenConfiguration configuration, ILogger logger)
         {
             Configuration = configuration;
             m_client = new KrakenClient.KrakenClient(
@@ -24,8 +25,10 @@ namespace Kraken
                 configuration.Secret);
         }
 
-        public async Task PlaceBuyOrder()
+        public async Task<MyOrder> PlaceBuyOrder(decimal price, decimal volume)
         {
+            MyOrder myOrder = null;
+
             await Task.Run(() =>
             {
                 var order = new KrakenClient.KrakenOrder()
@@ -33,13 +36,24 @@ namespace Kraken
                     Pair = "XETHZEUR",
                     Type = "buy",
                     OrderType = "limit",
-                    Price = 1m,
-                    Volume = 0.01m
-                };
+                    Price = price,
+                    Volume = volume
+                };                
 
                 var result = m_client.AddOrder(order);
                 var r = GetResultAndThrowIfError(result);
+
+                m_logger.Info("KrakenBuyer: Placed order {0}", r);
+
+                myOrder = new MyOrder()
+                {
+                    Ids = ((JsonArray)r["txid"]).Select(x => new OrderId((string)x)).ToList(),
+                    PricePerUnit = price,
+                    Volume = volume
+                };
             });
+
+            return myOrder;
         }
 
         public async Task<IAskOrderBook> GetAsks()
@@ -63,7 +77,7 @@ namespace Kraken
                 {
                     var askOrders = asks
                     .Cast<JsonArray>()
-                    .Select(x => new Order()
+                    .Select(x => new OrderBookOrder()
                     {
                         PricePerUnit = Common.Utils.StringToDecimal((string)x[0]),
                         VolumeUnits = Common.Utils.StringToDecimal((string)x[1]),
@@ -79,7 +93,7 @@ namespace Kraken
                 {
                     var bidOrders = bids
                     .Cast<JsonArray>()
-                    .Select(x => new Order()
+                    .Select(x => new OrderBookOrder()
                     {
                         PricePerUnit = Common.Utils.StringToDecimal((string)x[0]),
                         VolumeUnits = Common.Utils.StringToDecimal((string)x[1]),
@@ -107,9 +121,7 @@ namespace Kraken
                     var val = decimal.Parse((string)member.Value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture);
                     all[member.Name] = val;
                 }
-
-                // {{"error":[],"result":{"ZEUR":"2039.0751","XETH":"0.0000032900"}}}
-
+                
                 return new BalanceResult()
                 {
                     All = all,
@@ -121,26 +133,34 @@ namespace Kraken
             return result;
         }
 
-        private JsonObject GetResultAndThrowIfError(Jayrock.Json.JsonObject obj)
+        private JsonObject GetResultAndThrowIfError(Jayrock.Json.JsonObject obj, [System.Runtime.CompilerServices.CallerMemberName] string caller = null)
         {
-            if (obj == null)
+            try
             {
-                throw new MyException("obj is null");
-            }
+                if (obj == null)
+                {
+                    throw new MyException("obj is null");
+                }
 
-            var error = obj["error"] as Jayrock.Json.JsonArray;
-            if (error != null && error.Count > 0)
+                var error = obj["error"] as Jayrock.Json.JsonArray;
+                if (error != null && error.Count > 0)
+                {
+                    throw new MyException(string.Format("ERROR:\n\t{0}", string.Join("\t", error.Select(x => x.ToString()))));
+                }
+
+                var result = (JsonObject)obj["result"];
+                if (result == null)
+                {
+                    throw new MyException(string.Format("result is null ({0})", obj));
+                }
+
+                return result;
+            }
+            catch (MyException e)
             {
-                throw new MyException(string.Format("ERROR:\n\t", string.Join("\t", error.Select(x => x.ToString()))));
+                m_logger.Error("KrakenBuyer error in {0}: {1}", caller, e.Message);
+                throw;
             }
-
-            var result = (JsonObject)obj["result"];
-            if (result == null)
-            {
-                throw new MyException(string.Format("result is null ({0})", obj));
-            }
-
-            return result;
         }
     }
 

@@ -747,11 +747,11 @@
             bool validate = false, 
             Dictionary<string, string> close = null)
         {
-            string reqs = string.Format("&pair={0}&type={1}&ordertype={2}&volume={3}&leverage={4}", pair, type, ordertype, volume,leverage);
+            string reqs = string.Format("&pair={0}&type={1}&ordertype={2}&volume={3}&leverage={4}", pair, type, ordertype, volume.ToString(System.Globalization.CultureInfo.InvariantCulture), leverage);
             if (price.HasValue)
-                reqs += string.Format("&price={0}", price.Value);
+                reqs += string.Format("&price={0}", price.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
             if (price2.HasValue)
-                reqs += string.Format("&price2={0}", price2.Value);
+                reqs += string.Format("&price2={0}", price2.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
             if (!string.IsNullOrEmpty(position))
                 reqs += string.Format("&position={0}", position);
             if (!string.IsNullOrEmpty(starttm))

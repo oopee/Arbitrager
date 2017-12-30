@@ -8,21 +8,21 @@ namespace Interface
 {
     public interface IBidOrderBook
     {
-        List<Order> Bids { get; }
+        List<OrderBookOrder> Bids { get; }
     }
 
     public interface IAskOrderBook
     {
-        List<Order> Asks { get; }
+        List<OrderBookOrder> Asks { get; }
     }
 
     public class OrderBook : IBidOrderBook, IAskOrderBook
     {
-        public List<Order> Asks { get; set; } = new List<Order>();
-        public List<Order> Bids { get; set; } = new List<Order>();
+        public List<OrderBookOrder> Asks { get; set; } = new List<OrderBookOrder>();
+        public List<OrderBookOrder> Bids { get; set; } = new List<OrderBookOrder>();
     }
 
-    public class Order
+    public class OrderBookOrder
     {
         public decimal PricePerUnit { get; set; }
         public decimal VolumeUnits { get; set; }

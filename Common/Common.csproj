@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Arbitrager\DefaultArbitrager.cs" />
     <Compile Include="BuyerBase.cs" />
     <Compile Include="LoggerBase.cs" />
     <Compile Include="UserBase.cs" />
