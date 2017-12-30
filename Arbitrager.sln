@@ -1,0 +1,63 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbitrager", "Arbitrager\Arbitrager.csproj", "{DD72D777-298F-4399-99F2-48F38B29334D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Interface", "Interface\Interface.csproj", "{75281DD6-764A-485C-83F9-363EA677863B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kraken", "Kraken\Kraken.csproj", "{A107F68C-CB4B-4956-B505-EB31F2BA4259}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gdax", "Gdax\Gdax.csproj", "{E7F4169B-62EC-4AC4-A10B-27DE54D9EEF4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{F8D4B65D-398D-4B5B-8C36-C32431F7D863}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3rdParty", "3rdParty", "{BA9BB67B-6E5C-464B-8703-6A2403B5A6F0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakenClient", "3rdParty\KrakenClient\KrakenClient.csproj", "{6FD7A9D6-CE6D-4B57-BEBB-FAAF2490811E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Common\Common.csproj", "{4BA7E660-3529-4368-A894-28E2F8132DEE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DD72D777-298F-4399-99F2-48F38B29334D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD72D777-298F-4399-99F2-48F38B29334D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD72D777-298F-4399-99F2-48F38B29334D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD72D777-298F-4399-99F2-48F38B29334D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75281DD6-764A-485C-83F9-363EA677863B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75281DD6-764A-485C-83F9-363EA677863B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75281DD6-764A-485C-83F9-363EA677863B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75281DD6-764A-485C-83F9-363EA677863B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A107F68C-CB4B-4956-B505-EB31F2BA4259}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A107F68C-CB4B-4956-B505-EB31F2BA4259}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A107F68C-CB4B-4956-B505-EB31F2BA4259}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A107F68C-CB4B-4956-B505-EB31F2BA4259}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7F4169B-62EC-4AC4-A10B-27DE54D9EEF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7F4169B-62EC-4AC4-A10B-27DE54D9EEF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7F4169B-62EC-4AC4-A10B-27DE54D9EEF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7F4169B-62EC-4AC4-A10B-27DE54D9EEF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8D4B65D-398D-4B5B-8C36-C32431F7D863}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8D4B65D-398D-4B5B-8C36-C32431F7D863}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8D4B65D-398D-4B5B-8C36-C32431F7D863}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8D4B65D-398D-4B5B-8C36-C32431F7D863}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6FD7A9D6-CE6D-4B57-BEBB-FAAF2490811E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FD7A9D6-CE6D-4B57-BEBB-FAAF2490811E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FD7A9D6-CE6D-4B57-BEBB-FAAF2490811E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FD7A9D6-CE6D-4B57-BEBB-FAAF2490811E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4BA7E660-3529-4368-A894-28E2F8132DEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4BA7E660-3529-4368-A894-28E2F8132DEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4BA7E660-3529-4368-A894-28E2F8132DEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4BA7E660-3529-4368-A894-28E2F8132DEE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6FD7A9D6-CE6D-4B57-BEBB-FAAF2490811E} = {BA9BB67B-6E5C-464B-8703-6A2403B5A6F0}
+	EndGlobalSection
+EndGlobal
