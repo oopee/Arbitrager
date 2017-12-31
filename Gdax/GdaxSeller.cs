@@ -91,14 +91,67 @@ namespace Gdax
         {
             var orders = await m_client.OrdersService.GetAllOrdersAsync();
 
-            // TODO
-
-            return new List<FullMyOrder>();
+            var result = orders.SelectMany(x => x).Select(x => ParseOrder(x)).ToList();
+            return result;
         }
 
         public Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null)
         {
             throw new NotImplementedException();
+        }
+
+        private FullMyOrder ParseOrder(GDAXClient.Services.Orders.OrderResponse order)
+        {
+            return new FullMyOrder()
+            {
+                Ids = new List<OrderId>() { new OrderId(order.Id.ToString()) },
+                Fee = order.Fill_fees,
+                OpenTime = order.Created_at,
+                StartTime = null,
+                ExpireTime = null,
+                FilledVolume = order.Filled_size,
+                Volume = order.Size,
+                PricePerUnit = order.Price,
+                Type = ParseSide(order.Side),
+                OrderType = ParseOrderType(order.Type),
+                State = ParseState(order.Status),
+                Cost = 0m // TODO
+            };
+        }
+
+        private OrderType ParseSide(string side)
+        {
+            switch (side)
+            {
+                case "buy": return OrderType.Buy;
+                case "sell": return OrderType.Sell;
+                default:
+                    m_logger.Error("GdaxSeller.ParseSide: unknown value '{0}", side);
+                    return OrderType.Unknown;
+            }
+        }
+
+        private OrderType2 ParseOrderType(string type)
+        {
+            switch (type)
+            {
+                case "limit": return OrderType2.Limit;
+                default:
+                    m_logger.Error("GdaxSeller.ParseOrderType: unknown value '{0}", type);
+                    return OrderType2.Unknown;
+            }
+        }
+
+        private OrderState ParseState(string state)
+        {
+            switch (state)
+            {
+                case "open": return OrderState.Open;
+                case "done": return OrderState.Closed;
+                default:
+                    m_logger.Error("GdaxSeller.ParseState: unknown value '{0}", state);
+                    return OrderState.Unknown;
+            }
         }
     }
 
