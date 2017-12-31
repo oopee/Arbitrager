@@ -30,19 +30,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Jayrock">
-      <HintPath>..\packages\jayrock.0.9.16530\lib\net40\Jayrock.dll</HintPath>
-    </Reference>
-    <Reference Include="Jayrock.Json">
-      <HintPath>..\packages\jayrock-json.0.9.16530\lib\net40\Jayrock.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="PennedObjects.RateLimiting, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>bin\Debug\PennedObjects.RateLimiting.dll</HintPath>
-    </Reference>
-    <Reference Include="RateGate, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\JackLeitch.RateGate.1.0.0\lib\net40\RateGate.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
@@ -51,6 +38,17 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="Jayrock.Json">
+      <HintPath>..\..\packages\jayrock-json.0.9.16530.1\lib\net40\Jayrock.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Jayrock">
+      <HintPath>..\..\packages\jayrock.0.9.16530.1\lib\net40\Jayrock.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RateGate">
+      <HintPath>..\..\packages\JackLeitch.RateGate.1.0.0\lib\net40\RateGate.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="KrakenClient.cs" />
