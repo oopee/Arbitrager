@@ -61,8 +61,89 @@
         {
             Dispose(false);
         }
-        
-        private JsonObject QueryPublic(string a_sMethod, string props=null)
+
+        private JsonObject QueryPrivate(string a_sMethod, string props = null, int retryCount = 10)
+        {
+            return QueryWithRetry(QueryPrivateNoRetry, a_sMethod, props, retryCount);
+        }
+
+        private JsonObject QueryPublic(string a_sMethod, string props = null, int retryCount = 10)
+        {
+            return QueryWithRetry(QueryPublicNoRetry, a_sMethod, props, retryCount);
+        }
+
+        private JsonObject QueryWithRetry(Func<string, string, JsonObject> queryMethod, string a_sMethod, string props = null, int retryCount = 10)
+        {
+            // If retrying is not allowed, just make the call as usual
+            if (retryCount <= 0)
+            {
+                return queryMethod(a_sMethod, props);
+            }
+
+            var statusCodesToRetry = new List<int>() { (int)HttpStatusCode.GatewayTimeout, 520 };
+            int retries = 0;
+            JsonObject result = null;
+            do
+            {
+                string retryErrorText = null;
+                Exception exception = null;
+
+                try
+                {
+                    result = queryMethod(a_sMethod, props);
+
+                    var error = result["error"] as Jayrock.Json.JsonArray;
+                    if (error != null && error.Count > 0)
+                    {
+                        if (error.Count == 1 && error.Single().ToString().Contains("Unavailable"))
+                        {
+                            retryErrorText = string.Format("Got error '{0}'", error.Single().ToString());
+                        }
+                    }
+                }
+                catch (WebException e)
+                {
+                    exception = e;
+
+                    HttpWebResponse response = (HttpWebResponse)e.Response;
+                    if (statusCodesToRetry.Contains((int)response.StatusCode))
+                    {
+                        retryErrorText = string.Format("Got response {0} {1}", (int)response.StatusCode, response.StatusDescription);
+                    }
+                }
+
+                if (retryErrorText != null)
+                {
+                    if (retries < retryCount)
+                    {
+                        result = null;
+                        ++retries;
+                        Console.WriteLine(string.Format("{0}: {1}, retrying ({2})", a_sMethod, retryErrorText, retries));
+                    }
+                    else
+                    {
+                        Console.WriteLine(string.Format("{0}: {1}, retry limit exceeded", a_sMethod, retryErrorText));
+
+                        if (exception != null)
+                        {
+                            throw exception;
+                        }
+
+                        return result;
+                    }
+                }
+            }
+            while (result == null);
+
+            if (retries > 0)
+            {
+                Console.WriteLine(string.Format("{0}: Query succeeded after {1} retries", a_sMethod, retries));
+            }
+
+            return result;
+        }
+
+        private JsonObject QueryPublicNoRetry(string a_sMethod, string props = null)
         {
             string address = string.Format("{0}/{1}/public/{2}", _url, _version, a_sMethod);
             HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(address);
@@ -98,29 +179,26 @@
             }
             catch (WebException wex)
             {
-                using (HttpWebResponse response = (HttpWebResponse)wex.Response)
+                HttpWebResponse response = (HttpWebResponse)wex.Response;
+
+                using (Stream str = response.GetResponseStream())
                 {
-                    using (Stream str = response.GetResponseStream())
+                    using (StreamReader sr = new StreamReader(str))
                     {
-                        using (StreamReader sr = new StreamReader(str))
+                        if (response.StatusCode != HttpStatusCode.InternalServerError)
                         {
-                            if (response.StatusCode != HttpStatusCode.InternalServerError)
-                            {
-                                throw;
-                            }
-                            return (JsonObject)JsonConvert.Import(sr);
+                            throw;
                         }
+                        return (JsonObject)JsonConvert.Import(sr);
                     }
                 }
-
             }
         }
-
-        private JsonObject QueryPrivate(string a_sMethod, string props = null)
+        private JsonObject QueryPrivateNoRetry(string a_sMethod, string props = null)
         {
             // generate a 64 bit nonce using a timestamp at tick resolution
             Int64 nonce = DateTime.Now.Ticks;
-            props =  "nonce=" + nonce + props;
+            props = "nonce=" + nonce + props;
 
 
             string path = string.Format("/{0}/private/{1}", _version, a_sMethod);
@@ -130,7 +208,7 @@
             webRequest.Method = "POST";
             webRequest.Headers.Add("API-Key", _key);
 
-            
+
             byte[] base64DecodedSecred = Convert.FromBase64String(_secret);
 
             var np = nonce + Convert.ToChar(0) + props;
@@ -173,21 +251,18 @@
             }
             catch (WebException wex)
             {
-                using (HttpWebResponse response = (HttpWebResponse)wex.Response)
+                HttpWebResponse response = (HttpWebResponse)wex.Response;
+                using (Stream str = response.GetResponseStream())
                 {
-                    using (Stream str = response.GetResponseStream())
+                    using (StreamReader sr = new StreamReader(str))
                     {
-                        using (StreamReader sr = new StreamReader(str))
+                        if (response.StatusCode != HttpStatusCode.InternalServerError)
                         {
-                            if (response.StatusCode != HttpStatusCode.InternalServerError)
-                            {
-                                throw;
-                            }
-                            return (JsonObject)JsonConvert.Import(sr);
+                            throw;
                         }
+                        return (JsonObject)JsonConvert.Import(sr);
                     }
                 }
-
             }
         }
 
@@ -769,7 +844,7 @@
                 string closeString = string.Format("&close[ordertype]={0}&close[price]={1}&close[price2]={2}",close["ordertype"],close["price"],close["price2"]);
                 reqs += closeString;               
             }
-            return QueryPrivate("AddOrder", reqs) as JsonObject;
+            return QueryPrivate("AddOrder", reqs, retryCount: 0) as JsonObject;
         }
 
         public JsonObject AddOrder(KrakenOrder krakenOrder)
@@ -801,7 +876,7 @@
         public JsonObject CancelOrder(string txid)
         {
             string reqs = string.Format("&txid={0}", txid);
-            return QueryPrivate("CancelOrder", reqs);
+            return QueryPrivate("CancelOrder", reqs, retryCount: 0);
         }
 
         #endregion
