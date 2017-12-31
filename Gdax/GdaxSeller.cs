@@ -35,7 +35,7 @@ namespace Gdax
                 {
                     PricePerUnit = x.First(),
                     VolumeUnits = x.Skip(1).First(),
-                    Timestamp = DateTime.Now
+                    Timestamp = DateTime.UtcNow
                 }));
             }
 
@@ -45,7 +45,7 @@ namespace Gdax
                 {
                     PricePerUnit = x.First(),
                     VolumeUnits = x.Skip(1).First(),
-                    Timestamp = DateTime.Now
+                    Timestamp = DateTime.UtcNow
                 }));
             }
 
@@ -78,12 +78,27 @@ namespace Gdax
             {
                 Ids = new List<OrderId>() { new OrderId(order.Id.ToString()) },
                 PricePerUnit = order.Price,
-                Volume = order.Size
+                Volume = order.Size,
+                Type = OrderType.Sell
             };
 
             Logger.Info("GdaxSeller: placed sell order {0}", orderResult);
 
             return orderResult;
+        }
+
+        public async Task<List<FullMyOrder>> GetOpenOrders()
+        {
+            var orders = await m_client.OrdersService.GetAllOrdersAsync();
+
+            // TODO
+
+            return new List<FullMyOrder>();
+        }
+
+        public Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null)
+        {
+            throw new NotImplementedException();
         }
     }
 

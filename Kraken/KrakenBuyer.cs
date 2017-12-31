@@ -19,6 +19,8 @@ namespace Kraken
         public KrakenBuyer(KrakenConfiguration configuration, ILogger logger)
         {
             Configuration = configuration;
+
+            m_logger = logger;
             m_client = new KrakenClient.KrakenClient(
                 configuration.Url,
                 configuration.Version,
@@ -50,7 +52,8 @@ namespace Kraken
                 {
                     Ids = ((JsonArray)r["txid"]).Select(x => new OrderId((string)x)).ToList(),
                     PricePerUnit = price,
-                    Volume = volume
+                    Volume = volume,
+                    Type = OrderType.Buy
                 };
             });
 
@@ -132,6 +135,135 @@ namespace Kraken
             });
 
             return result;
+        }
+
+        public async Task<List<FullMyOrder>> GetOpenOrders()
+        {
+            List<FullMyOrder> orders = new List<FullMyOrder>();
+       
+            await Task.Run(() =>
+            {
+                var result = m_client.GetOpenOrders();
+                var r = GetResultAndThrowIfError(result);
+                var open = (JsonObject)r["open"];
+                foreach (var property in open)
+                {
+                    var order = ParseOrder(property.Name, (JsonObject)property.Value);
+                    orders.Add(order);
+                }
+            });
+
+            return orders;
+        }
+
+        public async Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null)
+        {
+            List<FullMyOrder> orders = new List<FullMyOrder>();
+
+            await Task.Run(() =>
+            {
+                string start = Common.Utils.DateTimeToUnixTimeString(args?.StartUtc);
+                string end = Common.Utils.DateTimeToUnixTimeString(args?.EndUtc);
+
+                var result = m_client.GetClosedOrders(start: start ?? "", end: end ?? "");
+                var r = GetResultAndThrowIfError(result);
+                var closed = (JsonObject)r["closed"];
+                foreach (var property in closed)
+                {
+                    var order = ParseOrder(property.Name, (JsonObject)property.Value);
+                    orders.Add(order);
+                }
+            });
+
+            return orders;
+        }
+
+        private FullMyOrder ParseOrder(string id, JsonObject value)
+        {
+            /*
+           "open": {
+               "OJF4I7-W22RM-GZ6ZJI": {
+                   "refid": null,
+                   "userref": null,
+                   "status": "open",
+                   "opentm": 1514669927.6341,
+                   "starttm": 0,
+                   "expiretm": 0,
+                   "descr": {
+                       "pair": "ETHEUR",
+                       "type": "buy",
+                       "ordertype": "limit",
+                       "price": "1.00",
+                       "price2": "0",
+                       "leverage": "none",
+                       "order": "buy 0.10000000 ETHEUR @ limit 1.00"
+                   },
+                   "vol": "0.10000000",
+                   "vol_exec": "0.00000000",
+                   "cost": "0.00000",
+                   "fee": "0.00000",
+                   "price": "0.00000",
+                   "misc": "",
+                   "oflags": "fciq"
+               }
+               */
+
+            var desc = (JsonObject)value["descr"];
+            var order = new FullMyOrder()
+            {
+                Ids = new List<OrderId>() { new OrderId(id) },
+                PricePerUnit = Common.Utils.StringToDecimal((string)value["price"]),
+                Volume = Common.Utils.StringToDecimal((string)value["vol"]),
+                FilledVolume = Common.Utils.StringToDecimal((string)value["vol_exec"]),
+                Fee = Common.Utils.StringToDecimal((string)value["fee"]),
+                Cost = Common.Utils.StringToDecimal((string)value["cost"]),
+
+                OpenTime = Common.Utils.UnixTimeToDateTime(((JsonNumber)value["opentm"]).ToDouble()),
+                ExpireTime = Common.Utils.UnixTimeToDateTimeNullable(((JsonNumber)value["expiretm"]).ToDouble()),
+                StartTime = Common.Utils.UnixTimeToDateTimeNullable(((JsonNumber)value["starttm"]).ToDouble()),
+
+                State = ParseState((string)value["status"]),
+                Type = ParseType((string)desc["type"]),
+                OrderType = ParseOrderType((string)desc["ordertype"])
+            };
+
+            return order;
+        }
+
+        private OrderState ParseState(string value)
+        {
+            switch (value)
+            {
+                case "open": return OrderState.Open;
+                case "closed": return OrderState.Closed;
+                case "canceled": return OrderState.Cancelled;
+                default:
+                    m_logger.Error("KrakernBuyer.ParseState: unknown value '{0}'", value);
+                    return OrderState.Unknown;
+            }
+        }
+
+        private OrderType ParseType(string value)
+        {
+            switch (value)
+            {
+                case "buy": return OrderType.Buy;
+                case "sell": return OrderType.Sell;
+                default:
+                    m_logger.Error("KrakernBuyer.ParseType: unknown value '{0}'", value);
+                    return OrderType.Unknown;
+            }
+        }
+
+        private OrderType2 ParseOrderType(string value)
+        {
+            switch (value)
+            {
+                case "limit": return OrderType2.Limit;
+                default:
+                    m_logger.Error("KrakernBuyer.ParseOrderType: unknown value '{0}'", value);
+                    return OrderType2.Unknown;
+            }
         }
 
         private JsonObject GetResultAndThrowIfError(Jayrock.Json.JsonObject obj, [System.Runtime.CompilerServices.CallerMemberName] string caller = null)

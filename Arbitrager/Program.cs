@@ -34,8 +34,17 @@ namespace Arbitrager
                 Passphrase = ConfigurationManager.AppSettings["GdaxPassphrase"] ?? "",
             }, Logger.StaticLogger, isSandbox: false);
 
+            /*
+            var openOrders = buyer.GetOpenOrders().Result;
+            var closedOrders = buyer.GetClosedOrders().Result;
+            var closedOrders2 = buyer.GetClosedOrders(new GetOrderArgs()
+            {
+                StartUtc = new DateTime(2017, 12, 29, 0, 0, 0, DateTimeKind.Utc)
+            }).Result;
+
             // buyer.PlaceBuyOrder(price: 1m, volume: 0.1m).Wait();
             // seller.PlaceSellOrder(price: 999m, volume: 0.01m).Wait();
+            */
 
             Do(buyer, seller).Wait();
             Console.ReadLine();

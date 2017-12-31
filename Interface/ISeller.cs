@@ -8,7 +8,6 @@ namespace Interface
 {
     public interface ISeller : IExchange
     {
-        Task<BalanceResult> GetCurrentBalance();
         Task<IBidOrderBook> GetBids();
         Task<MyOrder> PlaceSellOrder(decimal price, decimal volume);
     }
