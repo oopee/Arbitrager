@@ -100,6 +100,16 @@ namespace Gdax
             throw new NotImplementedException();
         }
 
+        public async Task<CancelOrderResult> CancelOrder(OrderId id)
+        {
+            var result = await m_client.OrdersService.CancelOrderByIdAsync(id.Id);
+
+            return new CancelOrderResult()
+            {
+                WasCancelled = true
+            };
+        }
+
         private FullMyOrder ParseOrder(GDAXClient.Services.Orders.OrderResponse order)
         {
             return new FullMyOrder()

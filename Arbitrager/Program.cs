@@ -34,22 +34,26 @@ namespace Arbitrager
                 Passphrase = ConfigurationManager.AppSettings["GdaxPassphrase"] ?? "",
             }, Logger.StaticLogger, isSandbox: false);
 
-            /*
-            var openOrders = buyer.GetOpenOrders().Result;
-            var closedOrders = buyer.GetClosedOrders().Result;
+            
+            // var openOrders = buyer.GetOpenOrders().Result;
+            /*var closedOrders = buyer.GetClosedOrders().Result;
             var closedOrders2 = buyer.GetClosedOrders(new GetOrderArgs()
             {
                 StartUtc = new DateTime(2017, 12, 29, 0, 0, 0, DateTimeKind.Utc)
             }).Result;
             */
+            // buyer.CancelOrder(openOrders[0].Ids.Single()).Wait();
+            // var openOrders2 = buyer.GetOpenOrders().Result;
 
-            var openOrders = seller.GetOpenOrders().Result;
-            var closedOrders = seller.GetClosedOrders().Result;
+            // var openOrders = seller.GetOpenOrders().Result;
+            /*var closedOrders = seller.GetClosedOrders().Result;
             var closedOrders2 = seller.GetClosedOrders(new GetOrderArgs()
             {
                 StartUtc = new DateTime(2017, 12, 29, 0, 0, 0, DateTimeKind.Utc)
-            }).Result;
+            }).Result;*/
 
+            // seller.CancelOrder(openOrders[0].Ids.Single()).Wait();
+            // var openOrders2 = seller.GetOpenOrders().Result;
             // buyer.PlaceBuyOrder(price: 0.01m, volume: 0.01m).Wait();
             // seller.PlaceSellOrder(price: 9999m, volume: 0.01m).Wait();
 

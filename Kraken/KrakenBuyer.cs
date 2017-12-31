@@ -137,6 +137,26 @@ namespace Kraken
             return result;
         }
 
+        public async Task<CancelOrderResult> CancelOrder(OrderId id)
+        {
+            await Task.Run(() =>
+            {
+                var result = m_client.CancelOrder(id.Id);
+                var r = GetResultAndThrowIfError(result);
+                int count = ((JsonNumber)r["count"]).ToInt32();
+
+                if (count == 0)
+                {
+                    throw new MyException(string.Format("KrakenBuyer.CancelOrder: count is 0 ({0})", r));
+                }
+            });
+
+            return new CancelOrderResult()
+            {
+                WasCancelled = true
+            };
+        }
+
         public async Task<List<FullMyOrder>> GetOpenOrders()
         {
             List<FullMyOrder> orders = new List<FullMyOrder>();
