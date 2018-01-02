@@ -21,7 +21,7 @@ namespace Interface
 
     public class MyOrder
     {
-        public List<OrderId> Ids { get; set; } = new List<OrderId>();
+        public OrderId Id { get; set; }
         public decimal PricePerUnit { get; set; }
         public decimal Volume { get; set; }
         public decimal TotalPrice => PricePerUnit * Volume;
@@ -29,7 +29,7 @@ namespace Interface
 
         public override string ToString()
         {
-            return string.Format("{0} ({1}), {2}€ x {3} (= {4}€)", Type, string.Join(", ", Ids), PricePerUnit, Volume, TotalPrice);
+            return string.Format("{0} ({1}), {2}€ x {3} (= {4}€)", Type, Id, PricePerUnit, Volume, TotalPrice);
         }
     }
 
@@ -57,7 +57,7 @@ namespace Interface
 
     public class FullMyOrder
     {
-        public List<OrderId> Ids { get; set; } = new List<OrderId>();
+        public OrderId Id { get; set; }
         public decimal PricePerUnit { get; set; }
         public decimal Volume { get; set; }
         public decimal TotalPrice => PricePerUnit * Volume;
@@ -74,7 +74,7 @@ namespace Interface
 
         public override string ToString()
         {
-            return string.Format("{0} {1} ({2}), {3}€ x {4} (= {5}€). Filled: {6}", State, Type, string.Join(", ", Ids), PricePerUnit, Volume, TotalPrice, FilledVolume);
+            return string.Format("{0} {1} ({2}), {3}€ x {4} (= {5}€). Filled: {6}", State, Type, Id, PricePerUnit, Volume, TotalPrice, FilledVolume);
         }
     }
 
@@ -90,6 +90,37 @@ namespace Interface
         public override string ToString()
         {
             return Id;
+        }
+
+        public static bool operator==(OrderId a, OrderId b)
+        {
+            if (object.ReferenceEquals(a, b))
+            {
+                return true;
+            }
+
+            return a.Id == b.Id;
+        }
+
+        public static bool operator!=(OrderId a, OrderId b)
+        {
+            return !(a == b);
+        }
+
+        public override int GetHashCode()
+        {
+            return Id?.GetHashCode() ?? 0;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || obj.GetType() != typeof(OrderId))
+            {
+                return false;
+            }
+
+            OrderId o = (OrderId)obj;
+            return this == o;
         }
     }
 

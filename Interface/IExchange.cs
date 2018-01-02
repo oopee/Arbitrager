@@ -17,6 +17,7 @@ namespace Interface
         Task<CancelOrderResult> CancelOrder(OrderId id);
         // Task<WithdrawEurResult> WithdrawFundsToBankAccount(decimal eur);
         Task<PaymentMethodResult> GetPaymentMethods();
+        Task<FullMyOrder> GetOrderInfo(OrderId id);
     }
 
     public class GetOrderArgs

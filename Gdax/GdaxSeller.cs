@@ -76,13 +76,13 @@ namespace Gdax
 
             var orderResult = new MyOrder()
             {
-                Ids = new List<OrderId>() { new OrderId(order.Id.ToString()) },
+                Id = new OrderId(order.Id.ToString()),
                 PricePerUnit = order.Price,
                 Volume = order.Size,
                 Type = OrderType.Sell
             };
 
-            Logger.Info("GdaxSeller: placed sell order {0}", orderResult);
+            m_logger.Info("GdaxSeller: placed sell order {0}", orderResult);
 
             return orderResult;
         }
@@ -93,6 +93,12 @@ namespace Gdax
 
             var result = orders.SelectMany(x => x).Select(x => ParseOrder(x)).ToList();
             return result;
+        }
+
+        public async Task<FullMyOrder> GetOrderInfo(OrderId id)
+        {
+            var order = await m_client.OrdersService.GetOrderByIdAsync(id.ToString());
+            return ParseOrder(order);
         }
 
         public Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null)
@@ -106,7 +112,7 @@ namespace Gdax
 
             return new CancelOrderResult()
             {
-                WasCancelled = true
+                WasCancelled = result.OrderIds.Select(x => x.ToString()).Contains(id.Id)
             };
         }
 
@@ -135,7 +141,7 @@ namespace Gdax
         {
             return new FullMyOrder()
             {
-                Ids = new List<OrderId>() { new OrderId(order.Id.ToString()) },
+                Id = new OrderId(order.Id.ToString()),
                 Fee = order.Fill_fees,
                 OpenTime = order.Created_at,
                 StartTime = null,

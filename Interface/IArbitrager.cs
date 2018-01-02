@@ -8,6 +8,8 @@ namespace Interface
 {
     public interface IArbitrager
     {
+        IBuyer Buyer { get; }
+        ISeller Seller { get; }
         Task<Status> GetStatus(bool includeBalance);
         Task<AccountsInfo> GetAccountsInfo();
     }

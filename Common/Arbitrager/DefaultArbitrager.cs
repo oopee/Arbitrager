@@ -16,6 +16,9 @@ namespace Common
 
         public decimal ChunkEur { get; set; } = 2000m;
 
+        public IBuyer Buyer => m_buyer;
+        public ISeller Seller => m_seller;
+
         public DefaultArbitrager(IBuyer buyer, ISeller seller, ILogger logger)
         {
             m_buyer = buyer;

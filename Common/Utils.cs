@@ -73,19 +73,3 @@ namespace Common
         private static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     }
 }
-
-namespace System
-{
-    public static class Extensions
-    {
-        public static StringBuilder AppendLine(this StringBuilder builder, string format, params object[] args)
-        {
-            if (args?.Length > 0)
-            {
-                format = string.Format(format, args);
-            }
-
-            return builder.AppendLine(format);
-        }
-    }
-}

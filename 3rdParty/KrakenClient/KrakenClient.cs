@@ -582,12 +582,15 @@
      /// <param name="userref"></param>
      /// <returns></returns>
    /// </returns>
-        public JsonObject GetOpenOrders(bool trades=false, string userref="")
+        public JsonObject GetOpenOrders(bool trades=false, string userref="", string orderId = "")
         {
             string reqs = string.Format("&trades={0}", true);
             
             if (!string.IsNullOrEmpty(userref))
-                reqs += string.Format("&userref={1}", userref);
+                reqs += string.Format("&userref={0}", userref);
+
+            if (!string.IsNullOrEmpty(orderId))
+                reqs += string.Format("&txid={0}", orderId);
             
             return QueryPrivate("OpenOrders", reqs) as JsonObject;
         }

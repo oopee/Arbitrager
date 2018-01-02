@@ -51,7 +51,7 @@ namespace Kraken
 
                 myOrder = new MyOrder()
                 {
-                    Ids = ((JsonArray)r["txid"]).Select(x => new OrderId((string)x)).ToList(),
+                    Id = ((JsonArray)r["txid"]).Select(x => new OrderId((string)x)).First(),
                     PricePerUnit = price,
                     Volume = volume,
                     Type = OrderType.Buy
@@ -151,21 +151,17 @@ namespace Kraken
 
         public async Task<CancelOrderResult> CancelOrder(OrderId id)
         {
+            int count = 0;
             await Task.Run(() =>
             {
                 var result = m_client.CancelOrder(id.Id);
                 var r = GetResultAndThrowIfError(result);
-                int count = ((JsonNumber)r["count"]).ToInt32();
-
-                if (count == 0)
-                {
-                    throw new MyException(string.Format("KrakenBuyer.CancelOrder: count is 0 ({0})", r));
-                }
+                count = ((JsonNumber)r["count"]).ToInt32();
             });
 
             return new CancelOrderResult()
             {
-                WasCancelled = true
+                WasCancelled = count >= 1
             };
         }
 
@@ -210,6 +206,47 @@ namespace Kraken
             return orders;
         }
 
+        public async Task<FullMyOrder> GetOrderInfo(OrderId id)
+        {
+            FullMyOrder order = null;
+
+            await Task.Run(() =>
+            {
+                var result = m_client.GetOpenOrders(true, orderId: id.ToString());
+                var r = GetResultAndThrowIfError(result);
+                var open = (JsonObject)r["open"];
+                if (open != null)
+                {
+                    foreach (var property in open)
+                    {
+                        if (property.Name == id.ToString())
+                        {
+                            order = ParseOrder(property.Name, (JsonObject)property.Value);
+                        }
+                    }
+                }
+
+                var closed = (JsonObject)r["closed"];
+                if (order == null && closed != null)
+                {
+                    foreach (var property in closed)
+                    {
+                        if (property.Name == id.ToString())
+                        {
+                            order = ParseOrder(property.Name, (JsonObject)property.Value);
+                        }
+                    }
+                }
+            });
+
+            if (order?.Id != id)
+            {
+                throw new InvalidOperationException();
+            }
+
+            return order;
+        }
+
         private FullMyOrder ParseOrder(string id, JsonObject value)
         {
             /*
@@ -243,7 +280,7 @@ namespace Kraken
             var desc = (JsonObject)value["descr"];
             var order = new FullMyOrder()
             {
-                Ids = new List<OrderId>() { new OrderId(id) },
+                Id = new OrderId(id),
                 PricePerUnit = Common.Utils.StringToDecimal((string)value["price"]),
                 Volume = Common.Utils.StringToDecimal((string)value["vol"]),
                 FilledVolume = Common.Utils.StringToDecimal((string)value["vol_exec"]),
