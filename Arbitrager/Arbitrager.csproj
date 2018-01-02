@@ -78,6 +78,10 @@
       <Project>{a107f68c-cb4b-4956-b505-eb31f2ba4259}</Project>
       <Name>Kraken</Name>
     </ProjectReference>
+    <ProjectReference Include="..\UtilsInterface\UtilsInterface.csproj">
+      <Project>{e89bf8f3-9e4d-4db7-9623-068f879bb68b}</Project>
+      <Name>UtilsInterface</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

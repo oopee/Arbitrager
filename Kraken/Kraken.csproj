@@ -32,6 +32,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -62,6 +63,10 @@
     <ProjectReference Include="..\Interface\Interface.csproj">
       <Project>{75281dd6-764a-485c-83f9-363ea677863b}</Project>
       <Name>Interface</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\UtilsInterface\UtilsInterface.csproj">
+      <Project>{e89bf8f3-9e4d-4db7-9623-068f879bb68b}</Project>
+      <Name>UtilsInterface</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

@@ -20,17 +20,20 @@
         string _secret;
         //RateGate was taken from http://www.jackleitch.net/2010/10/better-rate-limiting-with-dot-net/
         RateGate _rateGate;
+        Interface.ILogger m_logger;
 
         public KrakenClient(
             string apiBaseAddress,
             int apiVersion,
             string apiKey,
-            string apiSecret)
+            string apiSecret,
+            Interface.ILogger logger)
         {
             /*_url = ConfigurationManager.AppSettings["KrakenBaseAddress"];
             _version = int.Parse(ConfigurationManager.AppSettings["KrakenApiVersion"]);
             _key = ConfigurationManager.AppSettings["KrakenKey"];
             _secret = ConfigurationManager.AppSettings["KrakenSecret"];*/
+            m_logger = logger;
             _url = apiBaseAddress;
             _version = apiVersion;
             _key = apiKey;
@@ -118,11 +121,11 @@
                     {
                         result = null;
                         ++retries;
-                        Console.WriteLine(string.Format("{0}: {1}, retrying ({2})", a_sMethod, retryErrorText, retries));
+                        m_logger.Info(string.Format("{0}: {1}, retrying ({2})", a_sMethod, retryErrorText, retries));
                     }
                     else
                     {
-                        Console.WriteLine(string.Format("{0}: {1}, retry limit exceeded", a_sMethod, retryErrorText));
+                        m_logger.Info(string.Format("{0}: {1}, retry limit exceeded", a_sMethod, retryErrorText));
 
                         if (exception != null)
                         {
@@ -137,7 +140,7 @@
 
             if (retries > 0)
             {
-                Console.WriteLine(string.Format("{0}: Query succeeded after {1} retries", a_sMethod, retries));
+                m_logger.Info(string.Format("{0}: Query succeeded after {1} retries", a_sMethod, retries));
             }
 
             return result;

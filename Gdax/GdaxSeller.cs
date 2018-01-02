@@ -110,6 +110,27 @@ namespace Gdax
             };
         }
 
+        public Task<WithdrawEurResult> WithdrawFundsToBankAccount(decimal eur)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<PaymentMethodResult> GetPaymentMethods()
+        {
+            var methods = await m_client.PaymentsService.GetAllPaymentMethodsAsync();
+
+            return new PaymentMethodResult()
+            {
+                Methods = methods.Select(x => new PaymentMethod()
+                {
+                    Id = new PaymentMethodId(x.Id.ToString()),
+                    Name = x.Name,
+                    Currency = x.Currency,
+                    RawResult = x
+                }).ToList()
+            };
+        }
+
         private FullMyOrder ParseOrder(GDAXClient.Services.Orders.OrderResponse order)
         {
             return new FullMyOrder()
@@ -170,5 +191,15 @@ namespace Gdax
         public string Key { get; set; }
         public string Signature { get; set; }
         public string Passphrase { get; set; }
+
+        public static GdaxConfiguration FromAppConfig()
+        {
+            return new GdaxConfiguration()
+            {
+                Key = System.Configuration.ConfigurationManager.AppSettings["GdaxKey"] ?? "",
+                Signature = System.Configuration.ConfigurationManager.AppSettings["GdaxSecret"] ?? "",
+                Passphrase = System.Configuration.ConfigurationManager.AppSettings["GdaxPassphrase"] ?? "",
+            };
+        }
     }
 }

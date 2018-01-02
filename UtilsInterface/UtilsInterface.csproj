@@ -4,14 +4,13 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{F8D4B65D-398D-4B5B-8C36-C32431F7D863}</ProjectGuid>
+    <ProjectGuid>{E89BF8F3-9E4D-4DB7-9623-068F879BB68B}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Tests</RootNamespace>
-    <AssemblyName>Tests</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <RootNamespace>UtilsInterface</RootNamespace>
+    <AssemblyName>UtilsInterface</AssemblyName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -31,10 +30,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="nunit.framework, Version=3.9.0.0, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
-      <HintPath>..\packages\NUnit.3.9.0\lib\net45\nunit.framework.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -45,41 +40,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="ILogger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\3rdParty\KrakenClient\KrakenClient.csproj">
-      <Project>{6fd7a9d6-ce6d-4b57-bebb-faaf2490811e}</Project>
-      <Name>KrakenClient</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Arbitrager\Arbitrager.csproj">
-      <Project>{dd72d777-298f-4399-99f2-48f38b29334d}</Project>
-      <Name>Arbitrager</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Common\Common.csproj">
-      <Project>{4ba7e660-3529-4368-a894-28e2f8132dee}</Project>
-      <Name>Common</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Gdax\Gdax.csproj">
-      <Project>{e7f4169b-62ec-4ac4-a10b-27de54d9eef4}</Project>
-      <Name>Gdax</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Interface\Interface.csproj">
-      <Project>{75281dd6-764a-485c-83f9-363ea677863b}</Project>
-      <Name>Interface</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Kraken\Kraken.csproj">
-      <Project>{a107f68c-cb4b-4956-b505-eb31f2ba4259}</Project>
-      <Name>Kraken</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\UtilsInterface\UtilsInterface.csproj">
-      <Project>{e89bf8f3-9e4d-4db7-9623-068f879bb68b}</Project>
-      <Name>UtilsInterface</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

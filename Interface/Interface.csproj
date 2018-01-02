@@ -43,7 +43,6 @@
   <ItemGroup>
     <Compile Include="IArbitrager.cs" />
     <Compile Include="IBuyer.cs" />
-    <Compile Include="ILogger.cs" />
     <Compile Include="ISeller.cs" />
     <Compile Include="IExchange.cs" />
     <Compile Include="MyException.cs" />

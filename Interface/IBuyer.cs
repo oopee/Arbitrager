@@ -92,4 +92,19 @@ namespace Interface
             return Id;
         }
     }
+
+    public struct PaymentMethodId
+    {
+        public string Id { get; set; }
+
+        public PaymentMethodId(string id)
+        {
+            Id = id;
+        }
+
+        public override string ToString()
+        {
+            return Id;
+        }
+    }
 }

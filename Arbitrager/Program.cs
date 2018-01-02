@@ -19,20 +19,8 @@ namespace Arbitrager
             Interface.Logger.StaticLogger = new Common.ConsoleLogger();
             //
 
-            var buyer = new KrakenBuyer(new KrakenConfiguration()
-            {
-                Url = "https://api.kraken.com",
-                Version = 0,
-                Secret = ConfigurationManager.AppSettings["KrakenSecret"] ?? "",
-                Key = ConfigurationManager.AppSettings["KrakenKey"] ?? "",
-            }, Logger.StaticLogger);
-
-            var seller = new GdaxSeller(new GdaxConfiguration()
-            {
-                Key = ConfigurationManager.AppSettings["GdaxKey"] ?? "",
-                Signature = ConfigurationManager.AppSettings["GdaxSecret"] ?? "",
-                Passphrase = ConfigurationManager.AppSettings["GdaxPassphrase"] ?? "",
-            }, Logger.StaticLogger, isSandbox: false);
+            var buyer = new KrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger);
+            var seller = new GdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false);
 
             
             // var openOrders = buyer.GetOpenOrders().Result;
@@ -65,8 +53,9 @@ namespace Arbitrager
         static async Task Do(IBuyer buyer, ISeller seller)
         {
             IArbitrager arbitrager = new Common.DefaultArbitrager(buyer, seller, Logger.StaticLogger);
-            var result = await arbitrager.GetStatus(false);
-            Logger.StaticLogger.Info(result.ToString());
+            //var result = await arbitrager.GetStatus(false);
+            var result = await arbitrager.GetAccountsInfo();
+            Logger.Info(result.ToString());
         }
     }   
 }

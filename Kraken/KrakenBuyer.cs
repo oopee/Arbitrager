@@ -25,7 +25,8 @@ namespace Kraken
                 configuration.Url,
                 configuration.Version,
                 configuration.Key,
-                configuration.Secret);
+                configuration.Secret,
+                m_logger);
         }
 
         public async Task<MyOrder> PlaceBuyOrder(decimal price, decimal volume)
@@ -135,6 +136,17 @@ namespace Kraken
             });
 
             return result;
+        }
+
+
+        public Task<WithdrawEurResult> WithdrawFundsToBankAccount(decimal eur)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<PaymentMethodResult> GetPaymentMethods()
+        {
+            return Task.FromResult(new PaymentMethodResult());
         }
 
         public async Task<CancelOrderResult> CancelOrder(OrderId id)
@@ -319,9 +331,19 @@ namespace Kraken
 
     public class KrakenConfiguration
     {
-        public string Url { get; set; }
-        public int Version { get; set; }
         public string Key { get; set; }
         public string Secret { get; set; }
+
+        public string Url => "https://api.kraken.com";
+        public int Version => 0;
+
+        public static KrakenConfiguration FromAppConfig()
+        {
+            return new KrakenConfiguration()
+            {
+                Secret = System.Configuration.ConfigurationManager.AppSettings["KrakenSecret"] ?? "",
+                Key = System.Configuration.ConfigurationManager.AppSettings["KrakenKey"] ?? "",
+            };
+        }
     }
 }

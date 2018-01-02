@@ -23,6 +23,30 @@ namespace Common
             m_logger = logger;
         }
 
+        public async Task<AccountsInfo> GetAccountsInfo()
+        {
+            var buyer = await GetAccountInfo(m_buyer);
+            var seller = await GetAccountInfo(m_seller);
+
+            return new AccountsInfo()
+            {
+                Accounts = new List<AccountInfo>() { buyer, seller }
+            };
+        }
+
+        private async Task<AccountInfo> GetAccountInfo(IExchange exchange)
+        {
+            var balance = await exchange.GetCurrentBalance();
+            var methods = await exchange.GetPaymentMethods();
+
+            return new AccountInfo()
+            {
+                Name = exchange.Name,
+                Balance = balance,
+                PaymentMethods = methods.Methods
+            };
+        }
+
         public async Task<Status> GetStatus(bool includeBalance)
         {
             BalanceResult buyerBalance = null;

@@ -15,6 +15,8 @@ namespace Interface
         Task<List<FullMyOrder>> GetOpenOrders();
         Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null);
         Task<CancelOrderResult> CancelOrder(OrderId id);
+        // Task<WithdrawEurResult> WithdrawFundsToBankAccount(decimal eur);
+        Task<PaymentMethodResult> GetPaymentMethods();
     }
 
     public class GetOrderArgs
@@ -23,9 +25,22 @@ namespace Interface
         public DateTime? EndUtc { get; set; }
     }
 
-    public class CancelOrderResult
+    public class GenericResult
     {
         public bool WasCancelled { get; set; }
         public string Error { get; set; }
+    }
+
+    public class CancelOrderResult : GenericResult
+    {
+    }
+
+    public class WithdrawEurResult : GenericResult
+    {
+    }
+
+    public class PaymentMethodResult
+    {
+        public List<PaymentMethod> Methods { get; set; } = new List<PaymentMethod>();
     }
 }

@@ -62,6 +62,10 @@
       <Project>{75281dd6-764a-485c-83f9-363ea677863b}</Project>
       <Name>Interface</Name>
     </ProjectReference>
+    <ProjectReference Include="..\UtilsInterface\UtilsInterface.csproj">
+      <Project>{e89bf8f3-9e4d-4db7-9623-068f879bb68b}</Project>
+      <Name>UtilsInterface</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

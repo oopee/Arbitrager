@@ -9,6 +9,47 @@ namespace Interface
     public interface IArbitrager
     {
         Task<Status> GetStatus(bool includeBalance);
+        Task<AccountsInfo> GetAccountsInfo();
+    }
+
+    public class AccountsInfo
+    {
+        public List<AccountInfo> Accounts { get; set; } = new List<AccountInfo>();
+
+        public override string ToString()
+        {
+            return string.Join("\n\n", Accounts);
+        }
+    }
+
+    public class AccountInfo
+    {
+        public string Name { get; set; }
+        public BalanceResult Balance { get; set; }
+        public List<PaymentMethod> PaymentMethods { get; set; } = new List<PaymentMethod>();
+
+        public override string ToString()
+        {
+            StringBuilder b = new StringBuilder();
+            b.AppendLine();
+            b.AppendLine("ACCOUNT");
+            b.AppendLine("\t{0}", Name);
+            b.AppendLine("\tBalance:");
+            b.AppendLine("\t\tEUR: {0}", Balance.Eur);
+            b.AppendLine("\t\tETH: {0}", Balance.Eth);
+            b.AppendLine();
+            b.AppendLine("\tPayment methods:");
+            if (PaymentMethods.Count > 0)
+            {
+                b.AppendLine("\t\t{0}", string.Join("\n\t\t", PaymentMethods.Select(x => x.Name)));
+            }
+            else
+            {
+                b.AppendLine("\t\tNone");
+            }
+
+            return b.ToString();
+        }
     }
 
     public class Status
@@ -127,5 +168,13 @@ namespace Interface
         /// Ratio MaxNegativeSpread / LowestAskPrice.
         /// </summary>
         public decimal MaxNegativeSpreadPercentage { get; set; }
+    }
+
+    public class PaymentMethod
+    {
+        public PaymentMethodId Id { get; set; }
+        public string Name { get; set; }
+        public string Currency { get; set; }
+        public object RawResult { get; set; }
     }
 }
