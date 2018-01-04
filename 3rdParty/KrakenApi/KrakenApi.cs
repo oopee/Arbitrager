@@ -1269,7 +1269,85 @@ namespace KrakenApi
             catch (Exception) { return ""; }
         }
 
-        public string QueryPublic(string method, Dictionary<string, string> param = null)
+        private string QueryPrivate(string method, Dictionary<string, string> param = null, int retryCount = 10)
+        {
+            return QueryWithRetry(QueryPrivateNoRetry, method, param, retryCount);
+        }
+
+        public string QueryPublic(string method, Dictionary<string, string> param = null, int retryCount = 10)
+        {
+            return QueryWithRetry(QueryPublicNoRetry, method, param, retryCount);
+        }
+
+        private string QueryWithRetry(Func<string, Dictionary<string, string>, string> queryMethod, string method, Dictionary<string, string> param = null, int retryCount = 10)
+        {
+            // If retrying is not allowed, just make the call as usual
+            if (retryCount <= 0)
+            {
+                return queryMethod(method, param);
+            }
+
+            var statusCodesToRetry = new List<int>() { (int)HttpStatusCode.GatewayTimeout, 520 };
+            int retries = 0;
+            string result = null;
+            do
+            {
+                string retryErrorText = null;
+                Exception exception = null;
+
+                try
+                {
+                    result = queryMethod(method, param);
+
+                    // TODO: Proper handling for service unavailable 
+                    if (result.Contains("error") && result.Contains("Unavailable"))
+                    {
+                        retryErrorText = string.Format("Service unavailable");
+                    }
+                }
+                catch (WebException e)
+                {
+                    exception = e;
+
+                    HttpWebResponse response = (HttpWebResponse)e.Response;
+                    if (statusCodesToRetry.Contains((int)response.StatusCode))
+                    {
+                        retryErrorText = string.Format("Got response {0} {1}", (int)response.StatusCode, response.StatusDescription);
+                    }
+                }
+
+                if (retryErrorText != null)
+                {
+                    if (retries < retryCount)
+                    {
+                        result = null;
+                        ++retries;
+                        Console.WriteLine(string.Format("{0}: {1}, retrying ({2})", method, retryErrorText, retries));
+                    }
+                    else
+                    {
+                        Console.WriteLine(string.Format("{0}: {1}, retry limit exceeded", method, retryErrorText));
+
+                        if (exception != null)
+                        {
+                            throw exception;
+                        }
+
+                        return result;
+                    }
+                }
+            }
+            while (result == null);
+
+            if (retries > 0)
+            {
+                Console.WriteLine(string.Format("{0}: Query succeeded after {1} retries", method, retries));
+            }
+
+            return result;
+        }
+
+        private string QueryPublicNoRetry(string method, Dictionary<string, string> param = null)
         {
             RateLimit();
 
@@ -1297,23 +1375,21 @@ namespace KrakenApi
             }
             catch (WebException wex)
             {
-                using (HttpWebResponse response = (HttpWebResponse)wex.Response)
-                {
-                    if (response == null)
-                        throw;
+                HttpWebResponse response = (HttpWebResponse)wex.Response;
+                if (response == null)
+                    throw;
 
-                    Stream str = response.GetResponseStream();
-                    using (StreamReader sr = new StreamReader(str))
-                    {
-                        if (response.StatusCode != HttpStatusCode.InternalServerError)
-                            throw;
-                        return sr.ReadToEnd();
-                    }
+                Stream str = response.GetResponseStream();
+                using (StreamReader sr = new StreamReader(str))
+                {
+                    if (response.StatusCode != HttpStatusCode.InternalServerError)
+                        throw;
+                    return sr.ReadToEnd();
                 }
             }
         }
 
-        private string QueryPrivate(string method, Dictionary<string, string> param = null)
+        private string QueryPrivateNoRetry(string method, Dictionary<string, string> param = null)
         {
             RateLimit();
 
@@ -1351,18 +1427,16 @@ namespace KrakenApi
             }
             catch (WebException wex)
             {
-                using (HttpWebResponse response = (HttpWebResponse)wex.Response)
-                {
-                    Stream str = response.GetResponseStream();
-                    if (str == null)
-                        throw;
+                HttpWebResponse response = (HttpWebResponse)wex.Response;
+                Stream str = response.GetResponseStream();
+                if (str == null)
+                    throw;
 
-                    using (StreamReader sr = new StreamReader(str))
-                    {
-                        if (response.StatusCode != HttpStatusCode.InternalServerError)
-                            throw;
-                        return sr.ReadToEnd();
-                    }
+                using (StreamReader sr = new StreamReader(str))
+                {
+                    if (response.StatusCode != HttpStatusCode.InternalServerError)
+                        throw;
+                    return sr.ReadToEnd();
                 }
             }
         }
@@ -2000,7 +2074,7 @@ namespace KrakenApi
                 param.Add("close[price2]", order.Close["price2"]);
             }
 
-            var res = QueryPrivate("AddOrder", param);
+            var res = QueryPrivate("AddOrder", param, retryCount: 0);
             var ret = JsonConvert.DeserializeObject<AddOrderResponse>(res);
             if (ret.Error.Count != 0)
                 throw new KrakenException(ret.Error[0], ret);
@@ -2023,7 +2097,7 @@ namespace KrakenApi
             var param = new Dictionary<string, string>();
             param.Add("txid", txid);
 
-            var res = QueryPrivate("CancelOrder", param);
+            var res = QueryPrivate("CancelOrder", param, retryCount: 0);
             var ret = JsonConvert.DeserializeObject<CancelOrderResponse>(res);
             if (ret.Error.Count != 0)
                 throw new KrakenException(ret.Error[0], ret);
@@ -2148,7 +2222,7 @@ namespace KrakenApi
             if (aclass != null)
                 param.Add("aclass", aclass);
 
-            var res = QueryPrivate("Withdraw", param);
+            var res = QueryPrivate("Withdraw", param, retryCount: 0);
             var ret = JsonConvert.DeserializeObject<WithdrawResponse>(res);
             if (ret.Error.Count != 0)
                 throw new KrakenException(ret.Error[0], ret);
@@ -2196,7 +2270,7 @@ namespace KrakenApi
             if (aclass != null)
                 param.Add("aclass", aclass);
 
-            var res = QueryPrivate("WithdrawCancel", param);
+            var res = QueryPrivate("WithdrawCancel", param, retryCount: 0);
             var ret = JsonConvert.DeserializeObject<WithdrawCancelResponse>(res);
             if (ret.Error.Count != 0)
                 throw new KrakenException(ret.Error[0], ret);
