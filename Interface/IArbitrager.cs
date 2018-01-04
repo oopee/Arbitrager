@@ -160,6 +160,11 @@ namespace Interface
         {
             var calc = profitCalculation;
 
+            if (calc.FiatSpent <= 0)
+            {
+                return;
+            }
+
             b.AppendLine();
 
             string moneySpentSummary = string.Format("{0:0.00}e", calc.FiatSpent);

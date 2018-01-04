@@ -70,7 +70,7 @@ namespace Arbitrager
                         ShowHelp();
                         break;
                     case "status":
-                        decimal? cashLimit = 0;
+                        decimal? cashLimit = null;
                         if (parts.Count() > 1 && decimal.TryParse(parts[1], out var parsedCashLimit))
                         {
                             cashLimit = parsedCashLimit;
