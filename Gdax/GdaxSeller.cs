@@ -26,7 +26,7 @@ namespace Gdax
 
         public async Task<IBidOrderBook> GetBids()
         {
-            var result = await m_client.ProductsService.GetProductOrderBookAsync(GDAXClient.Services.Orders.ProductType.EthEur);
+            var result = await m_client.ProductsService.GetProductOrderBookAsync(GDAXClient.Services.Orders.ProductType.EthEur, GDAXClient.Products.ProductsService.OrderBookLevel.Top50);
 
             var orderBook = new OrderBook();
             if (result.Asks.Any())

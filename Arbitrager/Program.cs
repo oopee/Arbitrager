@@ -68,7 +68,14 @@ namespace Arbitrager
                         ShowHelp();
                         break;
                     case "status":
-                        await ShowStatus();
+                        decimal? cashLimit = 0;
+                        if (parts.Count() > 1 && decimal.TryParse(parts[1], out var parsedCashLimit))
+                        {
+                            cashLimit = parsedCashLimit;
+                        }
+
+                        await ShowStatus(cashLimit);
+
                         break;
                     case "accounts":
                         await ShowAccounts();
@@ -360,9 +367,15 @@ namespace Arbitrager
             return null;
         }
 
-        private async Task ShowStatus()
+        private async Task ShowStatus(decimal? cashLimit = null)
         {
             var status = await m_arbitrager.GetStatus(true);
+
+            if (cashLimit.HasValue)
+            {
+                status.CashLimit = cashLimit.Value;
+            }
+
             Console.WriteLine(status.ToString());
             Console.WriteLine();
         }
@@ -377,7 +390,7 @@ namespace Arbitrager
         private void ShowHelp()
         {
             Console.WriteLine("COMMANDS");
-            Console.WriteLine("\tstatus");
+            Console.WriteLine("\tstatus [cash limit]");
             Console.WriteLine("\taccounts");
             // Console.WriteLine("\tbuy market (eur amount)");
             // Console.WriteLine("\tsell market (eth amount)");

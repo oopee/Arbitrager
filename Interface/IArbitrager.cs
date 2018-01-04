@@ -85,6 +85,8 @@ namespace Interface
         public SellerStatus Seller { get; set; }
         public DifferenceStatus Difference { get; set; }
 
+        public decimal? CashLimit { get; set; } = null;
+
         public override string ToString()
         {
             StringBuilder b = new StringBuilder();
@@ -130,7 +132,7 @@ namespace Interface
             }
 
             b.AppendLine();
-            b.AppendLine("DIFFERENCE");            
+            b.AppendLine("DIFFERENCE");
             if (Difference == null)
             {
                 b.AppendLine("\tNULL");
@@ -141,7 +143,74 @@ namespace Interface
                 b.AppendLine("\t\tMax. negative spread: {0}% (of lowest ask)", (Difference.MaxNegativeSpreadPercentage * 100).ToString("0.##"));
             }
 
+            if (CashLimit.HasValue)
+            {
+                AddProfitCalculation(b, CashLimit.Value);
+            }
+
             return b.ToString();
+        }
+
+        private void AddProfitCalculation(StringBuilder b, decimal cashlimit)
+        {
+            // First check how much ETH can we buy for the cash limit.
+            // We have to calculate this first in case the bids we have (top 1 or top 50)
+            // do not cover the whole amount we are willing to buy from other exchange
+            decimal ethTotalBids = Seller.Bids.Bids.Sum(x => x.VolumeUnits);
+
+            // Use all money until cash limit or available eth count is reached,
+            // starting from the best ask
+            decimal ethCount = 0;
+            decimal moneySpent = 0;
+            int askNro = 0;
+            while (moneySpent < cashlimit && ethCount < ethTotalBids && Buyer.Asks.Asks.Count > askNro)
+            {
+                var orders = Buyer.Asks.Asks[askNro];
+
+                var maxVolume = Math.Min(ethTotalBids - ethCount, orders.VolumeUnits);
+                var maxEursToUseAtThisPrice = orders.PricePerUnit * maxVolume;
+
+                var eursToUse = Math.Min(cashlimit - moneySpent, maxEursToUseAtThisPrice);
+
+                moneySpent += eursToUse;
+                ethCount += eursToUse / orders.PricePerUnit;
+
+                ++askNro;
+            }
+
+            b.AppendLine();
+
+            string moneySpentSummary = string.Format("{0:0.00}e", moneySpent);
+            if (moneySpent < cashlimit)
+            {
+                moneySpentSummary += " (capped, no more bids at other exhcange)";
+            }
+
+            b.AppendLine("\t\tCash limit:\t\t\t{0}", moneySpentSummary);
+            b.AppendLine("\t\tETH available to buy:\t\t{0:0.0000}", ethCount);
+
+            // How much can this ETH be sold for at other exchange
+            decimal ethLeftToSell = ethCount;
+            int bidNro = 0;
+            decimal moneyEarned = 0;
+            while (ethLeftToSell > 0 && Seller.Bids.Bids.Count > bidNro)
+            {
+                var orders = Seller.Bids.Bids[bidNro];
+                var maxEthToSellAtThisPrice = orders.VolumeUnits;
+                var ethToSell = Math.Min(ethLeftToSell, maxEthToSellAtThisPrice);
+
+                moneyEarned += ethToSell * orders.PricePerUnit;
+                ethLeftToSell -= ethToSell;
+
+                ++bidNro;
+            }
+
+            decimal profit = moneyEarned - moneySpent;
+            decimal profitAfterTax = profit * 0.7m;
+
+            b.AppendLine("\t\tETH value at other exchange:\t{0:0.00}e", moneyEarned);
+            b.AppendLine("\t\tProfit:\t\t\t\t{0:0.00}e ({1:0.00}%)", profit, profit / moneySpent * 100.0m);
+            b.AppendLine("\t\tProfit after tax:\t\t{0:0.00}e ({1:0.00}%)", profitAfterTax, profitAfterTax / moneySpent * 100.0m);
         }
     }
 
