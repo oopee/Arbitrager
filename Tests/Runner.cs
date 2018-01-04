@@ -27,7 +27,7 @@ namespace Tests
         [Test]
         public async Task Kraken_Gdax_GetStatus()
         {
-            var result = await GetKrakenGdaxArbitrager().GetStatus(false);
+            var result = await GetKrakenGdaxArbitrager().GetStatus(false, null);
             Logger.Info(result.ToString());
         }
 
@@ -35,7 +35,7 @@ namespace Tests
         [Test]
         public async Task Kraken_Gdax_GetStatus_WithBalance()
         {
-            var result = await GetKrakenGdaxArbitrager().GetStatus(true);
+            var result = await GetKrakenGdaxArbitrager().GetStatus(true, null);
             Logger.Info(result.ToString());
         }
 
@@ -92,7 +92,7 @@ namespace Tests
 
         IArbitrager GetKrakenGdaxArbitrager()
         {
-            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), Logger);
+            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), new DefaultProfitCalculator(), Logger);
         }
 
         string GetDebugString(object obj)

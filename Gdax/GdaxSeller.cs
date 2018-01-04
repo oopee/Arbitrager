@@ -16,6 +16,8 @@ namespace Gdax
         ILogger m_logger;
 
         public string Name => "GDAX";
+        public decimal TakerFeePercentage => 0.3m; // 0.3%
+        public decimal MakerFeePercentage => 0m; // 0%
 
         public GdaxSeller(GdaxConfiguration configuration, ILogger logger, bool isSandbox)
         {

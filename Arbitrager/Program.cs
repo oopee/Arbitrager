@@ -22,7 +22,9 @@ namespace Arbitrager
             var buyer = new KrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger);
             var seller = new GdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false);
 
-            var app = new App(new Common.DefaultArbitrager(buyer, seller, Logger.StaticLogger), Logger.StaticLogger);
+            var app = new App(
+                new Common.DefaultArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), Logger.StaticLogger), 
+                Logger.StaticLogger);
             app.Run().Wait();
         }
     }   
@@ -217,7 +219,7 @@ namespace Arbitrager
 
         public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)
         {
-            var status = await m_arbitrager.GetStatus(true);
+            var status = await m_arbitrager.GetStatus(true, maxEursToSpendArg);
 
             ArbitrageInfo info = new ArbitrageInfo();
             info.MaxNegativeSpreadPercentage = status.Difference.MaxNegativeSpreadPercentage;
@@ -369,13 +371,7 @@ namespace Arbitrager
 
         private async Task ShowStatus(decimal? cashLimit = null)
         {
-            var status = await m_arbitrager.GetStatus(true);
-
-            if (cashLimit.HasValue)
-            {
-                status.CashLimit = cashLimit.Value;
-            }
-
+            var status = await m_arbitrager.GetStatus(true, cashLimit);
             Console.WriteLine(status.ToString());
             Console.WriteLine();
         }

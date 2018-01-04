@@ -13,6 +13,9 @@ namespace Kraken
         ILogger m_logger;
 
         public string Name => "Kraken";
+        public decimal TakerFeePercentage => 0.26m; // 0.26%
+        public decimal MakerFeePercentage => 0.16m; // 0.16%
+
         public KrakenConfiguration Configuration { get; private set; }        
 
         public KrakenBuyer(KrakenConfiguration configuration, ILogger logger)

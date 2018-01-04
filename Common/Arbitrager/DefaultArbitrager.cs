@@ -12,6 +12,7 @@ namespace Common
     {
         IBuyer m_buyer;
         ISeller m_seller;
+        IProfitCalculator m_profitCalculator;
         ILogger m_logger;
 
         public decimal ChunkEur { get; set; } = 2000m;
@@ -19,10 +20,11 @@ namespace Common
         public IBuyer Buyer => m_buyer;
         public ISeller Seller => m_seller;
 
-        public DefaultArbitrager(IBuyer buyer, ISeller seller, ILogger logger)
+        public DefaultArbitrager(IBuyer buyer, ISeller seller, IProfitCalculator profitCalculator, ILogger logger)
         {
             m_buyer = buyer;
             m_seller = seller;
+            m_profitCalculator = profitCalculator;
             m_logger = logger;
         }
 
@@ -50,7 +52,7 @@ namespace Common
             };
         }
 
-        public async Task<Status> GetStatus(bool includeBalance)
+        public async Task<Status> GetStatus(bool includeBalance, decimal? fiatLimit)
         {
             BalanceResult buyerBalance = null;
             IAskOrderBook askOrderBook = null;
@@ -106,7 +108,112 @@ namespace Common
                 };
             }
 
-            return new Status(buyerStatus, sellerStatus);
+            ProfitCalculation profitCalculation = null;
+            if (includeBalance)
+            {
+                profitCalculation = m_profitCalculator?.CalculateProfit(buyerStatus, sellerStatus, fiatLimit ?? buyerStatus.Balance.Eur);
+            }
+
+            return new Status(buyerStatus, sellerStatus, profitCalculation);
+        }
+
+        public async Task Arbitrage(decimal eur)
+        {
+            var status = await GetStatus(true, eur);
+
+        }
+
+        public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)
+        {
+            var status = await GetStatus(true, maxEursToSpendArg);
+
+            ArbitrageInfo info = new ArbitrageInfo();
+            info.MaxNegativeSpreadPercentage = status.Difference.MaxNegativeSpreadPercentage;
+            info.MaxNegativeSpreadEur = status.Difference.MaxNegativeSpread;
+            info.EurBalance = status.Buyer.Balance.Eur;
+            info.EthBalance = status.Seller.Balance.Eth;
+            info.BestBuyPrice = status.Buyer.Asks.Asks[0].PricePerUnit + 1;
+            info.BestSellPrice = status.Seller.Bids.Bids[0].PricePerUnit - 1;
+
+            var maxEursToSpend = maxEursToSpendArg != null ? Math.Min(maxEursToSpendArg.Value, info.EurBalance) : info.EurBalance;
+
+            if (status.Difference.MaxNegativeSpreadPercentage < 0.02m) // 2%
+            {
+                info.IsProfitable = false;
+            }
+            else
+            {
+                info.IsProfitable = true;
+                var eursToUse = (maxEursToSpend * 0.99m - 1);// note: we subtract 1 eur and 1% from eur balance to cover fees
+                if (eursToUse > 0)
+                {
+                    decimal maxApproxEthsToBuy = eursToUse / info.BestBuyPrice;
+
+                    decimal maxApproxEthsToArbitrage;
+                    if (maxApproxEthsToBuy >= status.Seller.Balance.Eth) // check if we have enough ETH to sell
+                    {
+                        maxApproxEthsToArbitrage = status.Seller.Balance.Eth * 0.99m; // note: subtract 1% to avoid rounding/fee errors
+                    }
+                    else
+                    {
+                        maxApproxEthsToArbitrage = maxApproxEthsToBuy;
+                    }
+
+                    maxApproxEthsToArbitrage = decimal.Round(maxApproxEthsToArbitrage, 2, MidpointRounding.ToEven);
+
+
+                    info.MaxApproximateEthsToSell = maxApproxEthsToArbitrage;
+                    info.MaxApproximateEursToSpend = maxApproxEthsToArbitrage * info.BestBuyPrice;
+                    info.MaxApproximateEursToGain = maxApproxEthsToArbitrage * info.BestSellPrice;
+
+                    info.MaxApproximateEurProfit = (info.MaxApproximateEursToGain * 0.995m) - info.MaxApproximateEursToSpend; // subtract 0.5% to cover fees
+                }
+            }
+
+            info.BuyerName = Buyer.Name;
+            info.SellerName = Seller.Name;
+            info.IsBalanceSufficient = info.EurBalance >= info.MaxApproximateEursToSpend;
+
+            return info;
+        }
+    }
+
+    public class ArbitrageInfo
+    {
+        public string BuyerName { get; set; }
+        public string SellerName { get; set; }
+
+        public bool IsProfitable { get; set; }
+        public bool IsBalanceSufficient { get; set; }
+        public decimal MaxNegativeSpreadPercentage { get; set; }
+        public decimal MaxNegativeSpreadEur { get; set; }
+        public decimal EurBalance { get; set; }
+        public decimal EthBalance { get; set; }
+        public decimal MaxApproximateEthsToSell { get; set; }
+        public decimal MaxApproximateEursToSpend { get; set; }
+        public decimal MaxApproximateEursToGain { get; set; }
+        public decimal MaxApproximateEurProfit { get; set; }
+
+        public decimal BestBuyPrice { get; set; }
+        public decimal BestSellPrice { get; set; }
+
+        public override string ToString()
+        {
+            StringBuilder b = new StringBuilder();
+            b.AppendLine("ARBITRAGE INFO");
+            b.AppendLine("\tEUR balance at {0}: {1}", BuyerName, EurBalance);
+            b.AppendLine("\tETH balance at {0}: {1}", SellerName, EthBalance);
+            b.AppendLine("\tBest buy price        : {0}", BestBuyPrice);
+            b.AppendLine("\tBest sell price       : {0}", BestSellPrice);
+            b.AppendLine("\tMax negative spread   : {0}", MaxNegativeSpreadEur);
+            b.AppendLine("\tMax negative spread % : {0}", MaxNegativeSpreadPercentage * 100);
+            b.AppendLine("\tIs profitable         : {0}", IsProfitable ? "Yes" : "No");
+            b.AppendLine("\tIs balance sufficient : {0}", IsBalanceSufficient ? "Yes" : "No");
+            b.AppendLine("\tEstimated buy         : {0:G8} EUR -> {1:G8} ETH", MaxApproximateEursToSpend, MaxApproximateEthsToSell);
+            b.AppendLine("\tEstimated sell        : {0:G8} ETH -> {1:G8} EUR", MaxApproximateEthsToSell, MaxApproximateEursToGain);
+            b.AppendLine("\tEstimated profit      : {0} EUR", MaxApproximateEurProfit);
+
+            return b.ToString();
         }
     }
 }
