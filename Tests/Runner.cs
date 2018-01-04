@@ -28,7 +28,7 @@ namespace Tests
         [Test]
         public async Task Kraken_Gdax_GetStatus()
         {
-            var result = await GetKrakenGdaxArbitrager().GetStatus(false, null);
+            var result = await GetKrakenGdaxArbitrager().GetStatus(false);
             Logger.Info(result.ToString());
         }
 
@@ -36,7 +36,7 @@ namespace Tests
         [Test]
         public async Task Kraken_Gdax_GetStatus_WithBalance()
         {
-            var result = await GetKrakenGdaxArbitrager().GetStatus(true, null);
+            var result = await GetKrakenGdaxArbitrager().GetStatus(true);
             Logger.Info(result.ToString());
         }
 

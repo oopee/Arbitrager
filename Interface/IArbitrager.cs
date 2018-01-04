@@ -10,8 +10,9 @@ namespace Interface
     {
         IBuyer Buyer { get; }
         ISeller Seller { get; }
-        Task<Status> GetStatus(bool includeBalance, decimal? fiatLimit);
+        Task<Status> GetStatus(bool includeBalance);
         Task<AccountsInfo> GetAccountsInfo();
+        IProfitCalculator ProfitCalculator { get; }
     }
 
     public class AccountsInfo
@@ -56,9 +57,8 @@ namespace Interface
 
     public class Status
     {
-        public Status(BuyerStatus buyer, SellerStatus seller, ProfitCalculation profitCalculation)
+        public Status(BuyerStatus buyer, SellerStatus seller)
         {
-            ProfitCalculation = profitCalculation;
             Buyer = buyer;
             Seller = seller;
 
@@ -85,12 +85,6 @@ namespace Interface
         public BuyerStatus Buyer { get; set; }
         public SellerStatus Seller { get; set; }
         public DifferenceStatus Difference { get; set; }
-        public ProfitCalculation ProfitCalculation { get; set; }
-
-        public void RecalculateProfit(IProfitCalculator profitCalculator, decimal fiatLimit)
-        {
-            ProfitCalculation = profitCalculator.CalculateProfit(Buyer, Seller, fiatLimit);
-        }
 
         public override string ToString()
         {
@@ -148,11 +142,6 @@ namespace Interface
                 b.AppendLine("\t\tMax. negative spread: {0}% (of lowest ask)", (Difference.MaxNegativeSpreadPercentage * 100).ToString("0.##"));
             }
 
-            if (ProfitCalculation != null)
-            {
-                AddProfitCalculation(b, ProfitCalculation);
-            }
-
             return b.ToString();
         }
 
@@ -181,7 +170,6 @@ namespace Interface
             b.AppendLine("\t\tProfit after tax:\t\t{0:0.00}e ({1:0.00}%)", calc.ProfitAfterTax, calc.ProfitAfterTax / calc.FiatSpent * 100.0m);
         }
     }
-
 
     public class BuyerStatus
     {

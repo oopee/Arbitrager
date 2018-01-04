@@ -20,6 +20,7 @@ namespace Common
 
         public IBuyer Buyer => m_buyer;
         public ISeller Seller => m_seller;
+        public IProfitCalculator ProfitCalculator => m_profitCalculator;
 
         public DefaultArbitrager(IBuyer buyer, ISeller seller, IProfitCalculator profitCalculator, ILogger logger, IDatabaseAccess dataAccesss)
         {
@@ -54,7 +55,7 @@ namespace Common
             };
         }
 
-        public async Task<Status> GetStatus(bool includeBalance, decimal? fiatLimit)
+        public async Task<Status> GetStatus(bool includeBalance)
         {
             BalanceResult buyerBalance = null;
             IAskOrderBook askOrderBook = null;
@@ -110,24 +111,19 @@ namespace Common
                 };
             }
 
-            ProfitCalculation profitCalculation = null;
-            if (includeBalance)
-            {
-                profitCalculation = m_profitCalculator?.CalculateProfit(buyerStatus, sellerStatus, fiatLimit ?? buyerStatus.Balance.Eur);
-            }
-
-            return new Status(buyerStatus, sellerStatus, profitCalculation);
+            return new Status(buyerStatus, sellerStatus);
         }
 
         public async Task Arbitrage(decimal eur)
         {
-            var status = await GetStatus(true, eur);
+            var status = await GetStatus(true);
 
         }
 
         public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)
         {
-            var status = await GetStatus(true, maxEursToSpendArg);
+            var status = await GetStatus(true);
+            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, maxEursToSpendArg ?? status.Buyer.Balance.Eur);
 
             ArbitrageInfo info = new ArbitrageInfo();
             info.MaxNegativeSpreadPercentage = status.Difference.MaxNegativeSpreadPercentage;
@@ -139,7 +135,7 @@ namespace Common
 
             var maxEursToSpend = maxEursToSpendArg != null ? Math.Min(maxEursToSpendArg.Value, info.EurBalance) : info.EurBalance;
 
-            if (status.Difference.MaxNegativeSpreadPercentage < 0.02m) // 2%
+            if (calc.ProfitPercentage < 0.02m) // 2%
             {
                 info.IsProfitable = false;
             }

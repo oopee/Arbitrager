@@ -226,7 +226,7 @@ namespace Arbitrager
 
         public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)
         {
-            var status = await m_arbitrager.GetStatus(true, maxEursToSpendArg);
+            var status = await m_arbitrager.GetStatus(true);
 
             ArbitrageInfo info = new ArbitrageInfo();
             info.MaxNegativeSpreadPercentage = status.Difference.MaxNegativeSpreadPercentage;
@@ -378,8 +378,18 @@ namespace Arbitrager
 
         private async Task ShowStatus(decimal? cashLimit = null)
         {
-            var status = await m_arbitrager.GetStatus(true, cashLimit);
+            var status = await m_arbitrager.GetStatus(true);
+            ProfitCalculation profitCalculation = null;
+            if (cashLimit != null)
+            {
+                profitCalculation = m_arbitrager.ProfitCalculator.CalculateProfit(status.Buyer, status.Seller, cashLimit.Value);
+            }
+
             Console.WriteLine(status.ToString());
+            if (profitCalculation != null)
+            {
+                Console.WriteLine(profitCalculation.ToString());
+            }
             Console.WriteLine();
         }
 
