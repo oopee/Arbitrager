@@ -15,6 +15,9 @@ namespace Arbitrager
     {
         static void Main(string[] args)
         {
+            IDatabaseAccess db = new DatabaseAccess.DatabaseAccess();
+            db.TestAsync().Wait();
+
             //
             Interface.Logger.StaticLogger = new Common.ConsoleLogger();
             //

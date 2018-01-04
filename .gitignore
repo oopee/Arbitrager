@@ -5,6 +5,9 @@ packages
 App.config
 *.csproj.user
 
+# SQLite database
+arbitrager.sqlite
+
 
 # Xamarin
 Arbitrager.userprefs
