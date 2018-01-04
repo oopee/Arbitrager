@@ -11,5 +11,8 @@
         public string type { get; set; }
 
         public string product_id { get; set; }
+
+        [Newtonsoft.Json.JsonProperty(DefaultValueHandling = Newtonsoft.Json.DefaultValueHandling.IgnoreAndPopulate)]
+        public string time_in_force { get; set; }
     }
 }

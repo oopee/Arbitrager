@@ -9,6 +9,8 @@ namespace Common
 {
     public abstract class LoggerBase : Interface.ILogger
     {
+        public string Name { get; private set; }
+
         public void Error(string format, params object[] args)
         {
             Log(LogType.Error, format, args);
@@ -17,6 +19,11 @@ namespace Common
         public void Info(string format, params object[] args)
         {
             Log(LogType.Info, format, args);
+        }
+
+        public void Debug(string format, params object[] args)
+        {
+            Log(LogType.Debug, format, args);
         }
 
         public void Log(LogType type, string format, params object[] args)
@@ -31,11 +38,27 @@ namespace Common
 
             string str = args?.Length > 0 ? string.Format(format, args) : format;
 
-            logLine.DefaultLine = string.Format("{0} {1}: {2}", logLine.DateTime, type, str);
+            if (string.IsNullOrWhiteSpace(Name))
+            {
+                logLine.DefaultLine = string.Format("{0} {1}\t: {2}", logLine.DateTime, type, str);
+            }
+            else
+            {
+                logLine.DefaultLine = string.Format("{0} {1}\t: {3}: {2}", logLine.DateTime, type, str, Name);
+            }
+
             Log(logLine);
         }
 
+        public ILogger WithName(string name)
+        {
+            var logger = Clone();
+            logger.Name = name;
+            return logger;
+        }
+
         protected abstract void Log(LogLine logLine);
+        protected abstract LoggerBase Clone();
 
         protected class LogLine
         {
@@ -53,5 +76,10 @@ namespace Common
         {
             Console.WriteLine(logLine.DefaultLine);
         }
-    }
+
+        protected override LoggerBase Clone()
+        {
+            return new ConsoleLogger();
+        }
+    }    
 }

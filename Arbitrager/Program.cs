@@ -8,6 +8,7 @@ using Interface;
 using Kraken;
 using Gdax;
 using System.Configuration;
+using Common;
 
 namespace Arbitrager
 {
@@ -16,20 +17,40 @@ namespace Arbitrager
         static void Main(string[] args)
         {
             //
-            Interface.Logger.StaticLogger = new Common.ConsoleLogger();
+            var logger = new Common.ConsoleLogger();
+            Interface.Logger.StaticLogger = logger;
             //
 
-            // Create the data access and for now reset the database each time we restart 
             var dataAccess = new DatabaseAccess.DatabaseAccess();
             dataAccess.ResetDatabase().Wait();
 
-            var buyer = new KrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger);
-            var seller = new GdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false);
+            IBuyer buyer;
+            ISeller seller;
+
+            var configuration = Utils.AppConfigLoader.Instance.AppSettings("configuration");
+
+            switch (configuration)
+            {
+                case "simulated":
+                    buyer = new SimulatedKrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceEth = 0m, BalanceEur = 2000m };
+                    seller = new SimulatedGdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = 10m, BalanceEur = 0m };
+                    break;
+                case "real":
+                    buyer = new KrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger);
+                    seller = new GdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false);
+                    break;
+                default:
+                    throw new ArgumentException("Invalid configuration (see App.config). Valid values are: simulated, real");
+            }
+
+            logger.Info("Configuration: {0}", configuration);
+            logger.Info("IBuyer       : {0}", buyer.GetType().Name);
+            logger.Info("ISeller      : {0}", seller.GetType().Name);
 
             var app = new App(
-                new Common.DefaultArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), Logger.StaticLogger, dataAccess), 
-                Logger.StaticLogger,
-                dataAccess);
+                new ConsoleArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),
+                dataAccess,
+                Logger.StaticLogger);
             app.Run().Wait();
         }
     }   
@@ -40,7 +61,7 @@ namespace Arbitrager
         ILogger m_logger;
         IDatabaseAccess m_dataAccess;
 
-        public App(IArbitrager arbitrager, ILogger logger, IDatabaseAccess dataAccess)
+        public App(IArbitrager arbitrager, IDatabaseAccess dataAccess, ILogger logger)
         {
             m_arbitrager = arbitrager;
             m_logger = logger;
@@ -49,7 +70,7 @@ namespace Arbitrager
 
         public async Task Run()
         {
-            Console.WriteLine("Starting, please wait...");
+            m_logger.Info("Starting, please wait...");
             await ShowStatus();
             ShowHelp();
             await Input();
@@ -122,198 +143,14 @@ namespace Arbitrager
 
         private async Task DoArbitrage(string verb, decimal? eur)
         {
-            var info = await GetInfoForArbitrage(eur);
+            var info = await m_arbitrager.GetInfoForArbitrage(eur);
             if (verb == "info")
             {
                 Console.WriteLine(info.ToString());
             }
             else if (verb == "do")
             {
-                Console.WriteLine(info.ToString());
-                if (!info.IsProfitable)
-                {
-                    Console.WriteLine("ABORTING because IsProfitable=false!");
-                    return;
-                }
-
-                if (!info.IsBalanceSufficient)
-                {
-                    Console.WriteLine("ABORTING because provided eur sum {0} is too large for current balances!");
-                    return;
-                }
-
-                Console.WriteLine();
-                Console.WriteLine("EXECUTING ARBITRAGE");
-                Console.WriteLine("\tBuying  approx. {0:G8} ETH for {1:G8}€ per unit in total of {2:G8} EUR at {3}", info.MaxApproximateEthsToSell, info.BestBuyPrice, info.MaxApproximateEursToSpend, m_arbitrager.Buyer.Name);
-                Console.WriteLine("\tSelling approx. {0:G8} ETH for {1:G8}€ per unit in total of {2:G8} EUR at {3}", info.MaxApproximateEthsToSell, info.BestSellPrice, info.MaxApproximateEursToGain, m_arbitrager.Seller.Name);
-                bool ok = Confirm();
-                if (!ok)
-                {
-                    Console.WriteLine("ABORTING");
-                    return;
-                }
-                Console.WriteLine("EXECUTING BUY ORDER");
-                Console.WriteLine("\tPlacing BID for {0:G8} EUR x {1:G8} ETH = {2:G8} EUR", info.BestBuyPrice, info.MaxApproximateEthsToSell, info.MaxApproximateEursToSpend);
-                var buyOrder = await m_arbitrager.Buyer.PlaceBuyOrder(info.BestBuyPrice, info.MaxApproximateEthsToSell);
-                Console.WriteLine("\t\tBID placed! OrderId is {0}", buyOrder.Id);
-                Console.WriteLine("\tChecking order...");
-                var buyOrderInfo = await m_arbitrager.Buyer.GetOrderInfo(buyOrder.Id);
-                Console.WriteLine("\t\tOrder is {0}. Filled volume {1:G8} ETH for avg price {2:G8} EUR per ETH for total of {3:G8} EUR (including fee {4:G8} EUR)", buyOrderInfo.State, buyOrderInfo.FilledVolume, buyOrderInfo.PricePerUnit, buyOrderInfo.FilledVolume * buyOrderInfo.PricePerUnit + buyOrderInfo.Fee, buyOrderInfo.Fee);
-                if (buyOrderInfo.State == OrderState.Open)
-                {
-                    Console.WriteLine("\tCancelling order...");
-                    await m_arbitrager.Buyer.CancelOrder(buyOrder.Id);
-                    Console.WriteLine("\tCancelled... checking order...");
-
-                    buyOrderInfo = await m_arbitrager.Buyer.GetOrderInfo(buyOrder.Id);
-                    Console.WriteLine("\t\tOrder is {0}. Filled volume {1:G8} ETH for avg price {2:G8} EUR per ETH for total of {3:G8} EUR (including fee {4:G8} EUR)", buyOrderInfo.State, buyOrderInfo.FilledVolume, buyOrderInfo.PricePerUnit, buyOrderInfo.FilledVolume * buyOrderInfo.PricePerUnit + buyOrderInfo.Fee, buyOrderInfo.Fee);
-                }
-
-                if (buyOrderInfo.FilledVolume == 0m)
-                {
-                    Console.WriteLine("ABORTING! Order could not be filled even partially.");
-                    return;
-                }
-
-                decimal ethToSell = buyOrderInfo.FilledVolume;
-                Console.WriteLine("\tFinal ETH amount is {0}", ethToSell);
-
-                Console.WriteLine();
-                Console.WriteLine("EXECUTING SELL ORDER");
-                Console.WriteLine("\tPlacing ASK for {0:G8} EUR x {1:G8} ETH = {2:G8} EUR", info.BestSellPrice, ethToSell, info.BestSellPrice * ethToSell);
-                var sellOrder = await m_arbitrager.Seller.PlaceSellOrder(info.BestSellPrice, ethToSell);
-                Console.WriteLine("\tASK placed! OrderId is {0}", sellOrder.Id);
-                var sellOrderInfo = await m_arbitrager.Seller.GetOrderInfo(sellOrder.Id);
-                Console.WriteLine("\t\tOrder is {0}. Filled volume {1:G8} ETH for avg price {2:G8} EUR per ETH for total of {3:G8} EUR (including fee {4:G8} EUR)", sellOrderInfo.State, sellOrderInfo.FilledVolume, sellOrderInfo.PricePerUnit, sellOrderInfo.FilledVolume * sellOrderInfo.PricePerUnit + sellOrderInfo.Fee, sellOrderInfo.Fee);
-
-                if (sellOrderInfo.State == OrderState.Open)
-                {
-                    Console.WriteLine("\tCancelling order...");
-                    await m_arbitrager.Seller.CancelOrder(sellOrder.Id);
-                    Console.WriteLine("\tCancelled... checking order...");
-
-                    sellOrderInfo = await m_arbitrager.Seller.GetOrderInfo(sellOrder.Id);
-                    Console.WriteLine("\t\tOrder is {0}. Filled volume {1:G8} ETH for avg price {2:G8} EUR per ETH for total of {3:G8} EUR (including fee {4:G8} EUR)", sellOrderInfo.State, sellOrderInfo.FilledVolume, sellOrderInfo.PricePerUnit, sellOrderInfo.FilledVolume * sellOrderInfo.PricePerUnit + sellOrderInfo.Fee, sellOrderInfo.Fee);
-                }
-
-                if (ethToSell != sellOrderInfo.FilledVolume)
-                {
-                    Console.WriteLine("** WARNING **: Could not sell all ETH that was bought. Bought {0} ETH, sold {1} ETH, diff {2} ETH", ethToSell, sellOrderInfo.FilledVolume, ethToSell - sellOrderInfo.FilledVolume);
-                }
-
-                Console.WriteLine("FINISHED!");
-
-                await ShowStatus();
-            }            
-        }
-
-        private bool Confirm()
-        {
-            while (true)
-            {
-                Console.Write("Do you want to continue (Y/N)> ");
-                string answer = Console.ReadLine();
-                if (answer.ToLower() == "y")
-                {
-                    return true;
-                }
-                else if (answer.ToLower() == "n")
-                {
-                    return false;
-                }
-            }
-        }
-
-        public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)
-        {
-            var status = await m_arbitrager.GetStatus(true);
-
-            ArbitrageInfo info = new ArbitrageInfo();
-            info.MaxNegativeSpreadPercentage = status.Difference.MaxNegativeSpreadPercentage;
-            info.MaxNegativeSpreadEur = status.Difference.MaxNegativeSpread;
-            info.EurBalance = status.Buyer.Balance.Eur;
-            info.EthBalance = status.Seller.Balance.Eth;
-            info.BestBuyPrice = status.Buyer.Asks.Asks[0].PricePerUnit + 1;
-            info.BestSellPrice = status.Seller.Bids.Bids[0].PricePerUnit - 1;
-
-            var maxEursToSpend = maxEursToSpendArg != null ? Math.Min(maxEursToSpendArg.Value, info.EurBalance) : info.EurBalance;
-
-            if (status.Difference.MaxNegativeSpreadPercentage < 0.02m) // 2%
-            {
-                info.IsProfitable = false;
-            }
-            else
-            {
-                info.IsProfitable = true;
-                var eursToUse = (maxEursToSpend * 0.99m - 1);// note: we subtract 1 eur and 1% from eur balance to cover fees
-                if (eursToUse > 0)
-                {
-                    decimal maxApproxEthsToBuy = eursToUse / info.BestBuyPrice;                    
-
-                    decimal maxApproxEthsToArbitrage;
-                    if (maxApproxEthsToBuy >= status.Seller.Balance.Eth) // check if we have enough ETH to sell
-                    {
-                        maxApproxEthsToArbitrage = status.Seller.Balance.Eth * 0.99m; // note: subtract 1% to avoid rounding/fee errors
-                    }
-                    else
-                    {
-                        maxApproxEthsToArbitrage = maxApproxEthsToBuy;
-                    }
-
-                    maxApproxEthsToArbitrage = decimal.Round(maxApproxEthsToArbitrage, 2, MidpointRounding.ToEven);
-
-
-                    info.MaxApproximateEthsToSell = maxApproxEthsToArbitrage;
-                    info.MaxApproximateEursToSpend = maxApproxEthsToArbitrage * info.BestBuyPrice;
-                    info.MaxApproximateEursToGain = maxApproxEthsToArbitrage * info.BestSellPrice;
-
-                    info.MaxApproximateEurProfit = (info.MaxApproximateEursToGain * 0.995m) - info.MaxApproximateEursToSpend; // subtract 0.5% to cover fees
-                }
-            }
-
-            info.BuyerName = m_arbitrager.Buyer.Name;
-            info.SellerName = m_arbitrager.Seller.Name;
-            info.IsBalanceSufficient = info.EurBalance >= info.MaxApproximateEursToSpend;
-
-            return info;
-        }
-
-        public class ArbitrageInfo
-        {
-            public string BuyerName { get; set; }
-            public string SellerName { get; set; }
-
-            public bool IsProfitable { get; set; }
-            public bool IsBalanceSufficient { get; set; }
-            public decimal MaxNegativeSpreadPercentage { get; set; }
-            public decimal MaxNegativeSpreadEur { get; set; }
-            public decimal EurBalance { get; set; }
-            public decimal EthBalance { get; set; }
-            public decimal MaxApproximateEthsToSell { get; set; }
-            public decimal MaxApproximateEursToSpend { get; set; }
-            public decimal MaxApproximateEursToGain { get; set; }
-            public decimal MaxApproximateEurProfit { get; set; }
-
-            public decimal BestBuyPrice { get; set; }
-            public decimal BestSellPrice { get; set; }
-
-            public override string ToString()
-            {
-                StringBuilder b = new StringBuilder();
-                b.AppendLine("ARBITRAGE INFO");
-                b.AppendLine("\tEUR balance at {0}: {1}", BuyerName, EurBalance);
-                b.AppendLine("\tETH balance at {0}: {1}", SellerName, EthBalance);
-                b.AppendLine("\tBest buy price        : {0}", BestBuyPrice);
-                b.AppendLine("\tBest sell price       : {0}", BestSellPrice);
-                b.AppendLine("\tMax negative spread   : {0}", MaxNegativeSpreadEur);
-                b.AppendLine("\tMax negative spread % : {0}", MaxNegativeSpreadPercentage * 100);
-                b.AppendLine("\tIs profitable         : {0}", IsProfitable ? "Yes" : "No");
-                b.AppendLine("\tIs balance sufficient : {0}", IsBalanceSufficient ? "Yes" : "No");
-                b.AppendLine("\tEstimated buy         : {0:G8} EUR -> {1:G8} ETH", MaxApproximateEursToSpend, MaxApproximateEthsToSell);
-                b.AppendLine("\tEstimated sell        : {0:G8} ETH -> {1:G8} EUR", MaxApproximateEthsToSell, MaxApproximateEursToGain);
-                b.AppendLine("\tEstimated profit      : {0} EUR", MaxApproximateEurProfit);
-
-                return b.ToString();
+                await m_arbitrager.Arbitrage(ArbitrageContext.Start(info.TargetFiatToSpend));
             }
         }
 
@@ -410,6 +247,51 @@ namespace Arbitrager
             Console.WriteLine("\tarbitrage info");
             Console.WriteLine("\tarbitrage do (eur amount OR \"max\")");
             Console.WriteLine("\texit");
+        }
+    }
+
+    public class ConsoleArbitrager : Common.DefaultArbitrager
+    {
+        public ConsoleArbitrager(IBuyer buyer, ISeller seller, IProfitCalculator profitCalculator, IDatabaseAccess dataAccess, ILogger logger)
+            : base(buyer, seller, profitCalculator, dataAccess, logger)
+        {
+        }
+
+        protected override async Task DoArbitrage_CheckStatus(ArbitrageContext ctx)
+        {
+            await base.DoArbitrage_CheckStatus(ctx);
+
+            if (ctx.Error != null)
+            {
+                return;
+            }
+
+            Console.WriteLine("ARBITRAGE INFO");
+            Console.WriteLine(ctx.Info);
+            if (!ConsoleUtils.Confirm())
+            {
+                ctx.Error = ArbitrageError.ManuallyAborted;
+            }
+        }
+    }
+
+    public static class ConsoleUtils
+    {
+        public static bool Confirm()
+        {
+            while (true)
+            {
+                Console.Write("Do you want to continue (Y/N)> ");
+                string answer = Console.ReadLine();
+                if (answer.ToLower() == "y")
+                {
+                    return true;
+                }
+                else if (answer.ToLower() == "n")
+                {
+                    return false;
+                }
+            }
         }
     }
 }

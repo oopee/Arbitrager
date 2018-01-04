@@ -16,12 +16,12 @@ namespace Gdax
         ILogger m_logger;
 
         public string Name => "GDAX";
-        public decimal TakerFeePercentage => 0.3m; // 0.3%
-        public decimal MakerFeePercentage => 0m; // 0%
+        public decimal TakerFeePercentage => 0.003m; // 0.3%
+        public decimal MakerFeePercentage => 0.000m; // 0%
 
         public GdaxSeller(GdaxConfiguration configuration, ILogger logger, bool isSandbox)
         {
-            m_logger = logger;
+            m_logger = logger.WithName(GetType().Name);
             m_authenticator = new GDAXClient.Authentication.Authenticator(configuration.Key, configuration.Signature, configuration.Passphrase);
             m_client = new GDAXClient.GDAXClient(m_authenticator, sandBox: isSandbox);
         }
@@ -68,13 +68,12 @@ namespace Gdax
             };
         }
 
-        public async Task<MyOrder> PlaceSellOrder(decimal price, decimal volume)
+        public async Task<MyOrder> PlaceMarketSellOrder(decimal volume)
         {
-            var order = await m_client.OrdersService.PlaceLimitOrderAsync(
+            var order = await m_client.OrdersService.PlaceMarketOrderAsync(
                 GDAXClient.Services.Orders.OrderSide.Sell,
                 GDAXClient.Services.Orders.ProductType.EthEur,
-                volume,
-                price);
+                volume);
 
             var orderResult = new MyOrder()
             {
@@ -170,7 +169,7 @@ namespace Gdax
                 Type = ParseSide(order.Side),
                 OrderType = ParseOrderType(order.Type),
                 State = ParseState(order.Status),
-                Cost = 0m // TODO
+                Cost = order.Executed_value // TODO
             };
         }
 
@@ -223,23 +222,6 @@ namespace Gdax
             {
                 throw new NotImplementedException("Invalid currency code!");
             }
-        }
-    }
-
-    public class GdaxConfiguration
-    {
-        public string Key { get; set; }
-        public string Signature { get; set; }
-        public string Passphrase { get; set; }
-
-        public static GdaxConfiguration FromAppConfig()
-        {
-            return new GdaxConfiguration()
-            {
-                Key = Utils.AppConfigLoader.Instance.AppSettings("GdaxKey") ?? "",
-                Signature = Utils.AppConfigLoader.Instance.AppSettings("GdaxSecret") ?? "",
-                Passphrase = Utils.AppConfigLoader.Instance.AppSettings("GdaxPassphrase") ?? "",
-            };
         }
     }
 }

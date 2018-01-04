@@ -13,6 +13,132 @@ namespace Interface
         Task<Status> GetStatus(bool includeBalance);
         Task<AccountsInfo> GetAccountsInfo();
         IProfitCalculator ProfitCalculator { get; }
+        Task Arbitrage(ArbitrageContext ctx);
+        Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg);
+    }
+
+    public class ArbitrageResult
+    {
+        public bool Aborted { get; set; }
+    }
+
+    public enum ArbitrageState
+    {
+        NotStarted,
+        CheckStatus,
+        PlaceBuyOrder,
+        GetBuyOrderInfo,
+        PlaceSellOrder,
+        GetSellOrderInfo,
+        WithdrawFiat,
+        TransferEth,
+        Finished
+    }
+
+    public enum ArbitrageError
+    {
+        Unknown,
+        ManuallyAborted,
+        InvalidBalance,
+        ZeroEthBought
+    }
+
+    public class ArbitrageContext
+    {
+        /// <summary>
+        /// Current state.
+        /// </summary>
+        public ArbitrageState State { get; set; }
+
+        /// <summary>
+        /// The amount of fiat that user wants to spend
+        /// </summary>
+        public decimal UserFiatToSpend { get; set; }
+
+        public ArbitrageError? Error { get; set; }
+        public ArbitrageInfo Info { get; set; }
+
+        public OrderId? BuyOrderId { get; set; }
+        public decimal? BuyEthAmount { get; set; }
+        public OrderId? SellOrderId { get; set; }
+        public ILogger Logger { get; set; }
+
+        public static ArbitrageContext Start(decimal fiatToSpend)
+        {
+            var ctx = new ArbitrageContext()
+            {
+                UserFiatToSpend = fiatToSpend,
+                State = ArbitrageState.NotStarted
+            };
+
+            return ctx;
+        }
+    }
+
+    public class ArbitrageInfo
+    {
+        public Status Status { get; set; }
+        public ProfitCalculation ProfitCalculation { get; set; }
+        public decimal TargetFiatToSpend { get; set; }
+
+        public string BuyerName => Status.Buyer.Name;
+        public string SellerName => Status.Seller.Name;
+        public decimal MaxNegativeSpreadPercentage => Status.Difference.MaxNegativeSpreadPercentage;
+        public decimal MaxNegativeSpreadEur => Status.Difference.MaxNegativeSpread;
+        public decimal EurBalance => Status.Buyer.Balance.Eur;
+        public decimal EthBalance => Status.Seller.Balance.Eth;
+
+        public decimal MaxEthAmountToArbitrage => ProfitCalculation.EthsToArbitrage;
+        public decimal MaxEursToSpend => ProfitCalculation.FiatSpent;
+        public decimal MaxEursToEarn => ProfitCalculation.FiatEarned;
+        public decimal MaxEurProfit => ProfitCalculation.Profit;
+        public decimal MaxProfitPercentage => ProfitCalculation.ProfitPercentage;
+        public decimal MaxBuyFee => ProfitCalculation.BuyFee;
+        public decimal MaxSellFee => ProfitCalculation.SellFee;
+
+        public decimal EstimatedAvgBuyUnitPrice => ProfitCalculation.EthBuyCount > 0 ? ProfitCalculation.FiatSpent / ProfitCalculation.EthBuyCount : 0m;
+        public decimal EstimatedAvgSellUnitPrice => ProfitCalculation.EthSellCount > 0 ? ProfitCalculation.FiatEarned / ProfitCalculation.EthSellCount : 0m;
+        public decimal EstimatedAvgNegativeSpread => EstimatedAvgSellUnitPrice - EstimatedAvgBuyUnitPrice;
+        public decimal EstimatedAvgNegativeSpreadPercentage => EstimatedAvgNegativeSpread / EstimatedAvgBuyUnitPrice;
+
+        public decimal BestBuyPrice => Status.Buyer.Asks.Asks.FirstOrDefault()?.PricePerUnit ?? 0m;
+        public decimal BestSellPrice => Status.Seller.Bids.Bids.FirstOrDefault()?.PricePerUnit ?? 0m;
+
+        public decimal BuyLimitPricePerUnit => ProfitCalculation.BuyLimitPricePerUnit;
+
+        public bool IsBalanceSufficient => Status.Buyer.Balance.Eur <= ProfitCalculation.FiatSpent;
+        public bool IsProfitable { get; set; }
+
+        public override string ToString()
+        {
+            StringBuilder b = new StringBuilder();
+            b.AppendLine("ARBITRAGE INFO");
+            b.AppendLine("\tEUR balance at {0}: {1}", BuyerName, EurBalance);
+            b.AppendLine("\tETH balance at {0}: {1}", SellerName, EthBalance);
+            b.AppendLine();
+            b.AppendLine("\tAvg. neg. spread % (i. fees): {0:0.##} %", EstimatedAvgNegativeSpreadPercentage * 100);
+            b.AppendLine("\tAvg. neg. spread (inc. fees): {0:0.##} EUR", EstimatedAvgNegativeSpread);
+            b.AppendLine("\tAvg. buy price (incl. fees) : {0:0.##} EUR", EstimatedAvgBuyUnitPrice);
+            b.AppendLine("\tAvg. sell price (incl. fees): {0:0.##} EUR", EstimatedAvgSellUnitPrice);
+            b.AppendLine();
+            b.AppendLine("\tMax negative spread %       : {0:0.##} %", MaxNegativeSpreadPercentage * 100);
+            b.AppendLine("\tMax negative spread         : {0:0.##} EUR", MaxNegativeSpreadEur);
+            b.AppendLine("\tBest buy price              : {0:0.##} EUR", BestBuyPrice);
+            b.AppendLine("\tBest sell price             : {0:0.##} EUR", BestSellPrice);
+            b.AppendLine();
+            b.AppendLine("\tETHs to arbitrage           : {0:0.##} ETH", MaxEthAmountToArbitrage);
+            b.AppendLine("\tEstimated buy fee           : {0:0.##} EUR", MaxBuyFee);
+            b.AppendLine("\tEstimated sell fee          : {0:0.##} EUR", MaxSellFee);
+            b.AppendLine("\tEstimated buy (incl. fees)  : {0:0.##} EUR -> {1:0.##} ETH", MaxEursToSpend, MaxEthAmountToArbitrage);
+            b.AppendLine("\tEstimated sell (incl. fees) : {0:0.##} ETH -> {1:0.##} EUR", MaxEthAmountToArbitrage, MaxEursToEarn);
+            b.AppendLine("\tEstimated profit            : {0:0.##} EUR", MaxEurProfit);
+            b.AppendLine("\tEstimated profit %          : {0:0.##} %", MaxProfitPercentage * 100m);
+            b.AppendLine();
+            b.AppendLine("\tIs profitable               : {0}", IsProfitable ? "Yes" : "No");
+            b.AppendLine("\tIs balance sufficient       : {0}", IsBalanceSufficient ? "Yes" : "No");
+
+            return b.ToString();
+        }
     }
 
     public class AccountsInfo

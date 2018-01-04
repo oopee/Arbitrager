@@ -13,8 +13,8 @@ namespace Kraken
         ILogger m_logger;
 
         public string Name => "Kraken";
-        public decimal TakerFeePercentage => 0.26m; // 0.26%
-        public decimal MakerFeePercentage => 0.16m; // 0.16%
+        public decimal TakerFeePercentage => 0.0026m; // 0.26%
+        public decimal MakerFeePercentage => 0.0016m; // 0.16%
 
         public KrakenConfiguration Configuration { get; private set; }        
 
@@ -22,14 +22,15 @@ namespace Kraken
         {
             Configuration = configuration;
 
-            m_logger = logger;
+            m_logger = logger.WithName(GetType().Name);
             m_client = new KrakenApi.Kraken(
+                logger.WithName("KrakenApi"),
                 configuration.Key,
                 configuration.Secret,
                 3000);
         }
 
-        public async Task<MyOrder> PlaceBuyOrder(decimal price, decimal volume)
+        public async Task<MyOrder> PlaceImmediateBuyOrder(decimal price, decimal volume)
         {
             MyOrder myOrder = null;
 
@@ -41,7 +42,8 @@ namespace Kraken
                     Type = "buy",
                     OrderType = "limit",
                     Price = price,
-                    Volume = volume
+                    Volume = volume,
+                    ExpireTmFromNow = 1 // expire after 1 second
                 };                
 
                 var result = m_client.AddOrder(order);
@@ -310,23 +312,5 @@ namespace Kraken
                     return OrderType2.Unknown;
             }
         }        
-    }
-
-    public class KrakenConfiguration
-    {
-        public string Key { get; set; }
-        public string Secret { get; set; }
-
-        public string Url => "https://api.kraken.com";
-        public int Version => 0;
-
-        public static KrakenConfiguration FromAppConfig()
-        {
-            return new KrakenConfiguration()
-            {
-                Secret = Utils.AppConfigLoader.Instance.AppSettings("KrakenSecret") ?? "",
-                Key = Utils.AppConfigLoader.Instance.AppSettings("KrakenKey") ?? "",
-            };
-        }
     }
 }

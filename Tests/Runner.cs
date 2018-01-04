@@ -44,8 +44,7 @@ namespace Tests
         [Test]
         public async Task Kraken_Gdax_GetArbitrageInfo()
         {
-            Arbitrager.App app = new Arbitrager.App(GetKrakenGdaxArbitrager(), Logger, DataAccess);
-            var info = await app.GetInfoForArbitrage(null);
+            var info = await GetKrakenGdaxArbitrager().GetInfoForArbitrage(null);
             Logger.Info(info.ToString());
         }
 
@@ -63,7 +62,7 @@ namespace Tests
         {
             var exchange = GetKraken();
 
-            var order = await ((IBuyer)exchange).PlaceBuyOrder(0.1m, 1m);
+            var order = await ((IBuyer)exchange).PlaceImmediateBuyOrder(0.1m, 1m);
             var info = await exchange.GetOrderInfo(order.Id);
             await exchange.CancelOrder(order.Id);
             Logger.Info(GetDebugString(info));
@@ -73,12 +72,13 @@ namespace Tests
         [Test]
         public async Task Gdax_ShowOrderInfo()
         {
-            var exchange = GetGdax();
+            await Task.Delay(0);
+            /*var exchange = GetGdax();
 
             var order = await ((ISeller)exchange).PlaceSellOrder(99999m, 0.001m);
             var info = await exchange.GetOrderInfo(order.Id);
             await exchange.CancelOrder(order.Id);
-            Logger.Info(GetDebugString(info));
+            Logger.Info(GetDebugString(info));*/
         }
 
         IExchange GetKraken()
@@ -93,7 +93,7 @@ namespace Tests
 
         IArbitrager GetKrakenGdaxArbitrager()
         {
-            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), new DefaultProfitCalculator(), Logger, DataAccess);
+            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), new DefaultProfitCalculator(), DataAccess, Logger);
         }
 
         string GetDebugString(object obj)
@@ -114,6 +114,11 @@ namespace Tests
 
     public class TestLogger : Common.LoggerBase
     {
+        protected override LoggerBase Clone()
+        {
+            return new TestLogger();
+        }
+
         protected override void Log(LogLine logLine)
         {
             System.Diagnostics.Debug.WriteLine(logLine.DefaultLine);

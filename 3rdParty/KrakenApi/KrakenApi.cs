@@ -945,10 +945,15 @@ namespace KrakenApi
         /// <summary>
         /// Expiration time (optional):
         /// 0 = no expiration(default)
-        /// +<n> = expire<n> seconds from now
+        /// +<n> = expire<n> seconds from now. NOTE: DO NOT USE THIS. Use ExpireTmFromNow instead!
         /// <n> = unix timestamp of expiration time
         /// </summary>
         public int? ExpireTm;
+
+        /// <summary>
+        /// Relative expiration time. See ExpireTm for more information.
+        /// </summary>
+        public int? ExpireTmFromNow;
 
         /// <summary>
         /// User reference id.  32-bit signed number.  (optional).
@@ -1240,6 +1245,7 @@ namespace KrakenApi
         private readonly string _key;
         private readonly string _secret;
         private readonly int _rateLimitMilliseconds = 5000;
+        private Interface.ILogger m_logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Kraken"/> class.
@@ -1247,13 +1253,14 @@ namespace KrakenApi
         /// <param name="key">The API key.</param>
         /// <param name="secret">The API secret.</param>
         /// <param name="rateLimitMilliseconds">The rate limit in milliseconds.</param>
-        public Kraken(string key, string secret, int rateLimitMilliseconds = 5000)
+        public Kraken(Interface.ILogger logger, string key, string secret, int rateLimitMilliseconds = 5000)
         {
             _url = "https://api.kraken.com";
             _version = 0;
             _key = key;
             _secret = secret;
             _rateLimitMilliseconds = rateLimitMilliseconds;
+            m_logger = logger;
         }
 
         private string BuildPostData(Dictionary<string, string> param)
@@ -1322,11 +1329,11 @@ namespace KrakenApi
                     {
                         result = null;
                         ++retries;
-                        Console.WriteLine(string.Format("{0}: {1}, retrying ({2})", method, retryErrorText, retries));
+                        m_logger.Debug(string.Format("{0}: {1}, retrying ({2})", method, retryErrorText, retries));
                     }
                     else
                     {
-                        Console.WriteLine(string.Format("{0}: {1}, retry limit exceeded", method, retryErrorText));
+                        m_logger.Error(string.Format("{0}: {1}, retry limit exceeded", method, retryErrorText));
 
                         if (exception != null)
                         {
@@ -1341,7 +1348,7 @@ namespace KrakenApi
 
             if (retries > 0)
             {
-                Console.WriteLine(string.Format("{0}: Query succeeded after {1} retries", method, retries));
+                m_logger.Debug(string.Format("{0}: Query succeeded after {1} retries", method, retries));
             }
 
             return result;
@@ -2060,8 +2067,18 @@ namespace KrakenApi
                 param.Add("oflags", order.OFlags);
             if (order.StartTm != null)
                 param.Add("starttm", order.StartTm.ToString());
+
             if (order.ExpireTm != null)
+            {
+                // absolute timestamp
                 param.Add("expiretm", order.ExpireTm.ToString());
+            }
+            else if (order.ExpireTmFromNow != null)
+            {
+                // relative timestamp
+                param.Add("expiretm", string.Format("+{0}", order.ExpireTmFromNow));
+            }
+                    
             if (order.UserRef != null)
                 param.Add("userref", order.UserRef.ToString());
             if (order.Validate != null)

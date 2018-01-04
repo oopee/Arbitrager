@@ -22,17 +22,23 @@ namespace Common
         public ISeller Seller => m_seller;
         public IProfitCalculator ProfitCalculator => m_profitCalculator;
 
-        public DefaultArbitrager(IBuyer buyer, ISeller seller, IProfitCalculator profitCalculator, ILogger logger, IDatabaseAccess dataAccesss)
+        public DefaultArbitrager(
+            IBuyer buyer, 
+            ISeller seller, 
+            IProfitCalculator profitCalculator,
+            IDatabaseAccess dataAccess,
+            ILogger logger)
         {
             m_buyer = buyer;
             m_seller = seller;
             m_profitCalculator = profitCalculator;
-            m_logger = logger;
-            m_dataAccess = dataAccesss;
+            m_logger = logger.WithName(GetType().Name);
+            m_dataAccess = dataAccess;
         }
 
         public async Task<AccountsInfo> GetAccountsInfo()
         {
+            m_logger.Debug("GetAccountsInfo()");
             var buyer = await GetAccountInfo(m_buyer);
             var seller = await GetAccountInfo(m_seller);
 
@@ -44,7 +50,11 @@ namespace Common
 
         private async Task<AccountInfo> GetAccountInfo(IExchange exchange)
         {
+            m_logger.Debug("GetAccountInfo()");
+            m_logger.Debug("Calling GetCurrentBalance({0})", exchange?.Name);
             var balance = await exchange.GetCurrentBalance();
+
+            m_logger.Debug("Calling GetPaymentMethods({0})", exchange?.Name);
             var methods = await exchange.GetPaymentMethods();
 
             return new AccountInfo()
@@ -57,6 +67,7 @@ namespace Common
 
         public async Task<Status> GetStatus(bool includeBalance)
         {
+            m_logger.Debug("GetStatus(includeBalance: {0})", includeBalance);
             BalanceResult buyerBalance = null;
             IAskOrderBook askOrderBook = null;
 
@@ -67,9 +78,11 @@ namespace Common
             {
                 if (includeBalance)
                 {
+                    m_logger.Debug("Calling GetCurrentBalance({0})", m_buyer.Name);
                     buyerBalance = await m_buyer.GetCurrentBalance();
                 }
 
+                m_logger.Debug("Calling GetAsks({0})", m_buyer.Name);
                 askOrderBook = await m_buyer.GetAsks();
             };
 
@@ -77,9 +90,11 @@ namespace Common
             {
                 if (includeBalance)
                 {
+                    m_logger.Debug("Calling GetCurrentBalance({0})", m_seller.Name);
                     sellerBalance = await m_seller.GetCurrentBalance();
                 }
 
+                m_logger.Debug("Calling GetBids({0})", m_seller.Name);
                 bidOrderBook = await m_seller.GetBids();
             };
 
@@ -118,114 +133,224 @@ namespace Common
             return new Status(buyerStatus, sellerStatus);
         }
 
-        public async Task Arbitrage(decimal eur)
+        public async Task Arbitrage(ArbitrageContext ctx)
         {
-            var status = await GetStatus(true);
+            var logger = m_logger.WithAppendName("Arbitrage");
+            logger.Debug("Starting from state {0}", ctx.State);
 
-            if (eur > status.Buyer.Balance.Eur)
+            if (ctx.Error != null)
             {
-                // Requested arbitrage EUR amount is more than we have at exchange B -> abort
+                throw new InvalidOperationException("Arbitrage() called when context in in error state");
+            }
+
+            ctx.Logger = logger;
+
+            while (true)
+            {
+                logger.Debug("Handling state {0}", ctx.State);
+
+                await OnStateBegin(ctx);
+
+                ArbitrageState newState;
+                switch (ctx.State)
+                {
+                    case ArbitrageState.NotStarted:                        
+                        newState = ArbitrageState.CheckStatus;
+                        break;
+
+                    case ArbitrageState.CheckStatus:
+                        await DoArbitrage_CheckStatus(ctx);
+                        newState = ArbitrageState.PlaceBuyOrder;
+                        break;
+
+                    case ArbitrageState.PlaceBuyOrder:
+                        await DoArbitrage_PlaceBuyOrder(ctx);
+                        newState = ArbitrageState.GetBuyOrderInfo;
+                        break;
+
+                    case ArbitrageState.GetBuyOrderInfo:
+                        await DoArbitrage_GetBuyOrderInfo(ctx);
+                        newState = ArbitrageState.PlaceSellOrder;
+                        break;
+
+                    case ArbitrageState.PlaceSellOrder:
+                        await DoArbitrage_PlaceSellOrder(ctx);
+                        newState = ArbitrageState.GetSellOrderInfo;
+                        break;
+
+                    case ArbitrageState.GetSellOrderInfo:
+                        await DoArbitrage_GetSellOrderInfo(ctx);
+                        newState = ArbitrageState.WithdrawFiat;
+                        break;
+
+                    case ArbitrageState.WithdrawFiat:
+                        await DoArbitrage_WithdrawFiat(ctx);
+                        newState = ArbitrageState.TransferEth;
+                        break;
+
+                    case ArbitrageState.TransferEth:
+                        await DoArbitrage_TransferEth(ctx);
+                        newState = ArbitrageState.Finished;
+                        break;
+
+                    default:
+                        throw new InvalidOperationException(string.Format("State '{0}' not handled", ctx.State));
+                }
+
+                if (ctx.Error != null)
+                {
+                    logger.Debug("\tstate {0} did not finish succesfully. Error: {1}", ctx.State, ctx.Error);
+                    logger.Debug("\taborting!");
                 return;
             }
 
-            var ethAvailableToSell = status.Seller.Balance.Eth; // max eth to buy from exchange B is the amount of available ETH at exchange S
-            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, eur, ethAvailableToSell);
+                await OnStateEnd(ctx);
 
-            // GetInfoForArbitrage(eur);
+                logger.Debug("\tmoving to next state {0}", newState);
+                ctx.State = newState;
+            }
         }
+
+        protected virtual async Task DoArbitrage_CheckStatus(ArbitrageContext ctx)
+        {
+            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_CheckStatus");
+
+            // Calculate arbitrage info
+            var info = await GetInfoForArbitrage(ctx.UserFiatToSpend);
+
+            if (ctx.UserFiatToSpend > info.EurBalance)
+            {
+                // Requested arbitrage EUR amount is more than we have at exchange B -> abort
+                ctx.Error = ArbitrageError.InvalidBalance;
+                return;
+            }
+
+            ctx.Info = info;
+        }
+
+        protected virtual async Task DoArbitrage_PlaceBuyOrder(ArbitrageContext ctx)
+        {
+            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_PlaceBuyOrder");
+
+            if (ctx.BuyOrderId != null)
+            {
+                throw new InvalidOperationException(string.Format("DoArbitrage_PlaceBuyOrder: BuyOrderId already set! ({0})", ctx.BuyOrderId));
+            }
+
+            var buyLimitPricePerUnit = ctx.Info.BuyLimitPricePerUnit;
+            var maxEthToBuy = ctx.Info.MaxEthAmountToArbitrage;
+
+            logger.Debug("Placing buy order (limit: {0} EUR, volume: {1} ETH)", buyLimitPricePerUnit, maxEthToBuy);
+            var buyOrder = await Buyer.PlaceImmediateBuyOrder(buyLimitPricePerUnit, maxEthToBuy);
+            logger.Debug("\tbuy order placed (orderId: {0})", buyOrder.Id);
+
+            ctx.BuyOrderId = buyOrder.Id;
+        }
+
+        protected virtual async Task DoArbitrage_GetBuyOrderInfo(ArbitrageContext ctx)
+        {
+            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_GetBuyOrderInfo");
+
+            if (ctx.BuyOrderId != null)
+            {
+                throw new InvalidOperationException("DoArbitrage_GetBuyOrderInfo: BuyOrderId has not been set!");
+            }
+
+            logger.Debug("Getting buy order info (orderId: {0})", ctx.BuyOrderId);
+            var buyOrderInfo = await Buyer.GetOrderInfo(ctx.BuyOrderId.Value);
+            ctx.BuyEthAmount = buyOrderInfo.FilledVolume;
+            logger.Debug("\tgot buy order info (filledVolume: {0}, cost: {1}, state: {2})", ctx.BuyEthAmount, buyOrderInfo.Cost, buyOrderInfo.State);
+
+
+            if (buyOrderInfo.State == OrderState.Open)
+            {
+                // TODO: what to do?
+                logger.Error("\tbuy order is still OPEN!");
+            }
+
+            if (ctx.BuyEthAmount <= 0m)
+            {
+                // we couldn't by any eth -> abort
+                ctx.Error = ArbitrageError.ZeroEthBought;
+            }
+        }
+
+        protected virtual async Task DoArbitrage_PlaceSellOrder(ArbitrageContext ctx)
+        {
+            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_PlaceSellOrder");
+
+            if (ctx.BuyEthAmount == null || ctx.BuyEthAmount <= 0m)
+            {
+                throw new InvalidOperationException("DoArbitrage_PlaceSellOrder: BuyEthAmount has not been set!");
+            }
+
+            var ethToSell = ctx.BuyEthAmount.Value;
+
+            logger.Debug("Placing sell order (volume: {0} ETH)", ethToSell);
+            var sellOrder = await Seller.PlaceMarketSellOrder(ethToSell);
+            logger.Debug("\tsell order placed (orderId: {0})", sellOrder.Id);
+
+            ctx.SellOrderId = sellOrder.Id;
+                }
+
+        protected virtual async Task DoArbitrage_GetSellOrderInfo(ArbitrageContext ctx)
+        {
+            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_GetSellOrderInfo");
+
+            if (ctx.SellOrderId != null)
+            {
+                throw new InvalidOperationException("DoArbitrage_GetSellOrderInfo: SellOrderId has not been set!");
+            }
+
+            logger.Debug("Getting sell order info (orderId: {0})", ctx.SellOrderId);
+            var sellOrderInfo = await Seller.GetOrderInfo(ctx.SellOrderId.Value);
+            logger.Debug("\tgot buy sell info (filledVolume: {0}, cost: {1}, state: {2})", sellOrderInfo.FilledVolume, sellOrderInfo.Cost, sellOrderInfo.State);
+
+            // TODO!
+        }
+
+        protected virtual async Task DoArbitrage_WithdrawFiat(ArbitrageContext ctx)
+        {
+            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_WithdrawFiat");
+            logger.Debug("Not implemented");
+            // throw new NotImplementedException();
+        }
+
+        protected virtual async Task DoArbitrage_TransferEth(ArbitrageContext ctx)
+        {
+            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_TransferEth");
+            logger.Debug("Not implemented");
+            // throw new NotImplementedException();
+        }
+
+        protected virtual Task OnStateBegin(ArbitrageContext ctx)
+        {
+            return Task.CompletedTask;
+    }
+
+        protected virtual Task OnStateEnd(ArbitrageContext ctx)
+    {
+            return Task.CompletedTask;
+        }              
 
         public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)
         {
+            // Get current prices, balances etc
             var status = await GetStatus(true);
-            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, maxEursToSpendArg ?? status.Buyer.Balance.Eur);
 
-            ArbitrageInfo info = new ArbitrageInfo();
-            info.MaxNegativeSpreadPercentage = status.Difference.MaxNegativeSpreadPercentage;
-            info.MaxNegativeSpreadEur = status.Difference.MaxNegativeSpread;
-            info.EurBalance = status.Buyer.Balance.Eur;
-            info.EthBalance = status.Seller.Balance.Eth;
-            info.BestBuyPrice = status.Buyer.Asks.Asks[0].PricePerUnit + 1;
-            info.BestSellPrice = status.Seller.Bids.Bids[0].PricePerUnit - 1;
+            // Calculate estimated profit based on prices/balances/etc
+            var eursToSpend = maxEursToSpendArg ?? status.Buyer.Balance.Eur; // use whole balance if max eurs was not given
+            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, eursToSpend);
 
-            var maxEursToSpend = maxEursToSpendArg != null ? Math.Min(maxEursToSpendArg.Value, info.EurBalance) : info.EurBalance;
-
-            if (calc.ProfitPercentage < 0.02m) // 2%
-            {
-                info.IsProfitable = false;
-            }
-            else
-            {
-                info.IsProfitable = true;
-                var eursToUse = (maxEursToSpend * 0.99m - 1);// note: we subtract 1 eur and 1% from eur balance to cover fees
-                if (eursToUse > 0)
-                {
-                    decimal maxApproxEthsToBuy = eursToUse / info.BestBuyPrice;
-
-                    decimal maxApproxEthsToArbitrage;
-                    if (maxApproxEthsToBuy >= status.Seller.Balance.Eth) // check if we have enough ETH to sell
-                    {
-                        maxApproxEthsToArbitrage = status.Seller.Balance.Eth * 0.99m; // note: subtract 1% to avoid rounding/fee errors
-                    }
-                    else
-                    {
-                        maxApproxEthsToArbitrage = maxApproxEthsToBuy;
-                    }
-
-                    maxApproxEthsToArbitrage = decimal.Round(maxApproxEthsToArbitrage, 2, MidpointRounding.ToEven);
-
-
-                    info.MaxApproximateEthsToSell = maxApproxEthsToArbitrage;
-                    info.MaxApproximateEursToSpend = maxApproxEthsToArbitrage * info.BestBuyPrice;
-                    info.MaxApproximateEursToGain = maxApproxEthsToArbitrage * info.BestSellPrice;
-
-                    info.MaxApproximateEurProfit = (info.MaxApproximateEursToGain * 0.995m) - info.MaxApproximateEursToSpend; // subtract 0.5% to cover fees
-                }
-            }
-
-            info.BuyerName = Buyer.Name;
-            info.SellerName = Seller.Name;
-            info.IsBalanceSufficient = info.EurBalance >= info.MaxApproximateEursToSpend;
+            ArbitrageInfo info = new ArbitrageInfo()
+        {
+                TargetFiatToSpend = eursToSpend,
+                Status = status,
+                ProfitCalculation = calc,
+                IsProfitable = calc.ProfitPercentage >= 0.02m // 2% threshold
+            };
 
             return info;
-        }
-    }
-
-    public class ArbitrageInfo
-    {
-        public string BuyerName { get; set; }
-        public string SellerName { get; set; }
-
-        public bool IsProfitable { get; set; }
-        public bool IsBalanceSufficient { get; set; }
-        public decimal MaxNegativeSpreadPercentage { get; set; }
-        public decimal MaxNegativeSpreadEur { get; set; }
-        public decimal EurBalance { get; set; }
-        public decimal EthBalance { get; set; }
-        public decimal MaxApproximateEthsToSell { get; set; }
-        public decimal MaxApproximateEursToSpend { get; set; }
-        public decimal MaxApproximateEursToGain { get; set; }
-        public decimal MaxApproximateEurProfit { get; set; }
-
-        public decimal BestBuyPrice { get; set; }
-        public decimal BestSellPrice { get; set; }
-
-        public override string ToString()
-        {
-            StringBuilder b = new StringBuilder();
-            b.AppendLine("ARBITRAGE INFO");
-            b.AppendLine("\tEUR balance at {0}: {1}", BuyerName, EurBalance);
-            b.AppendLine("\tETH balance at {0}: {1}", SellerName, EthBalance);
-            b.AppendLine("\tBest buy price        : {0}", BestBuyPrice);
-            b.AppendLine("\tBest sell price       : {0}", BestSellPrice);
-            b.AppendLine("\tMax negative spread   : {0}", MaxNegativeSpreadEur);
-            b.AppendLine("\tMax negative spread % : {0}", MaxNegativeSpreadPercentage * 100);
-            b.AppendLine("\tIs profitable         : {0}", IsProfitable ? "Yes" : "No");
-            b.AppendLine("\tIs balance sufficient : {0}", IsBalanceSufficient ? "Yes" : "No");
-            b.AppendLine("\tEstimated buy         : {0:G8} EUR -> {1:G8} ETH", MaxApproximateEursToSpend, MaxApproximateEthsToSell);
-            b.AppendLine("\tEstimated sell        : {0:G8} ETH -> {1:G8} EUR", MaxApproximateEthsToSell, MaxApproximateEursToGain);
-            b.AppendLine("\tEstimated profit      : {0} EUR", MaxApproximateEurProfit);
-
-            return b.ToString();
         }
     }
 }

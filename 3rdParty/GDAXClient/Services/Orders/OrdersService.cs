@@ -48,7 +48,7 @@ namespace GDAXClient.Services.Orders
             return orderResponse;
         }
 
-        public async Task<OrderResponse> PlaceLimitOrderAsync(OrderSide side, ProductType productId, decimal size, decimal price)
+        public async Task<OrderResponse> PlaceLimitOrderAsync(OrderSide side, ProductType productId, decimal size, decimal price, TimeInForce timeInForce = TimeInForce.GTC)
         {
             var newOrder = JsonConvert.SerializeObject(new Order
             {
@@ -56,7 +56,8 @@ namespace GDAXClient.Services.Orders
                 product_id = productId.ToDasherizedUpper(),
                 type = OrderType.Limit.ToString().ToLower(),
                 price = price,
-                size = size
+                size = size,
+                time_in_force = timeInForce.ToString(),
             });
 
             var httpResponseMessage = await SendHttpRequestMessageAsync(HttpMethod.Post, authenticator, "/orders", newOrder);

@@ -9,7 +9,7 @@ namespace Interface
     public interface IBuyer : IExchange
     {
         Task<IAskOrderBook> GetAsks();
-        Task<MyOrder> PlaceBuyOrder(decimal price, decimal volume);
+        Task<MyOrder> PlaceImmediateBuyOrder(decimal limitPricePerUnit, decimal maxVolume);
     }
 
     public class BalanceResult

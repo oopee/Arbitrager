@@ -25,6 +25,8 @@ namespace Common
             // starting from the best ask
             decimal ethCount = 0;
             decimal fiatSpent = 0;
+            decimal buyLimitPrice = 0;
+            decimal buyFee = 0;
             int askNro = 0;
             while (fiatSpent < fiatLimit && ethCount < ethTotalBids && buyer.Asks.Asks.Count > askNro)
             {
@@ -36,8 +38,13 @@ namespace Common
 
                 var eursToUse = Math.Min(fiatLimit - fiatSpent, maxEursToUseAtThisPrice);
 
+                var buyAmount = eursToUse / buyPricePerUnitWithFee;
+                var fee = buyAmount * (buyPricePerUnitWithFee - orders.PricePerUnit);
+
                 fiatSpent += eursToUse;
-                ethCount += eursToUse / buyPricePerUnitWithFee;
+                ethCount += buyAmount;
+                buyLimitPrice = orders.PricePerUnit; // we want to use last price as limit price
+                buyFee += fee;
 
                 ++askNro;
             }
@@ -47,16 +54,19 @@ namespace Common
             decimal ethSold = 0m;
             int bidNro = 0;
             decimal moneyEarned = 0;
+            decimal sellFee = 0;
             while (ethLeftToSell > 0 && seller.Bids.Bids.Count > bidNro)
             {
                 var orders = seller.Bids.Bids[bidNro];
                 var maxEthToSellAtThisPrice = orders.VolumeUnits;
                 var ethToSell = Math.Min(ethLeftToSell, maxEthToSellAtThisPrice);
                 var sellPricePerUnitWithFee = orders.PricePerUnit * (1m - seller.TakerFee);
+                var fee = ethToSell * (orders.PricePerUnit - sellPricePerUnitWithFee);
 
                 moneyEarned += ethToSell * sellPricePerUnitWithFee;
                 ethLeftToSell -= ethToSell;
                 ethSold += ethToSell;
+                sellFee += fee;
 
                 ++bidNro;
             }
@@ -73,6 +83,8 @@ namespace Common
                 Profit = profit,
                 ProfitAfterTax = profitAfterTax,
                 AllFiatSpent = fiatSpent >= fiatLimit,
+                BuyFee = buyFee,
+                SellFee = sellFee
             };
         }
     }

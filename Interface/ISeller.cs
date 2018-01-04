@@ -9,6 +9,6 @@ namespace Interface
     public interface ISeller : IExchange
     {
         Task<IBidOrderBook> GetBids();
-        Task<MyOrder> PlaceSellOrder(decimal price, decimal volume);
+        Task<MyOrder> PlaceMarketSellOrder(decimal volume);
     }
 }
