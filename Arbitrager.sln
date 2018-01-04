@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.23107.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2010
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbitrager", "Arbitrager\Arbitrager.csproj", "{DD72D777-298F-4399-99F2-48F38B29334D}"
 EndProject
@@ -20,6 +20,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Common\Common.csproj", "{4BA7E660-3529-4368-A894-28E2F8132DEE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilsInterface", "UtilsInterface\UtilsInterface.csproj", "{E89BF8F3-9E4D-4DB7-9623-068F879BB68B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GDAXClient", "3rdParty\gdax-csharp\GDAXClient\GDAXClient.csproj", "{454A0FAC-C580-4674-AE58-6D8E6658685B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -59,11 +61,19 @@ Global
 		{E89BF8F3-9E4D-4DB7-9623-068F879BB68B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E89BF8F3-9E4D-4DB7-9623-068F879BB68B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E89BF8F3-9E4D-4DB7-9623-068F879BB68B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{454A0FAC-C580-4674-AE58-6D8E6658685B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{454A0FAC-C580-4674-AE58-6D8E6658685B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{454A0FAC-C580-4674-AE58-6D8E6658685B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{454A0FAC-C580-4674-AE58-6D8E6658685B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{6FD7A9D6-CE6D-4B57-BEBB-FAAF2490811E} = {BA9BB67B-6E5C-464B-8703-6A2403B5A6F0}
+		{454A0FAC-C580-4674-AE58-6D8E6658685B} = {BA9BB67B-6E5C-464B-8703-6A2403B5A6F0}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AC481D30-C6B8-479B-9963-F8309C6F60DF}
 	EndGlobalSection
 EndGlobal
