@@ -11,6 +11,7 @@ namespace DatabaseAccess
         public static readonly string DATABASE_FILE_NAME = "./arbitrager.sqlite";
 
         public DbSet<Interface.Entities.LogLine> Logs { get; set; }
+        public DbSet<Interface.Entities.LogItem> LogItems { get; set; }
 
         protected override void OnConfiguring(Microsoft.EntityFrameworkCore.DbContextOptionsBuilder optionsBuilder)
         {

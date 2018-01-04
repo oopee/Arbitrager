@@ -32,7 +32,13 @@ namespace DatabaseAccess
                 });
                 db.Logs.Add(new Interface.Entities.LogLine()
                 {
-                    Message = "Test method called again"
+                    Message = "Test method called again",
+                    Items = new System.Collections.Generic.List<Interface.Entities.LogItem>()
+                    {
+                        new Interface.Entities.LogItem() { ItemNumber = 10 },
+                        new Interface.Entities.LogItem() { ItemNumber = 20 },
+                        new Interface.Entities.LogItem() { ItemNumber = 30 }
+                    }
                 });
                 await db.SaveChangesAsync();
             });
