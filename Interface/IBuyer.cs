@@ -122,6 +122,11 @@ namespace Interface
             OrderId o = (OrderId)obj;
             return this == o;
         }
+
+        public static implicit operator string(OrderId id)
+        {
+            return id.Id;
+        }
     }
 
     public struct PaymentMethodId

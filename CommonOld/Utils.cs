@@ -43,7 +43,7 @@ namespace Common
             return DateTimeOffset.FromUnixTimeMilliseconds((long)(unixTime * 1000)).UtcDateTime;
         }
 
-        public static int? DateTimeToUnixTime(DateTime? dateTime)
+        public static string DateTimeToUnixTimeString(DateTime? dateTime)
         {
             if (dateTime == null)
             {
@@ -57,7 +57,17 @@ namespace Common
 
             var offset = new DateTimeOffset(dateTime.Value);
 
-            return (int)offset.ToUnixTimeSeconds();
+            var millis = offset.ToUnixTimeMilliseconds();
+            var seconds = millis / 1000;
+            var fraction = millis % 1000;
+            if (fraction > 0)
+            {
+                return string.Format("{0}.{1}", seconds, millis);
+            }
+            else
+            {
+                return seconds.ToString();
+            }
         }
 
         private static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);

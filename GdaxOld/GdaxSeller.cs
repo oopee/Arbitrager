@@ -202,9 +202,9 @@ namespace Gdax
         {
             return new GdaxConfiguration()
             {
-                Key = Utils.AppConfigLoader.Instance.AppSettings("GdaxKey") ?? "",
-                Signature = Utils.AppConfigLoader.Instance.AppSettings("GdaxSecret") ?? "",
-                Passphrase = Utils.AppConfigLoader.Instance.AppSettings("GdaxPassphrase") ?? "",
+                Key = System.Configuration.ConfigurationManager.AppSettings["GdaxKey"] ?? "",
+                Signature = System.Configuration.ConfigurationManager.AppSettings["GdaxSecret"] ?? "",
+                Passphrase = System.Configuration.ConfigurationManager.AppSettings["GdaxPassphrase"] ?? "",
             };
         }
     }

@@ -4,13 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Interface;
-using Jayrock.Json;
 
 namespace Kraken
 {
     public class KrakenBuyer : Interface.IBuyer
     {
-        KrakenClient.KrakenClient m_client;
+        KrakenApi.Kraken m_client;
         ILogger m_logger;
 
         public string Name => "Kraken";
@@ -21,12 +20,10 @@ namespace Kraken
             Configuration = configuration;
 
             m_logger = logger;
-            m_client = new KrakenClient.KrakenClient(
-                configuration.Url,
-                configuration.Version,
+            m_client = new KrakenApi.Kraken(
                 configuration.Key,
                 configuration.Secret,
-                m_logger);
+                3000);
         }
 
         public async Task<MyOrder> PlaceBuyOrder(decimal price, decimal volume)
@@ -35,8 +32,8 @@ namespace Kraken
 
             await Task.Run(() =>
             {
-                var order = new KrakenClient.KrakenOrder()
-                {
+                var order = new KrakenApi.KrakenOrder()
+                { 
                     Pair = "XETHZEUR",
                     Type = "buy",
                     OrderType = "limit",
@@ -45,13 +42,11 @@ namespace Kraken
                 };                
 
                 var result = m_client.AddOrder(order);
-                var r = GetResultAndThrowIfError(result);
-
-                m_logger.Info("KrakenBuyer: Placed order {0}", r);
+                m_logger.Info("KrakenBuyer: Placed order {0} ({1})", result?.Descr.Order, result?.Descr.Close);
 
                 myOrder = new MyOrder()
                 {
-                    Id = ((JsonArray)r["txid"]).Select(x => new OrderId((string)x)).First(),
+                    Id = new OrderId(result.Txid.Single()), // TODO: what if there are multiple ids?
                     PricePerUnit = price,
                     Volume = volume,
                     Type = OrderType.Buy
@@ -73,41 +68,28 @@ namespace Kraken
 
             await Task.Run(() =>
             {
-                var orderbookRaw = m_client.GetOrderBook("XETHZEUR", 15);
-                var orderbookAll = GetResultAndThrowIfError(orderbookRaw);
-                var orderbook = (JsonObject)orderbookAll["XETHZEUR"];
+                Dictionary<string, KrakenApi.OrderBook> orderbookResult = m_client.GetOrderBook("XETHZEUR", 15);
+                var orderbook = orderbookResult["XETHZEUR"];
 
-                var asks = orderbook["asks"] as JsonArray;
-                if (asks != null)
-                {
-                    var askOrders = asks
-                    .Cast<JsonArray>()
+                var askOrders = orderbook.Asks
                     .Select(x => new OrderBookOrder()
                     {
-                        PricePerUnit = Common.Utils.StringToDecimal((string)x[0]),
-                        VolumeUnits = Common.Utils.StringToDecimal((string)x[1]),
-                        Timestamp = Common.Utils.UnixTimeToDateTime(((JsonNumber)x[2]).ToInt64())
+                        PricePerUnit = x[0],
+                        VolumeUnits = x[1],
+                        Timestamp = Common.Utils.UnixTimeToDateTime((double)x[2])
                     })
                     .OrderBy(x => x.PricePerUnit);
+                book.Asks.AddRange(askOrders);
 
-                    book.Asks.AddRange(askOrders);
-                }
-
-                var bids = orderbook["bids"] as JsonArray;
-                if (bids != null)
-                {
-                    var bidOrders = bids
-                    .Cast<JsonArray>()
+                var bidOrders = orderbook.Bids
                     .Select(x => new OrderBookOrder()
                     {
-                        PricePerUnit = Common.Utils.StringToDecimal((string)x[0]),
-                        VolumeUnits = Common.Utils.StringToDecimal((string)x[1]),
-                        Timestamp = Common.Utils.UnixTimeToDateTime(((JsonNumber)x[2]).ToInt64())
+                        PricePerUnit = x[0],
+                        VolumeUnits = x[1],
+                        Timestamp = Common.Utils.UnixTimeToDateTime((double)x[2])
                     })
                     .OrderBy(x => x.PricePerUnit);
-
-                    book.Bids.AddRange(bidOrders);
-                }
+                book.Bids.AddRange(bidOrders);
             });
 
             return book;
@@ -117,21 +99,13 @@ namespace Kraken
         {
             var result = await Task.Run(() =>
             {
-                var balance = m_client.GetBalance();
-                var r = GetResultAndThrowIfError(balance);
-
-                Dictionary<string, decimal> all = new Dictionary<string, decimal>();
-                foreach (var member in r)
-                {
-                    var val = decimal.Parse((string)member.Value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture);
-                    all[member.Name] = val;
-                }
-                
+                var balance = m_client.GetAccountBalance();
+               
                 return new BalanceResult()
                 {
-                    All = all,
-                    Eur = all.FirstOrDefault(x => x.Key == "ZEUR").Value,
-                    Eth = all.FirstOrDefault(x => x.Key == "XETH").Value
+                    All = balance,
+                    Eur = balance.FirstOrDefault(x => x.Key == "ZEUR").Value,
+                    Eth = balance.FirstOrDefault(x => x.Key == "XETH").Value
                 };
             });
 
@@ -155,8 +129,7 @@ namespace Kraken
             await Task.Run(() =>
             {
                 var result = m_client.CancelOrder(id.Id);
-                var r = GetResultAndThrowIfError(result);
-                count = ((JsonNumber)r["count"]).ToInt32();
+                count = result.Count;
             });
 
             return new CancelOrderResult()
@@ -168,15 +141,14 @@ namespace Kraken
         public async Task<List<FullMyOrder>> GetOpenOrders()
         {
             List<FullMyOrder> orders = new List<FullMyOrder>();
-       
+
             await Task.Run(() =>
             {
-                var result = m_client.GetOpenOrders();
-                var r = GetResultAndThrowIfError(result);
-                var open = (JsonObject)r["open"];
-                foreach (var property in open)
+                var openOrders = m_client.GetOpenOrders();
+
+                foreach (var krakenOrder in openOrders)
                 {
-                    var order = ParseOrder(property.Name, (JsonObject)property.Value);
+                    var order = ParseOrder(krakenOrder.Key, krakenOrder.Value);
                     orders.Add(order);
                 }
             });
@@ -190,15 +162,13 @@ namespace Kraken
 
             await Task.Run(() =>
             {
-                string start = Common.Utils.DateTimeToUnixTimeString(args?.StartUtc);
-                string end = Common.Utils.DateTimeToUnixTimeString(args?.EndUtc);
+                int? start = Common.Utils.DateTimeToUnixTime(args?.StartUtc);
+                int? end = Common.Utils.DateTimeToUnixTime(args?.EndUtc);
 
-                var result = m_client.GetClosedOrders(start: start ?? "", end: end ?? "");
-                var r = GetResultAndThrowIfError(result);
-                var closed = (JsonObject)r["closed"];
-                foreach (var property in closed)
+                var closedOrders = m_client.GetClosedOrders(start: start, end: end);
+                foreach (var krakenOrder in closedOrders)
                 {
-                    var order = ParseOrder(property.Name, (JsonObject)property.Value);
+                    var order = ParseOrder(krakenOrder.Key, krakenOrder.Value);
                     orders.Add(order);
                 }
             });
@@ -212,31 +182,9 @@ namespace Kraken
 
             await Task.Run(() =>
             {
-                var result = m_client.GetOpenOrders(true, orderId: id.ToString());
-                var r = GetResultAndThrowIfError(result);
-                var open = (JsonObject)r["open"];
-                if (open != null)
-                {
-                    foreach (var property in open)
-                    {
-                        if (property.Name == id.ToString())
-                        {
-                            order = ParseOrder(property.Name, (JsonObject)property.Value);
-                        }
-                    }
-                }
-
-                var closed = (JsonObject)r["closed"];
-                if (order == null && closed != null)
-                {
-                    foreach (var property in closed)
-                    {
-                        if (property.Name == id.ToString())
-                        {
-                            order = ParseOrder(property.Name, (JsonObject)property.Value);
-                        }
-                    }
-                }
+                var result = m_client.QueryOrder(id);
+                var r = result.Single();
+                order = ParseOrder(r.Key, r.Value);
             });
 
             if (order?.Id != id)
@@ -247,7 +195,7 @@ namespace Kraken
             return order;
         }
 
-        private FullMyOrder ParseOrder(string id, JsonObject value)
+        private FullMyOrder ParseOrder(string id, KrakenApi.OrderInfo value)
         {
             /*
            "open": {
@@ -277,23 +225,22 @@ namespace Kraken
                }
                */
 
-            var desc = (JsonObject)value["descr"];
             var order = new FullMyOrder()
             {
                 Id = new OrderId(id),
-                PricePerUnit = Common.Utils.StringToDecimal((string)value["price"]),
-                Volume = Common.Utils.StringToDecimal((string)value["vol"]),
-                FilledVolume = Common.Utils.StringToDecimal((string)value["vol_exec"]),
-                Fee = Common.Utils.StringToDecimal((string)value["fee"]),
-                Cost = Common.Utils.StringToDecimal((string)value["cost"]),
+                PricePerUnit = value.Price,
+                Volume = value.Volume,
+                FilledVolume = value.VolumeExecuted,
+                Fee = value.Fee,
+                Cost = value.Cost,
 
-                OpenTime = Common.Utils.UnixTimeToDateTime(((JsonNumber)value["opentm"]).ToDouble()),
-                ExpireTime = Common.Utils.UnixTimeToDateTimeNullable(((JsonNumber)value["expiretm"]).ToDouble()),
-                StartTime = Common.Utils.UnixTimeToDateTimeNullable(((JsonNumber)value["starttm"]).ToDouble()),
+                OpenTime = Common.Utils.UnixTimeToDateTime(value.OpenTm),
+                ExpireTime = Common.Utils.UnixTimeToDateTimeNullable(value.ExpireTm),
+                StartTime = Common.Utils.UnixTimeToDateTimeNullable(value.StartTm),
 
-                State = ParseState((string)value["status"]),
-                Type = ParseType((string)desc["type"]),
-                OrderType = ParseOrderType((string)desc["ordertype"])
+                State = ParseState(value.Status),
+                Type = ParseType(value.Descr.Type),
+                OrderType = ParseOrderType(value.Descr.OrderType)
             };
 
             return order;
@@ -333,37 +280,7 @@ namespace Kraken
                     m_logger.Error("KrakernBuyer.ParseOrderType: unknown value '{0}'", value);
                     return OrderType2.Unknown;
             }
-        }
-
-        private JsonObject GetResultAndThrowIfError(Jayrock.Json.JsonObject obj, [System.Runtime.CompilerServices.CallerMemberName] string caller = null)
-        {
-            try
-            {
-                if (obj == null)
-                {
-                    throw new MyException("obj is null");
-                }
-
-                var error = obj["error"] as Jayrock.Json.JsonArray;
-                if (error != null && error.Count > 0)
-                {
-                    throw new MyException(string.Format("ERROR:\n\t{0}", string.Join("\t", error.Select(x => x.ToString()))));
-                }
-
-                var result = (JsonObject)obj["result"];
-                if (result == null)
-                {
-                    throw new MyException(string.Format("result is null ({0})", obj));
-                }
-
-                return result;
-            }
-            catch (MyException e)
-            {
-                m_logger.Error("KrakenBuyer error in {0}: {1}", caller, e.Message);
-                throw;
-            }
-        }
+        }        
     }
 
     public class KrakenConfiguration
@@ -378,8 +295,8 @@ namespace Kraken
         {
             return new KrakenConfiguration()
             {
-                Secret = System.Configuration.ConfigurationManager.AppSettings["KrakenSecret"] ?? "",
-                Key = System.Configuration.ConfigurationManager.AppSettings["KrakenKey"] ?? "",
+                Secret = Utils.AppConfigLoader.Instance.AppSettings("KrakenSecret") ?? "",
+                Key = Utils.AppConfigLoader.Instance.AppSettings("KrakenKey") ?? "",
             };
         }
     }
