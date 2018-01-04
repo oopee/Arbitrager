@@ -96,7 +96,9 @@ namespace Common
                 {
                     Name = m_buyer.Name,
                     Asks = askOrderBook,
-                    Balance = buyerBalance
+                    Balance = buyerBalance,
+                    MakerFee = m_buyer.MakerFeePercentage,
+                    TakerFee = m_buyer.TakerFeePercentage
                 };
             }
 
@@ -107,7 +109,9 @@ namespace Common
                 {
                     Name = m_seller.Name,
                     Bids = bidOrderBook,
-                    Balance = sellerBalance
+                    Balance = sellerBalance,
+                    MakerFee = m_seller.MakerFeePercentage,
+                    TakerFee = m_seller.TakerFeePercentage
                 };
             }
 
@@ -118,6 +122,16 @@ namespace Common
         {
             var status = await GetStatus(true);
 
+            if (eur > status.Buyer.Balance.Eur)
+            {
+                // Requested arbitrage EUR amount is more than we have at exchange B -> abort
+                return;
+            }
+
+            var ethAvailableToSell = status.Seller.Balance.Eth; // max eth to buy from exchange B is the amount of available ETH at exchange S
+            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, eur, ethAvailableToSell);
+
+            // GetInfoForArbitrage(eur);
         }
 
         public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)

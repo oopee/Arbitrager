@@ -176,6 +176,9 @@ namespace Interface
         public string Name { get; set; }
         public BalanceResult Balance { get; set; }
         public IAskOrderBook Asks { get; set; }
+
+        public decimal TakerFee { get; set; }
+        public decimal MakerFee { get; set; }
     }
 
     public class SellerStatus
@@ -183,6 +186,15 @@ namespace Interface
         public string Name { get; set; }
         public BalanceResult Balance { get; set; }
         public IBidOrderBook Bids { get; set; }
+
+        public decimal TakerFee { get; set; }
+        public decimal MakerFee { get; set; }
+    }
+
+    public class FeeInfo
+    {
+        public decimal TakerFee { get; set; }
+        public decimal MakerFee { get; set; }
     }
 
     public class DifferenceStatus

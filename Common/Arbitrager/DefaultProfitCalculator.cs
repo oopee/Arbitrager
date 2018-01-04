@@ -8,12 +8,18 @@ namespace Common
 {
     public class DefaultProfitCalculator : Interface.IProfitCalculator
     {
-        public ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, decimal fiatLimit)
+        public ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, decimal fiatLimit, decimal? ethLimit = null)
         {
             // First check how much ETH can we buy for the cash limit.
             // We have to calculate this first in case the bids we have (top 1 or top 50)
             // do not cover the whole amount we are willing to buy from other exchange
-            decimal ethTotalBids = seller.Bids.Bids.Sum(x => x.VolumeUnits);
+            decimal ethTotalBids = seller.Bids.Bids.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum();
+
+            // Cap max amount of ETH to buy (if requested)
+            if (ethLimit != null)
+            {                
+                ethTotalBids = Math.Min(ethLimit.Value, ethTotalBids);
+            }
 
             // Use all money until cash limit or available eth count is reached,
             // starting from the best ask
@@ -25,12 +31,13 @@ namespace Common
                 var orders = buyer.Asks.Asks[askNro];
 
                 var maxVolume = Math.Min(ethTotalBids - ethCount, orders.VolumeUnits);
-                var maxEursToUseAtThisPrice = orders.PricePerUnit * maxVolume;
+                var buyPricePerUnitWithFee = orders.PricePerUnit * (1m + buyer.TakerFee);
+                var maxEursToUseAtThisPrice = buyPricePerUnitWithFee * maxVolume;
 
                 var eursToUse = Math.Min(fiatLimit - fiatSpent, maxEursToUseAtThisPrice);
 
                 fiatSpent += eursToUse;
-                ethCount += eursToUse / orders.PricePerUnit;
+                ethCount += eursToUse / buyPricePerUnitWithFee;
 
                 ++askNro;
             }
@@ -45,8 +52,9 @@ namespace Common
                 var orders = seller.Bids.Bids[bidNro];
                 var maxEthToSellAtThisPrice = orders.VolumeUnits;
                 var ethToSell = Math.Min(ethLeftToSell, maxEthToSellAtThisPrice);
+                var sellPricePerUnitWithFee = orders.PricePerUnit * (1m - seller.TakerFee);
 
-                moneyEarned += ethToSell * orders.PricePerUnit;
+                moneyEarned += ethToSell * sellPricePerUnitWithFee;
                 ethLeftToSell -= ethToSell;
                 ethSold += ethToSell;
 
