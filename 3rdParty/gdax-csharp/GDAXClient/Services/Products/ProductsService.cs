@@ -22,6 +22,29 @@ namespace GDAXClient.Products
 
         private readonly IAuthenticator authenticator;
 
+        public enum OrderBookLevel
+        {
+            /// <summary>
+            /// Only the best bid and ask
+            /// </summary>
+            Top1 = 1,
+
+            /// <summary>
+            /// Top 50 bids and asks (aggregated)
+            /// </summary>
+            Top50 = 2,
+
+            /* Full not yet supported, because it returns data in a different format,
+             * see: https://docs.gdax.com/#get-product-order-book
+
+            /// <summary>
+            /// Full order book (non aggregated)
+            /// </summary>
+            Full = 3
+
+            */
+        }
+
         public ProductsService(
             IHttpClient httpClient,
             IHttpRequestMessageService httpRequestMessageService,
@@ -42,9 +65,11 @@ namespace GDAXClient.Products
             return productsResponse;
         }
 
-        public async Task<ProductsOrderBookResponse> GetProductOrderBookAsync(ProductType productPair)
+        public async Task<ProductsOrderBookResponse> GetProductOrderBookAsync(ProductType productPair, OrderBookLevel level = OrderBookLevel.Top1)
         {
-            var httpResponseMessage = await SendHttpRequestMessageAsync(HttpMethod.Get, authenticator, $"/products/{productPair.ToDasherizedUpper()}/book");
+            string uri = $"/products/{productPair.ToDasherizedUpper()}/book?level={((int)level).ToString()}";
+
+            var httpResponseMessage = await SendHttpRequestMessageAsync(HttpMethod.Get, authenticator, uri);
             var contentBody = await httpClient.ReadAsStringAsync(httpResponseMessage).ConfigureAwait(false);
             var productOrderBookResponse = JsonConvert.DeserializeObject<ProductsOrderBookResponse>(contentBody);
 
