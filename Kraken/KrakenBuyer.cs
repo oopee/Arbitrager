@@ -120,6 +120,31 @@ namespace Kraken
         {
             throw new NotSupportedException();
         }
+        
+        /// <param name="address">This is the name of the address as specified in Web, not the actual address string!</param>
+        public async Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal? amount, string currency, string address)
+        {
+            decimal actualAmount = 0;
+            if (amount.HasValue)
+            {
+                actualAmount = amount.Value;
+            }
+            else
+            {
+                var balances = await GetCurrentBalance();
+                actualAmount = balances.Eth;
+            }
+
+            //var info = m_client.GetWithdrawInfo(currency, address, actualAmount);
+            //var status = m_client.GetWithdrawStatus(currency, info.Method);
+
+            var refId = m_client.Withdraw(currency, address, actualAmount);
+
+            return new WithdrawCryptoResult()
+            {
+                ReferenceId = refId
+            };
+        }
 
         public Task<PaymentMethodResult> GetPaymentMethods()
         {

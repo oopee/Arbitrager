@@ -8,6 +8,6 @@ namespace GDAXClient.Services.Withdrawals
 
         public string currency { get; set; }
 
-        public Guid crypto_address { get; set; }
+        public string crypto_address { get; set; }
     }
 }

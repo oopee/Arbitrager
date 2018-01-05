@@ -123,6 +123,27 @@ namespace Gdax
             throw new NotImplementedException();
         }
 
+        public async Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal? amount, string currency, string address)
+        {
+            decimal actualAmount = 0;
+            if (amount.HasValue)
+            {
+                actualAmount = amount.Value;                
+            }
+            else
+            {
+                var balances = await GetCurrentBalance();
+                actualAmount = balances.Eth;
+            }                
+
+            var response = await m_client.WithdrawalsService.WithdrawToCryptoAsync(address, actualAmount, CurrencyFromString(currency));
+
+            return new WithdrawCryptoResult()
+            {
+                ReferenceId = response.Id.ToString()
+            };
+        }
+
         public async Task<PaymentMethodResult> GetPaymentMethods()
         {
             var methods = await m_client.PaymentsService.GetAllPaymentMethodsAsync();
@@ -190,6 +211,18 @@ namespace Gdax
                 default:
                     m_logger.Error("GdaxSeller.ParseState: unknown value '{0}", state);
                     return OrderState.Unknown;
+            }
+        }
+
+        private GDAXClient.Services.Currency CurrencyFromString(string currency)
+        {
+            if (currency == "ETH")
+            {
+                return GDAXClient.Services.Currency.ETH;
+            }
+            else
+            {
+                throw new NotImplementedException("Invalid currency code!");
             }
         }
     }

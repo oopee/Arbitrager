@@ -66,7 +66,7 @@ namespace GDAXClient.Services.WithdrawalsService
             {
                 amount = amount,
                 currency = currency.ToString().ToUpper(),
-                crypto_address = new Guid(crypto_address)
+                crypto_address = crypto_address
             });
 
             var httpResponseMessage = await SendHttpRequestMessageAsync(HttpMethod.Post, authenticator, "/withdrawals/crypto", newCryptoWithdrawal);

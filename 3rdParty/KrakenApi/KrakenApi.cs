@@ -1225,7 +1225,7 @@ namespace KrakenApi
 
     public class GetWithdrawStatusResponse : ResponseBase
     {
-        public GetWithdrawStatusResult Result;
+        public List<GetWithdrawStatusResult> Result = new List<GetWithdrawStatusResult>();
     }
 
     public class WithdrawCancelResponse : ResponseBase
@@ -2237,7 +2237,7 @@ namespace KrakenApi
         /// <param name="aclass">Asset class (optional):
         /// currency(default).</param>
         /// <returns></returns>
-        public GetWithdrawStatusResult GetWithdrawStatus(string asset, string method, string aclass = null)
+        public List<GetWithdrawStatusResult> GetWithdrawStatus(string asset, string method, string aclass = null)
         {
             var param = new Dictionary<string, string>();
             param.Add("asset", asset);
