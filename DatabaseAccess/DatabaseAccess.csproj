@@ -11,4 +11,7 @@
     <ProjectReference Include="..\UtilsInterface\UtilsInterface.csproj" />
     <ProjectReference Include="..\Interface\Interface.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Configurations\" />
+  </ItemGroup>
 </Project>

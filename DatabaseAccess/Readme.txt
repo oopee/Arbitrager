@@ -21,7 +21,9 @@ TODO: add any necessary annotations, what actually are necessary? how to add the
   - For example in one-to-many reference add OtherTableNameId-column to the "many" side
   - Add "public virtual List<OtherTableName> ManyItems { get; set; }" property to "many" side
   - Add "public virtual OtherTableName SingleItem { get; set; }" property to "one" side
-  - TODO: foreign keys are not yet generated but EF knows how to setup Id's if the non-virtual Id-property is named correctly
+  - Add configuration for the item if it requires foreignkey etc informaton during model building
+    - Configurations are found in DatabaseAccess/Configurations
+
 
 ### Scaffolding a new migration
 1. TODO: Creating the migration

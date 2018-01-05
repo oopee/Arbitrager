@@ -9,5 +9,8 @@ namespace Interface
     public interface IDatabaseAccess
     {
         Task TestAsync();
+
+        Task ResetDatabase();
+
     }
 }

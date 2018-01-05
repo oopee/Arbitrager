@@ -22,6 +22,11 @@ namespace DatabaseAccess
             }
         }
 
+        public async Task ResetDatabase()
+        {
+            await GetContext(db => db.Database.EnsureDeletedAsync());
+        }
+
         public async Task TestAsync()
         {
             await GetContext(async db =>

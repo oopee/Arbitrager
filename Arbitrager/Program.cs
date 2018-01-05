@@ -16,6 +16,7 @@ namespace Arbitrager
         static void Main(string[] args)
         {
             IDatabaseAccess db = new DatabaseAccess.DatabaseAccess();
+            db.ResetDatabase().Wait();
             db.TestAsync().Wait();
 
             //
