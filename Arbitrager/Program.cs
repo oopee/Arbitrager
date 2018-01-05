@@ -15,20 +15,21 @@ namespace Arbitrager
     {
         static void Main(string[] args)
         {
-            IDatabaseAccess db = new DatabaseAccess.DatabaseAccess();
-            db.ResetDatabase().Wait();
-            db.TestAsync().Wait();
-
             //
             Interface.Logger.StaticLogger = new Common.ConsoleLogger();
             //
+
+            // Create the data access and for now reset the database each time we restart 
+            var dataAccess = new DatabaseAccess.DatabaseAccess();
+            dataAccess.ResetDatabase().Wait();
 
             var buyer = new KrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger);
             var seller = new GdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false);
 
             var app = new App(
-                new Common.DefaultArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), Logger.StaticLogger), 
-                Logger.StaticLogger);
+                new Common.DefaultArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), Logger.StaticLogger, dataAccess), 
+                Logger.StaticLogger,
+                dataAccess);
             app.Run().Wait();
         }
     }   
@@ -37,11 +38,13 @@ namespace Arbitrager
     {
         IArbitrager m_arbitrager;
         ILogger m_logger;
+        IDatabaseAccess m_dataAccess;
 
-        public App(IArbitrager arbitrager, ILogger logger)
+        public App(IArbitrager arbitrager, ILogger logger, IDatabaseAccess dataAccess)
         {
             m_arbitrager = arbitrager;
             m_logger = logger;
+            m_dataAccess = dataAccess;
         }
 
         public async Task Run()

@@ -14,18 +14,20 @@ namespace Common
         ISeller m_seller;
         IProfitCalculator m_profitCalculator;
         ILogger m_logger;
+        IDatabaseAccess m_dataAccess;
 
         public decimal ChunkEur { get; set; } = 2000m;
 
         public IBuyer Buyer => m_buyer;
         public ISeller Seller => m_seller;
 
-        public DefaultArbitrager(IBuyer buyer, ISeller seller, IProfitCalculator profitCalculator, ILogger logger)
+        public DefaultArbitrager(IBuyer buyer, ISeller seller, IProfitCalculator profitCalculator, ILogger logger, IDatabaseAccess dataAccesss)
         {
             m_buyer = buyer;
             m_seller = seller;
             m_profitCalculator = profitCalculator;
             m_logger = logger;
+            m_dataAccess = dataAccesss;
         }
 
         public async Task<AccountsInfo> GetAccountsInfo()

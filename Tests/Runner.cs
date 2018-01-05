@@ -14,6 +14,7 @@ namespace Tests
     public class Runner
     {
         ILogger Logger = new TestLogger();
+        IDatabaseAccess DataAccess = new TestDatabaseAccess();
 
         [Explicit]
         [Test]
@@ -43,7 +44,7 @@ namespace Tests
         [Test]
         public async Task Kraken_Gdax_GetArbitrageInfo()
         {
-            Arbitrager.App app = new Arbitrager.App(GetKrakenGdaxArbitrager(), Logger);
+            Arbitrager.App app = new Arbitrager.App(GetKrakenGdaxArbitrager(), Logger, DataAccess);
             var info = await app.GetInfoForArbitrage(null);
             Logger.Info(info.ToString());
         }
@@ -92,7 +93,7 @@ namespace Tests
 
         IArbitrager GetKrakenGdaxArbitrager()
         {
-            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), new DefaultProfitCalculator(), Logger);
+            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), new DefaultProfitCalculator(), Logger, DataAccess);
         }
 
         string GetDebugString(object obj)
@@ -116,6 +117,19 @@ namespace Tests
         protected override void Log(LogLine logLine)
         {
             System.Diagnostics.Debug.WriteLine(logLine.DefaultLine);
+        }
+    }
+
+    public class TestDatabaseAccess : Interface.IDatabaseAccess
+    {
+        public Task ResetDatabase()
+        {
+            return Task.FromResult(0);
+        }
+
+        public Task TestAsync()
+        {
+            return Task.FromResult(0);
         }
     }
 }
