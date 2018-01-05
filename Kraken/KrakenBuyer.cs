@@ -114,31 +114,32 @@ namespace Kraken
 
             return result;
         }
-
-
-        public Task<WithdrawEurResult> WithdrawFundsToBankAccount(decimal eur)
-        {
-            throw new NotSupportedException();
-        }
         
-        /// <param name="address">This is the name of the address as specified in Web, not the actual address string!</param>
-        public async Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal? amount, string currency, string address)
+        /// <param name="account">This is the name of the account as specified in your Kraken withdrawal settings</param>
+        public async Task<WithdrawFiatResult> WithdrawFundsToBankAccount(decimal amount, string currency, string account)
         {
-            decimal actualAmount = 0;
-            if (amount.HasValue)
+            string refId = null;
+            await Task.Run(() =>
             {
-                actualAmount = amount.Value;
-            }
-            else
+                refId = m_client.Withdraw(currency, account, amount);
+            });
+
+            return new WithdrawFiatResult()
             {
-                var balances = await GetCurrentBalance();
-                actualAmount = balances.Eth;
-            }
+                ReferenceId = refId
+            };
+        }
 
-            //var info = m_client.GetWithdrawInfo(currency, address, actualAmount);
-            //var status = m_client.GetWithdrawStatus(currency, info.Method);
-
-            var refId = m_client.Withdraw(currency, address, actualAmount);
+        /// <param name="address">This is the name of the address as specified in your Kraken withdrawal settings</param>
+        public async Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal amount, string currency, string address)
+        {
+            string refId = null;
+            await Task.Run(() =>
+            {
+                //var info = m_client.GetWithdrawInfo(currency, address, amount);
+                //var status = m_client.GetWithdrawStatus(currency, info.Method);
+                refId = m_client.Withdraw(currency, address, amount);
+            });
 
             return new WithdrawCryptoResult()
             {

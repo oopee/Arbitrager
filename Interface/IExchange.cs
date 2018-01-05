@@ -17,16 +17,22 @@ namespace Interface
         Task<List<FullMyOrder>> GetOpenOrders();
         Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null);
         Task<CancelOrderResult> CancelOrder(OrderId id);
-        // Task<WithdrawEurResult> WithdrawFundsToBankAccount(decimal eur);
+
+        /// <summary>
+        /// Withdraw fiat currency to bank account
+        /// </summary>
+        /// <param name="amount">Amount to withdraw</param>
+        /// <param name="currency">Currency code</param>
+        /// <param name="account">Account identifier</param>
+        Task<WithdrawFiatResult> WithdrawFundsToBankAccount(decimal amount, string currency, string account);
         
         /// <summary>
         /// Withdraw cryptocurrency to given address
         /// </summary>
-        /// <param name="amount">Amount to withdraw. Null means all available balance.</param>
+        /// <param name="amount">Amount to withdraw</param>
         /// <param name="currency">Currency code</param>
         /// <param name="address">Address</param>
-        /// <returns></returns>
-        Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal? amount, string currency, string address);
+        Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal amount, string currency, string address);
 
         Task<PaymentMethodResult> GetPaymentMethods();
         Task<FullMyOrder> GetOrderInfo(OrderId id);
@@ -48,8 +54,9 @@ namespace Interface
     {
     }
 
-    public class WithdrawEurResult : GenericResult
+    public class WithdrawFiatResult : GenericResult
     {
+        public string ReferenceId { get; set; }
     }
 
     public class WithdrawCryptoResult : GenericResult

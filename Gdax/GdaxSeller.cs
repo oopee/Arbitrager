@@ -118,25 +118,20 @@ namespace Gdax
             };
         }
 
-        public Task<WithdrawEurResult> WithdrawFundsToBankAccount(decimal eur)
+        /// <param name="account">Should be a payment_method_id</param>
+        public async Task<WithdrawFiatResult> WithdrawFundsToBankAccount(decimal amount, string currency, string account)
         {
-            throw new NotImplementedException();
+            var response = await m_client.WithdrawalsService.WithdrawFundsAsync(account, amount, CurrencyFromString(currency));
+
+            return new WithdrawFiatResult()
+            {
+                ReferenceId = response.Id.ToString()
+            };
         }
 
-        public async Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal? amount, string currency, string address)
+        public async Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal amount, string currency, string address)
         {
-            decimal actualAmount = 0;
-            if (amount.HasValue)
-            {
-                actualAmount = amount.Value;                
-            }
-            else
-            {
-                var balances = await GetCurrentBalance();
-                actualAmount = balances.Eth;
-            }                
-
-            var response = await m_client.WithdrawalsService.WithdrawToCryptoAsync(address, actualAmount, CurrencyFromString(currency));
+            var response = await m_client.WithdrawalsService.WithdrawToCryptoAsync(address, amount, CurrencyFromString(currency));
 
             return new WithdrawCryptoResult()
             {
@@ -219,6 +214,10 @@ namespace Gdax
             if (currency == "ETH")
             {
                 return GDAXClient.Services.Currency.ETH;
+            }
+            else if (currency == "EUR")
+            {
+                return GDAXClient.Services.Currency.EUR;
             }
             else
             {
