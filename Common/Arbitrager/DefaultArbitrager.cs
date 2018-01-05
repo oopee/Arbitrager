@@ -23,8 +23,8 @@ namespace Common
         public IProfitCalculator ProfitCalculator => m_profitCalculator;
 
         public DefaultArbitrager(
-            IBuyer buyer, 
-            ISeller seller, 
+            IBuyer buyer,
+            ISeller seller,
             IProfitCalculator profitCalculator,
             IDatabaseAccess dataAccess,
             ILogger logger)
@@ -154,7 +154,7 @@ namespace Common
                 ArbitrageState newState;
                 switch (ctx.State)
                 {
-                    case ArbitrageState.NotStarted:                        
+                    case ArbitrageState.NotStarted:
                         newState = ArbitrageState.CheckStatus;
                         break;
 
@@ -201,8 +201,8 @@ namespace Common
                 {
                     logger.Debug("\tstate {0} did not finish succesfully. Error: {1}", ctx.State, ctx.Error);
                     logger.Debug("\taborting!");
-                return;
-            }
+                    return;
+                }
 
                 await OnStateEnd(ctx);
 
@@ -261,7 +261,6 @@ namespace Common
             ctx.BuyEthAmount = buyOrderInfo.FilledVolume;
             logger.Debug("\tgot buy order info (filledVolume: {0}, cost: {1}, state: {2})", ctx.BuyEthAmount, buyOrderInfo.Cost, buyOrderInfo.State);
 
-
             if (buyOrderInfo.State == OrderState.Open)
             {
                 // TODO: what to do?
@@ -291,7 +290,7 @@ namespace Common
             logger.Debug("\tsell order placed (orderId: {0})", sellOrder.Id);
 
             ctx.SellOrderId = sellOrder.Id;
-                }
+        }
 
         protected virtual async Task DoArbitrage_GetSellOrderInfo(ArbitrageContext ctx)
         {
@@ -313,6 +312,9 @@ namespace Common
         {
             var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_WithdrawFiat");
             logger.Debug("Not implemented");
+
+            await Task.Delay(0);
+
             // throw new NotImplementedException();
         }
 
@@ -320,18 +322,21 @@ namespace Common
         {
             var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_TransferEth");
             logger.Debug("Not implemented");
+
+            await Task.Delay(0);
+
             // throw new NotImplementedException();
         }
 
         protected virtual Task OnStateBegin(ArbitrageContext ctx)
         {
             return Task.CompletedTask;
-    }
+        }
 
         protected virtual Task OnStateEnd(ArbitrageContext ctx)
-    {
+        {
             return Task.CompletedTask;
-        }              
+        }
 
         public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)
         {
@@ -343,7 +348,7 @@ namespace Common
             var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, eursToSpend);
 
             ArbitrageInfo info = new ArbitrageInfo()
-        {
+            {
                 TargetFiatToSpend = eursToSpend,
                 Status = status,
                 ProfitCalculation = calc,

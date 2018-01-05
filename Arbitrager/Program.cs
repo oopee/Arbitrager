@@ -51,7 +51,16 @@ namespace Arbitrager
                 new ConsoleArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),
                 dataAccess,
                 Logger.StaticLogger);
-            app.Run().Wait();
+
+            try
+            {
+                app.Run().Wait();
+            }
+            catch (Exception e)
+            {
+                logger.Error("EXCEPTION: {0}", e);
+                Console.ReadLine();
+            }
         }
     }   
 
@@ -266,7 +275,6 @@ namespace Arbitrager
                 return;
             }
 
-            Console.WriteLine("ARBITRAGE INFO");
             Console.WriteLine(ctx.Info);
             if (!ConsoleUtils.Confirm())
             {
