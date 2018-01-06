@@ -1,7 +1,6 @@
 ﻿### General 
 1) Database is created into a arbitrager.sqlite-file in Arbitrager-folder
-2) Database is created automatically when DatabaseAccess.GetContext() is called
-TODO: migrations
+2) Database is created and migrations run automatically when DatabaseAccess.GetContext() is called
 
 ### Usage
 1) Database is used through Interface.IDatabaseAccess implemented by DatabaseAccess.DatabaseAccess

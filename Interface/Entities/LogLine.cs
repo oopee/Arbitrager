@@ -28,11 +28,17 @@ namespace Interface.Entities
     public class LogLine : EntityBase
     {
         public string Message { get; set; }
+        public LogType Type { get; set; }
 
         /// <summary>
         /// This makes Line Items accessible from entity framework
         /// Also supports adding items to lines etc. 
         /// </summary>
         public virtual List<LogItem> Items { get; set; }
+
+        public enum LogType 
+        {
+            Test
+        }
     }
 }

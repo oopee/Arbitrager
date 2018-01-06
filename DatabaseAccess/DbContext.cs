@@ -42,4 +42,13 @@ namespace DatabaseAccess
             }
         }
     }
+
+    // For the migrations
+    public class DesignTimeContextCreator : Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<DbContext>
+    {
+        public DbContext CreateDbContext(string[] args)
+        {
+            return new DbContext();
+        }
+    }
 }

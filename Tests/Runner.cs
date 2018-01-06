@@ -14,7 +14,7 @@ namespace Tests
     public class Runner
     {
         ILogger Logger = new TestLogger();
-        IDatabaseAccess DataAccess = new TestDatabaseAccess();
+        IDatabaseAccess DataAccess = new DatabaseAccess.DatabaseAccess("testdb.sqlite");
 
         [Explicit]
         [Test]
@@ -81,6 +81,13 @@ namespace Tests
             Logger.Info(GetDebugString(info));*/
         }
 
+        [Explicit]
+        [Test]
+        public async Task Database_Test()
+        {
+            await DataAccess.TestAsync();
+        }
+
         IExchange GetKraken()
         {
             return new Kraken.KrakenBuyer(Kraken.KrakenConfiguration.FromAppConfig(), Logger);
@@ -122,19 +129,6 @@ namespace Tests
         protected override void Log(LogLine logLine)
         {
             System.Diagnostics.Debug.WriteLine(logLine.DefaultLine);
-        }
-    }
-
-    public class TestDatabaseAccess : Interface.IDatabaseAccess
-    {
-        public Task ResetDatabase()
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task TestAsync()
-        {
-            return Task.FromResult(0);
         }
     }
 }
