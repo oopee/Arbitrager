@@ -107,7 +107,8 @@ namespace Arbitrager
         {
             if (verb == "info")
             {
-                var info = await m_arbitrager.GetInfoForArbitrage(eur ?? decimal.MaxValue, BalanceOption.CapToBalance, decimal.MaxValue, BalanceOption.IgnoreBalance);
+                BalanceOption fiatOption = eur == null ? BalanceOption.CapToBalance : BalanceOption.IgnoreBalance;
+                var info = await m_arbitrager.GetInfoForArbitrage(eur ?? decimal.MaxValue, fiatOption, decimal.MaxValue, BalanceOption.IgnoreBalance);
                 Console.WriteLine(info.ToString());
             }
             else if (verb == "do")

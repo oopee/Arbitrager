@@ -20,8 +20,7 @@ namespace Interface
     public enum BalanceOption
     {
         IgnoreBalance,
-        CapToBalance,
-        FailIfInsufficientBalance
+        CapToBalance
     }
 
     public class ArbitrageResult
