@@ -216,13 +216,25 @@ namespace Common
             var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_CheckStatus");
 
             // Calculate arbitrage info
-            var info = await GetInfoForArbitrage(ctx.UserFiatToSpend);
+            var info = await GetInfoForArbitrage(
+                maxFiatToSpend: ctx.SpendWholeBalance ? decimal.MaxValue : ctx.UserFiatToSpend,
+                fiatOptions: BalanceOption.CapToBalance,
+                maxEthToSpend: decimal.MaxValue,
+                ethOptions: BalanceOption.CapToBalance);
 
-            if (ctx.UserFiatToSpend > info.EurBalance)
+            if (!ctx.SpendWholeBalance && ctx.UserFiatToSpend > info.EurBalance)
             {
-                // Requested arbitrage EUR amount is more than we have at exchange B -> abort
+                // Explicit EUR amount was specified but it is more than we have at exchange B -> abort
+                // NOTE: we could simply ignore this check and go on. In that case if user specified too large EUR amount his whole balance would be used.
+                //       As we don't want to guess if the user did this on purpose or if it was a typo, it is better to abort and let the user try again
                 ctx.Error = ArbitrageError.InvalidBalance;
                 return;
+            }
+
+            if (!info.IsEurBalanceSufficient || !info.IsEthBalanceSufficient)
+            {
+                // We don't have enough EUR or ETH
+                ctx.Error = ArbitrageError.InvalidBalance;
             }
 
             ctx.Info = info;
@@ -338,18 +350,26 @@ namespace Common
             return Task.CompletedTask;
         }
 
-        public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg)
+        public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal maxFiatToSpend, BalanceOption fiatOptions, decimal maxEthToSpend, BalanceOption ethOptions)
         {
             // Get current prices, balances etc
             var status = await GetStatus(true);
 
+            if (fiatOptions == BalanceOption.CapToBalance)
+            {
+                maxFiatToSpend = Math.Min(maxFiatToSpend, status.Buyer.Balance.Eur);
+            }
+
+            if (ethOptions == BalanceOption.CapToBalance)
+            {
+                maxEthToSpend = Math.Min(maxEthToSpend, status.Seller.Balance.Eth);
+            }
+
             // Calculate estimated profit based on prices/balances/etc
-            var eursToSpend = maxEursToSpendArg ?? status.Buyer.Balance.Eur; // use whole balance if max eurs was not given
-            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, eursToSpend);
+            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, maxFiatToSpend, maxEthToSpend);
 
             ArbitrageInfo info = new ArbitrageInfo()
             {
-                TargetFiatToSpend = eursToSpend,
                 Status = status,
                 ProfitCalculation = calc,
                 IsProfitable = calc.ProfitPercentage >= 0.02m // 2% threshold

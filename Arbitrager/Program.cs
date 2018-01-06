@@ -33,7 +33,7 @@ namespace Arbitrager
             {
                 case "simulated":
                     buyer = new SimulatedKrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceEth = 0m, BalanceEur = 2000m };
-                    seller = new SimulatedGdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = 10m, BalanceEur = 0m };
+                    seller = new SimulatedGdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = 1m, BalanceEur = 0m };
                     break;
                 case "real":
                     buyer = new KrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger);
@@ -127,8 +127,13 @@ namespace Arbitrager
                         {
                             string verb = Parse<string>(parts.Skip(1)).Item1;
                             decimal? amount = null;
-                            if (verb == "do")
+                            if (verb == "do" || (verb == "info" && parts.Length >= 3))
                             {
+                                if (parts.Length < 3)
+                                {
+                                    Console.WriteLine("Invalid parameters.");
+                                    continue;
+                                }
                                 if (parts[2] == "max")
                                 {
                                     amount = null;
@@ -152,14 +157,14 @@ namespace Arbitrager
 
         private async Task DoArbitrage(string verb, decimal? eur)
         {
-            var info = await m_arbitrager.GetInfoForArbitrage(eur);
             if (verb == "info")
             {
+                var info = await m_arbitrager.GetInfoForArbitrage(eur ?? decimal.MaxValue, BalanceOption.CapToBalance, decimal.MaxValue, BalanceOption.IgnoreBalance);
                 Console.WriteLine(info.ToString());
             }
             else if (verb == "do")
             {
-                await m_arbitrager.Arbitrage(ArbitrageContext.Start(info.TargetFiatToSpend));
+                await m_arbitrager.Arbitrage(ArbitrageContext.Start(eur));
             }
         }
 
@@ -253,7 +258,7 @@ namespace Arbitrager
             Console.WriteLine("\taccounts");
             // Console.WriteLine("\tbuy market (eur amount)");
             // Console.WriteLine("\tsell market (eth amount)");
-            Console.WriteLine("\tarbitrage info");
+            Console.WriteLine("\tarbitrage info [eur amount]");
             Console.WriteLine("\tarbitrage do (eur amount OR \"max\")");
             Console.WriteLine("\texit");
         }

@@ -14,7 +14,14 @@ namespace Interface
         Task<AccountsInfo> GetAccountsInfo();
         IProfitCalculator ProfitCalculator { get; }
         Task Arbitrage(ArbitrageContext ctx);
-        Task<ArbitrageInfo> GetInfoForArbitrage(decimal? maxEursToSpendArg);
+        Task<ArbitrageInfo> GetInfoForArbitrage(decimal maxFiatToSpend, BalanceOption fiatOptions, decimal maxEthToSpend, BalanceOption ethOptions);
+    }
+
+    public enum BalanceOption
+    {
+        IgnoreBalance,
+        CapToBalance,
+        FailIfInsufficientBalance
     }
 
     public class ArbitrageResult
@@ -50,6 +57,8 @@ namespace Interface
         /// </summary>
         public ArbitrageState State { get; set; }
 
+
+        public bool SpendWholeBalance { get; set; }
         /// <summary>
         /// The amount of fiat that user wants to spend
         /// </summary>
@@ -63,11 +72,12 @@ namespace Interface
         public OrderId? SellOrderId { get; set; }
         public ILogger Logger { get; set; }
 
-        public static ArbitrageContext Start(decimal fiatToSpend)
+        public static ArbitrageContext Start(decimal? fiatToSpend)
         {
             var ctx = new ArbitrageContext()
             {
-                UserFiatToSpend = fiatToSpend,
+                SpendWholeBalance = fiatToSpend == null,
+                UserFiatToSpend = fiatToSpend ?? 0,
                 State = ArbitrageState.NotStarted
             };
 
@@ -79,7 +89,6 @@ namespace Interface
     {
         public Status Status { get; set; }
         public ProfitCalculation ProfitCalculation { get; set; }
-        public decimal TargetFiatToSpend { get; set; }
 
         public string BuyerName => Status.Buyer.Name;
         public string SellerName => Status.Seller.Name;
@@ -106,7 +115,8 @@ namespace Interface
 
         public decimal BuyLimitPricePerUnit => ProfitCalculation.BuyLimitPricePerUnit;
 
-        public bool IsBalanceSufficient => Status.Buyer.Balance.Eur <= ProfitCalculation.FiatSpent;
+        public bool IsEurBalanceSufficient => ProfitCalculation.FiatSpent <= Status.Buyer.Balance.Eur;
+        public bool IsEthBalanceSufficient => ProfitCalculation.EthSellCount <= Status.Seller.Balance.Eth;
         public bool IsProfitable { get; set; }
 
         public override string ToString()
@@ -135,7 +145,8 @@ namespace Interface
             b.AppendLine("\tEstimated profit %          : {0:0.##} %", MaxProfitPercentage * 100m);
             b.AppendLine();
             b.AppendLine("\tIs profitable               : {0}", IsProfitable ? "Yes" : "No");
-            b.AppendLine("\tIs balance sufficient       : {0}", IsBalanceSufficient ? "Yes" : "No");
+            b.AppendLine("\tIs EUR balance sufficient   : {0}", IsEurBalanceSufficient ? "Yes" : "No");
+            b.AppendLine("\tIs ETH balance sufficient   : {0}", IsEthBalanceSufficient ? "Yes" : "No");
 
             return b.ToString();
         }

@@ -44,7 +44,7 @@ namespace Tests
         [Test]
         public async Task Kraken_Gdax_GetArbitrageInfo()
         {
-            var info = await GetKrakenGdaxArbitrager().GetInfoForArbitrage(null);
+            var info = await GetKrakenGdaxArbitrager().GetInfoForArbitrage(decimal.MaxValue, BalanceOption.CapToBalance, decimal.MaxValue, BalanceOption.IgnoreBalance);
             Logger.Info(info.ToString());
         }
 
