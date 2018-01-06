@@ -88,6 +88,25 @@ namespace Tests
             await DataAccess.TestAsync();
         }
 
+        [Explicit]
+        [Test]
+        public async Task PriceValue_Test()
+        {
+            var eurPrice = PriceValue.FromEUR(123.9583734m);
+            var eurPriceNegative = eurPrice * -1;
+            Assert.AreEqual(eurPrice.Round().Value, 123.95m);
+            Assert.AreEqual(eurPriceNegative.Round().Value, -123.95m);
+            Assert.AreEqual(eurPrice.Round(RoundingStrategy.Default, 4).Value, 123.9584m);
+            Assert.AreEqual(eurPrice.Round(RoundingStrategy.AlwaysRoundUp, 6).Value, 123.958374m);
+
+            var ethPrice = PriceValue.FromETH(2.1999835m);
+            Assert.AreEqual(ethPrice.Round().Value, 2.1999m);
+            Assert.AreEqual(ethPrice.Round(RoundingStrategy.Default, 6).Value, 2.199984m);
+
+            Assert.AreEqual((PriceValue.FromEUR(100m) + PriceValue.FromEUR(50.5m)).Value, 150.5m);
+            await Task.Delay(0);
+        }
+
         IExchange GetKraken()
         {
             return new Kraken.KrakenBuyer(Kraken.KrakenConfiguration.FromAppConfig(), Logger);
