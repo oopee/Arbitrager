@@ -60,12 +60,24 @@ namespace ArbitrageDataOutputter
 
         protected override void OnStarted()
         {
-            Console.WriteLine($"Started outputting CSV data to {FilePath}");
+            Console.WriteLine($"Started outputting CSV data to {GetFullPath()}");
         }
 
         protected override void OnStopped()
         {
-            Console.WriteLine($"Stopped outputting CSV data to {FilePath}");
+            Console.WriteLine($"Stopped outputting CSV data to {GetFullPath()}");
+        }
+        
+        private string GetFullPath()
+        {
+            string fullPath = FilePath;
+
+            if (!Path.IsPathRooted(fullPath))
+            {
+                fullPath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
+            }
+
+            return fullPath;
         }
     }
 }

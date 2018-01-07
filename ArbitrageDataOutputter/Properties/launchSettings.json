@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ArbitrageDataOutputter": {
+      "commandName": "Project",
+      "commandLineArgs": "csv"
+    }
+  }
+}

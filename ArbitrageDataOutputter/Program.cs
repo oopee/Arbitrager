@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using Common;
 using Interface;
+
+using CommandLine;
 
 namespace ArbitrageDataOutputter
 {
@@ -17,21 +20,66 @@ namespace ArbitrageDataOutputter
         }
     }
 
+    class CommonOptions
+    {
+        [Option('i', "interval", Default = 60, Required = false, HelpText = "Output interval in seconds")]
+        public int Interval { get; set; }
+    }
+
+    [Verb("csv", HelpText = "Output to CSV file")]
+    class CsvOptions : CommonOptions
+    {
+        [Option('o', "output", Default = @"arbitragedata.txt", Required = false, HelpText = "Outputfile for CSV export")]
+        public string CsvOutputFile { get; set; }
+    }
+
+    [Verb("sheets", HelpText = "Output to Googlet Sheets document")]
+    class SheetsOptions : CommonOptions
+    {
+    }
+
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            string outputFilePath = @"E:\arbitrageoutput.csv";
+            // If running with debugger, use project options to set proper command line arguments
+
+            return CommandLine.Parser.Default.ParseArguments<CsvOptions, SheetsOptions>(args)
+              .MapResult(
+                (CsvOptions opts) => RunCsv(opts),
+                (SheetsOptions opts) => RunGoogleSheets(opts),
+                errs => HandleErrors(errs));
+        }
+
+        static int HandleErrors(IEnumerable<Error> errors)
+        {
+            return -1;
+        }
+
+        static int RunCsv(CsvOptions options)
+        {
             var arbitrager = GetKrakenGdaxArbitrager();
 
             var source = new ArbitragerDataSource(arbitrager);
+            var outputter = new CsvArbitrageDataOutputter(source, options.CsvOutputFile);
 
-            var outputter = new CsvArbitrageDataOutputter(source, outputFilePath);
-            outputter.Interval = 60; // 1 minute
+            RunOutputter(outputter, options);
+
+            return 0;
+        }
+
+        static int RunGoogleSheets(SheetsOptions options)
+        {
+            return 0;
+        }
+
+        static void RunOutputter(IArbitrageDataOutputter outputter, CommonOptions options)
+        {
+            outputter.Interval = options.Interval;
             outputter.Start().Wait();
 
-            Console.WriteLine("Outputting data, press 'q' to quit");
-            
+            Console.WriteLine($"Outputting data with {options.Interval} seconds interval, press 'q' to quit");
+
             while (Console.ReadKey(true).KeyChar != 'q')
             {
             }
