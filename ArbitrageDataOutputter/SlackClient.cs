@@ -30,6 +30,7 @@ namespace ArbitrageDataOutputter
         {
             public string Color { get; set; }
             public string Pretext { get; set; }
+            public string Fallback { get; set; }
 
             // Timestamp
             // public int Ts { get; set; }

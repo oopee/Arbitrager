@@ -38,6 +38,7 @@ namespace ArbitrageDataOutputter
             Client = new SlackClient(uri);
             Rules = new List<AlertRule>();
 
+            AddAlertRule(0, TimeSpan.FromDays(24), "Current spread", "SPREAD0");
             AddAlertRule(2, TimeSpan.FromHours(24), "Profitable spread", "SPREAD2");
             AddAlertRule(3, TimeSpan.FromHours(12), "Good spread", "SPREAD3");
             AddAlertRule(4, TimeSpan.FromHours(1), "Very good spread", "SPREAD4");
@@ -65,6 +66,7 @@ namespace ArbitrageDataOutputter
                 Color = hexColor
             };
 
+            attachment.Fallback = message;
             attachment.AddField(message, "");
             slackMessage.AddAttachment(attachment);
 
@@ -107,6 +109,8 @@ namespace ArbitrageDataOutputter
                 Color = "#36a64f",
                 Pretext = string.Format("{0} - {1:0.00}% [{2}]", alert.Description, info.MaxNegativeSpreadPercentage * 100, alert.Tag)
             };
+
+            attachment.Fallback = attachment.Pretext;
 
             attachment.AddField("Max negative spread", string.Format("{0:0.00} EUR / {1:0.00}%", info.MaxNegativeSpreadEur, info.MaxNegativeSpreadPercentage * 100));
             attachment.AddField(string.Format("{0} EUR profit", info.FiatLimit), string.Format("{0:0.00} EUR / {1:0.00}%", info.MaxProfitEur, info.MaxProfitPercentage * 100));
