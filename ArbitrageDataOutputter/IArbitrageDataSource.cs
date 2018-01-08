@@ -16,6 +16,10 @@ namespace ArbitrageDataOutputter
 
         public decimal MaxNegativeSpreadPercentage { get; set; }
         public decimal MaxNegativeSpreadEur { get; set; }
+
+        public decimal FiatLimit { get; set; }
+        public decimal MaxProfitEur { get; set; }
+        public decimal MaxProfitPercentage { get; set; }
     }
 
     public interface IArbitrageDataSource

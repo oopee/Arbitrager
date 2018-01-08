@@ -68,8 +68,10 @@ namespace ArbitrageDataOutputter
             rowData.Add(info.BestAsk);
             rowData.Add(info.BestBid);
             rowData.Add(info.MaxNegativeSpreadEur);
-//            rowData.Add(info.MaxNegativeSpreadPercentage);
-            rowData.Add(info.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss"));
+            rowData.Add(info.MaxNegativeSpreadPercentage);
+            rowData.Add(info.MaxProfitEur);
+            rowData.Add(info.MaxProfitPercentage);
+            rowData.Add(info.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss").Replace(".", ":"));
 
             var body = new Google.Apis.Sheets.v4.Data.ValueRange();
             body.Values = new List<IList<object>>();

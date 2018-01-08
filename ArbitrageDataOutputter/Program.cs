@@ -24,6 +24,9 @@ namespace ArbitrageDataOutputter
     {
         [Option('i', "interval", Default = 60, Required = false, HelpText = "Output interval in seconds")]
         public int Interval { get; set; }
+
+        [Option('l', "fiatlimit", Default = 2000, Required = false, HelpText = "Amount of fiat to use for profit calculations")]
+        public int FiatLimit { get; set; }
     }
 
     [Verb("csv", HelpText = "Output to CSV file")]
@@ -55,47 +58,51 @@ namespace ArbitrageDataOutputter
 
         static int HandleErrors(IEnumerable<Error> errors)
         {
-            return -1;
+            return 1;
         }
 
         static int RunCsv(CsvOptions options)
         {
-            var arbitrager = GetKrakenGdaxArbitrager();
-
-            var source = new ArbitragerDataSource(arbitrager);
+            var source = GetDataSource(options);
             var outputter = new CsvArbitrageDataOutputter(source, options.CsvOutputFile);
 
-            RunOutputter(outputter, options);
-
-            return 0;
+            return RunOutputter(outputter, options);
         }
 
         static int RunGoogleSheets(SheetsOptions options)
         {
-            var arbitrager = GetKrakenGdaxArbitrager();
-
-            var source = new ArbitragerDataSource(arbitrager);
+            var source = GetDataSource(options);
             var outputter = new GoogleSheetsArbitrageDataOutputter(source, options.SpreadsheetId);
 
-            RunOutputter(outputter, options);
-
-            return 0;
+            return RunOutputter(outputter, options);
         }
 
-        static void RunOutputter(IArbitrageDataOutputter outputter, CommonOptions options)
+        static int RunOutputter(IArbitrageDataOutputter outputter, CommonOptions options)
         {
             outputter.Interval = options.Interval;
 
-            outputter.Initialize().Wait();
-            outputter.Start().Wait();
+            var shell = new Shell(outputter);
 
-            Console.WriteLine($"Outputting data with {options.Interval} seconds interval, press 'q' to quit");
-
-            while (Console.ReadKey(true).KeyChar != 'q')
+            try
             {
+                shell.Run().Wait();
+                return 0;
             }
+            catch (Exception e)
+            {
+                Console.WriteLine($"EXCEPTION: {e.ToString()}");
+                Console.ReadLine();
 
-            outputter.Stop();
+                return 1;
+            }
+        }
+
+        static IArbitrageDataSource GetDataSource(CommonOptions options)
+        {
+            var arbitrager = GetKrakenGdaxArbitrager();
+            var source = new ArbitragerDataSource(arbitrager, options.FiatLimit);
+
+            return source;
         }
 
         static IArbitrager GetKrakenGdaxArbitrager()

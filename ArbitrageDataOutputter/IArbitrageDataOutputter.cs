@@ -7,7 +7,7 @@ using Interface;
 
 namespace ArbitrageDataOutputter
 {
-    interface IArbitrageDataOutputter
+    public interface IArbitrageDataOutputter
     {
         /// <summary>
         /// Output interval in seconds. Non-positive value means output is not only created upon manual calls to DoOutput().
