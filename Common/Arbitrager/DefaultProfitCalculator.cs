@@ -87,5 +87,54 @@ namespace Common
                 SellFee = sellFee
             };
         }
+
+        public static IEnumerable<OrderBookOrder> GetFromOrderBook(IEnumerable<OrderBookOrder> orders, decimal? fiatLimit, decimal? ethLimit, decimal feePercentage = 0m)
+        {
+            decimal ethCount = 0;
+            decimal fiatSpent = 0;
+
+            foreach (var order in orders)
+            {
+                if (fiatLimit != null && fiatSpent >= fiatLimit)
+                {
+                    yield break;
+                }
+
+                if (ethLimit != null && ethCount >= ethLimit)
+                {
+                    yield break;
+                }
+
+                decimal maxVolume = ethLimit != null ? Math.Min(ethLimit.Value - ethCount, order.VolumeUnits) : order.VolumeUnits;
+                var buyPricePerUnitWithFee = order.PricePerUnit * (1m + feePercentage);
+                var maxEursToUseAtThisPrice = buyPricePerUnitWithFee * maxVolume;
+
+                var eursToUse = fiatLimit != null ? Math.Min(fiatLimit.Value - fiatSpent, maxEursToUseAtThisPrice) : maxEursToUseAtThisPrice;
+
+                decimal volume;
+                if (eursToUse == maxEursToUseAtThisPrice)
+                {
+                    volume = maxVolume;
+                }
+                else
+                {
+                    volume = eursToUse / buyPricePerUnitWithFee;
+                }
+
+                if (order.VolumeUnits != volume)
+                {
+                    yield return new OrderBookOrder()
+                    {
+                        PricePerUnit = order.PricePerUnit,
+                        Timestamp = order.Timestamp,
+                        VolumeUnits = order.VolumeUnits
+                    };
+                }
+                else
+                {
+                    yield return order;
+                }                
+            }
+        }
     }
 }

@@ -263,7 +263,7 @@ namespace Common
         {
             var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_GetBuyOrderInfo");
 
-            if (ctx.BuyOrderId != null)
+            if (ctx.BuyOrderId == null)
             {
                 throw new InvalidOperationException("DoArbitrage_GetBuyOrderInfo: BuyOrderId has not been set!");
             }
@@ -308,7 +308,7 @@ namespace Common
         {
             var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_GetSellOrderInfo");
 
-            if (ctx.SellOrderId != null)
+            if (ctx.SellOrderId == null)
             {
                 throw new InvalidOperationException("DoArbitrage_GetSellOrderInfo: SellOrderId has not been set!");
             }
@@ -354,6 +354,9 @@ namespace Common
         {
             // Get current prices, balances etc
             var status = await GetStatus(true);
+
+            var buyer_ = Newtonsoft.Json.JsonConvert.SerializeObject(status.Buyer.Asks);
+            var seller_ = Newtonsoft.Json.JsonConvert.SerializeObject(status.Seller.Bids);
 
             if (fiatOptions == BalanceOption.CapToBalance)
             {

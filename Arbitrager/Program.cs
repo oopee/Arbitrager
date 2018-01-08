@@ -31,6 +31,10 @@ namespace Arbitrager
 
             switch (configuration)
             {
+                case "fake":
+                    buyer = new FakeBuyer(Logger.StaticLogger) { BalanceEth = 0m, BalanceEur = 2000m };
+                    seller = new FakeSeller(Logger.StaticLogger) { BalanceEth = 1m, BalanceEur = 0m };
+                    break;
                 case "simulated":
                     buyer = new SimulatedKrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceEth = 0m, BalanceEur = 2000m };
                     seller = new SimulatedGdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = 1m, BalanceEur = 0m };
