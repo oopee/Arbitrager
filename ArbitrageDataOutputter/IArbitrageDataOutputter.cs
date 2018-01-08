@@ -54,6 +54,8 @@ namespace ArbitrageDataOutputter
         {
             Timer?.Stop();
 
+            OnStarted();
+
             await DoOutput();
 
             Timer = new Timer();
@@ -62,8 +64,6 @@ namespace ArbitrageDataOutputter
             Timer.Enabled = true;
 
             Timer.Start();
-
-            OnStarted();
         }
 
         private async void TimerEvent(object sender, ElapsedEventArgs e)

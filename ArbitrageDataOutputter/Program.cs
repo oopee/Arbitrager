@@ -36,11 +36,18 @@ namespace ArbitrageDataOutputter
         public string CsvOutputFile { get; set; }
     }
 
-    [Verb("sheets", HelpText = "Output to Googlet Sheets document")]
+    [Verb("sheets", HelpText = "Output to Google Sheets document")]
     class SheetsOptions : CommonOptions
     {
-        [Option("id", Default = @"1Ea2w-SZWf1mZ7435L-8bcn3mq_r9kKWGe65go_etxFM", Required = false, HelpText = "Id for output spreadsheet")]
+        [Option("id", Required = true, HelpText = "Id for output spreadsheet")]
         public string SpreadsheetId { get; set; }
+    }
+
+    [Verb("slack", HelpText = "Output to Slack channel")]
+    class SlackOptions : CommonOptions
+    {
+        [Option('h', "webhook", Required = true, HelpText = "Webhook for Slack channel integration")]
+        public string WebhookURL { get; set; }
     }
 
     class Program
@@ -49,10 +56,11 @@ namespace ArbitrageDataOutputter
         {
             // If running with debugger, use project options to set proper command line arguments
 
-            return CommandLine.Parser.Default.ParseArguments<CsvOptions, SheetsOptions>(args)
+            return CommandLine.Parser.Default.ParseArguments<CsvOptions, SheetsOptions, SlackOptions>(args)
               .MapResult(
                 (CsvOptions opts) => RunCsv(opts),
                 (SheetsOptions opts) => RunGoogleSheets(opts),
+                (SlackOptions opts) => RunSlack(opts),
                 errs => HandleErrors(errs));
         }
 
@@ -73,6 +81,14 @@ namespace ArbitrageDataOutputter
         {
             var source = GetDataSource(options);
             var outputter = new GoogleSheetsArbitrageDataOutputter(source, options.SpreadsheetId);
+
+            return RunOutputter(outputter, options);
+        }
+
+        static int RunSlack(SlackOptions options)
+        {
+            var source = GetDataSource(options);
+            var outputter = new SlackAlertOutputter(source, options.WebhookURL);
 
             return RunOutputter(outputter, options);
         }
