@@ -33,7 +33,7 @@ namespace ArbitrageDataOutputter
             public string Fallback { get; set; }
 
             // Timestamp
-            // public int Ts { get; set; }
+            public int Ts { get; set; }
 
             public List<SlackAttachmentField> Fields { get; private set; }
 
@@ -42,8 +42,8 @@ namespace ArbitrageDataOutputter
                 Fields = new List<SlackAttachmentField>();
 
                 // Enable if bottom timestamp seems useful
-                // TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
-                // Ts = (int)t.TotalSeconds;
+                TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
+                Ts = (int)t.TotalSeconds;
             }
 
             public void AddField(string title, string value)
