@@ -36,6 +36,8 @@ namespace ArbitrageDataOutputter
     [Verb("sheets", HelpText = "Output to Googlet Sheets document")]
     class SheetsOptions : CommonOptions
     {
+        [Option("id", Default = @"1Ea2w-SZWf1mZ7435L-8bcn3mq_r9kKWGe65go_etxFM", Required = false, HelpText = "Id for output spreadsheet")]
+        public string SpreadsheetId { get; set; }
     }
 
     class Program
@@ -70,12 +72,21 @@ namespace ArbitrageDataOutputter
 
         static int RunGoogleSheets(SheetsOptions options)
         {
+            var arbitrager = GetKrakenGdaxArbitrager();
+
+            var source = new ArbitragerDataSource(arbitrager);
+            var outputter = new GoogleSheetsArbitrageDataOutputter(source, options.SpreadsheetId);
+
+            RunOutputter(outputter, options);
+
             return 0;
         }
 
         static void RunOutputter(IArbitrageDataOutputter outputter, CommonOptions options)
         {
             outputter.Interval = options.Interval;
+
+            outputter.Initialize().Wait();
             outputter.Start().Wait();
 
             Console.WriteLine($"Outputting data with {options.Interval} seconds interval, press 'q' to quit");

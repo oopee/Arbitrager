@@ -14,6 +14,8 @@ namespace ArbitrageDataOutputter
         /// </summary>
         decimal Interval { get; set; }
 
+        Task Initialize();
+
         Task DoOutput();
 
         Task Start();
@@ -31,6 +33,8 @@ namespace ArbitrageDataOutputter
         {
             DataSource = dataSource;
         }
+
+        public abstract Task Initialize();
 
         public virtual async Task DoOutput()
         {

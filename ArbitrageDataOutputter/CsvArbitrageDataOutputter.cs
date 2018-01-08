@@ -18,10 +18,14 @@ namespace ArbitrageDataOutputter
             FilePath = outputFilePath;
         }
 
-        protected override Task OutputData(ArbitrageDataPoint info)
+        public override Task Initialize()
         {
             EnsureFileExists();
+            return Task.FromResult(0);
+        }
 
+        protected override Task OutputData(ArbitrageDataPoint info)
+        {
             using (var ws = new StreamWriter(FilePath, append: true, encoding: Encoding.UTF8))
             {
                 using (var csvWwriter = new CsvWriter(ws, GetConfiguration()))
