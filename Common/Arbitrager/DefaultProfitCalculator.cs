@@ -84,7 +84,8 @@ namespace Common
                 ProfitAfterTax = profitAfterTax,
                 AllFiatSpent = fiatSpent >= fiatLimit,
                 BuyFee = buyFee,
-                SellFee = sellFee
+                SellFee = sellFee,
+                BuyLimitPricePerUnit = buyLimitPrice
             };
         }
 
@@ -123,15 +124,17 @@ namespace Common
 
                 if (order.VolumeUnits != volume)
                 {
+                    ethCount += volume;
                     yield return new OrderBookOrder()
                     {
                         PricePerUnit = order.PricePerUnit,
                         Timestamp = order.Timestamp,
-                        VolumeUnits = order.VolumeUnits
+                        VolumeUnits = volume
                     };
                 }
                 else
                 {
+                    ethCount += order.VolumeUnits;
                     yield return order;
                 }                
             }

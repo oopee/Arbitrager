@@ -133,7 +133,7 @@ namespace Common
             return new Status(buyerStatus, sellerStatus);
         }
 
-        public async Task Arbitrage(ArbitrageContext ctx)
+        public async Task<ArbitrageContext> Arbitrage(ArbitrageContext ctx)
         {
             var logger = m_logger.WithAppendName("Arbitrage");
             logger.Debug("Starting from state {0}", ctx.State);
@@ -145,7 +145,7 @@ namespace Common
 
             ctx.Logger = logger;
 
-            while (true)
+            while (ctx.State != ArbitrageState.Finished)
             {
                 logger.Debug("Handling state {0}", ctx.State);
 
@@ -180,35 +180,28 @@ namespace Common
 
                     case ArbitrageState.GetSellOrderInfo:
                         await DoArbitrage_GetSellOrderInfo(ctx);
-                        newState = ArbitrageState.WithdrawFiat;
-                        break;
-
-                    case ArbitrageState.WithdrawFiat:
-                        await DoArbitrage_WithdrawFiat(ctx);
-                        newState = ArbitrageState.TransferEth;
-                        break;
-
-                    case ArbitrageState.TransferEth:
-                        await DoArbitrage_TransferEth(ctx);
                         newState = ArbitrageState.Finished;
                         break;
 
                     default:
                         throw new InvalidOperationException(string.Format("State '{0}' not handled", ctx.State));
                 }
+                
+                await OnStateEnd(ctx);
 
                 if (ctx.Error != null)
                 {
                     logger.Debug("\tstate {0} did not finish succesfully. Error: {1}", ctx.State, ctx.Error);
                     logger.Debug("\taborting!");
-                    return;
+                    return ctx;
                 }
-
-                await OnStateEnd(ctx);
 
                 logger.Debug("\tmoving to next state {0}", newState);
                 ctx.State = newState;
             }
+
+            logger.Debug("\tfinished!");
+            return ctx;
         }
 
         protected virtual async Task DoArbitrage_CheckStatus(ArbitrageContext ctx)
@@ -270,6 +263,7 @@ namespace Common
 
             logger.Debug("Getting buy order info (orderId: {0})", ctx.BuyOrderId);
             var buyOrderInfo = await Buyer.GetOrderInfo(ctx.BuyOrderId.Value);
+            ctx.BuyOrder = buyOrderInfo;
             ctx.BuyEthAmount = buyOrderInfo.FilledVolume;
             logger.Debug("\tgot buy order info (filledVolume: {0}, cost: {1}, state: {2})", ctx.BuyEthAmount, buyOrderInfo.Cost, buyOrderInfo.State);
 
@@ -315,29 +309,10 @@ namespace Common
 
             logger.Debug("Getting sell order info (orderId: {0})", ctx.SellOrderId);
             var sellOrderInfo = await Seller.GetOrderInfo(ctx.SellOrderId.Value);
+            ctx.SellOrder = sellOrderInfo;
             logger.Debug("\tgot buy sell info (filledVolume: {0}, cost: {1}, state: {2})", sellOrderInfo.FilledVolume, sellOrderInfo.Cost, sellOrderInfo.State);
 
             // TODO!
-        }
-
-        protected virtual async Task DoArbitrage_WithdrawFiat(ArbitrageContext ctx)
-        {
-            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_WithdrawFiat");
-            logger.Debug("Not implemented");
-
-            await Task.Delay(0);
-
-            // throw new NotImplementedException();
-        }
-
-        protected virtual async Task DoArbitrage_TransferEth(ArbitrageContext ctx)
-        {
-            var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_TransferEth");
-            logger.Debug("Not implemented");
-
-            await Task.Delay(0);
-
-            // throw new NotImplementedException();
         }
 
         protected virtual Task OnStateBegin(ArbitrageContext ctx)
@@ -354,9 +329,6 @@ namespace Common
         {
             // Get current prices, balances etc
             var status = await GetStatus(true);
-
-            var buyer_ = Newtonsoft.Json.JsonConvert.SerializeObject(status.Buyer.Asks);
-            var seller_ = Newtonsoft.Json.JsonConvert.SerializeObject(status.Seller.Bids);
 
             if (fiatOptions == BalanceOption.CapToBalance)
             {

@@ -85,8 +85,8 @@ namespace Gdax
                 State = filledVolume == volume ? OrderState.Closed : OrderState.Cancelled,
                 StartTime = DateTime.UtcNow,
                 Fee = fee,
-                OrderType = OrderType2.Limit,
-                Type = OrderType.Buy,
+                OrderType = OrderType2.Market,
+                Type = OrderType.Sell,
                 Id = new OrderId(Guid.NewGuid().ToString())
             });
 

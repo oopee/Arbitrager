@@ -13,7 +13,7 @@ namespace Interface
         Task<Status> GetStatus(bool includeBalance);
         Task<AccountsInfo> GetAccountsInfo();
         IProfitCalculator ProfitCalculator { get; }
-        Task Arbitrage(ArbitrageContext ctx);
+        Task<ArbitrageContext> Arbitrage(ArbitrageContext ctx);
         Task<ArbitrageInfo> GetInfoForArbitrage(decimal maxFiatToSpend, BalanceOption fiatOptions, decimal maxEthToSpend, BalanceOption ethOptions);
     }
 
@@ -36,8 +36,6 @@ namespace Interface
         GetBuyOrderInfo,
         PlaceSellOrder,
         GetSellOrderInfo,
-        WithdrawFiat,
-        TransferEth,
         Finished
     }
 
@@ -56,7 +54,6 @@ namespace Interface
         /// </summary>
         public ArbitrageState State { get; set; }
 
-
         public bool SpendWholeBalance { get; set; }
         /// <summary>
         /// The amount of fiat that user wants to spend
@@ -70,6 +67,9 @@ namespace Interface
         public decimal? BuyEthAmount { get; set; }
         public OrderId? SellOrderId { get; set; }
         public ILogger Logger { get; set; }
+
+        public FullMyOrder BuyOrder { get; set; }
+        public FullMyOrder SellOrder { get; set; }
 
         public static ArbitrageContext Start(decimal? fiatToSpend)
         {
@@ -136,6 +136,7 @@ namespace Interface
             b.AppendLine("\tBest sell price             : {0:0.##} EUR", BestSellPrice);
             b.AppendLine();
             b.AppendLine("\tETHs to arbitrage           : {0:0.##} ETH", MaxEthAmountToArbitrage);
+            b.AppendLine("\tBuy limit price (per unit)  : {0:0.##} ETH", BuyLimitPricePerUnit);
             b.AppendLine("\tEstimated buy fee           : {0:0.##} EUR", MaxBuyFee);
             b.AppendLine("\tEstimated sell fee          : {0:0.##} EUR", MaxSellFee);
             b.AppendLine("\tEstimated buy (incl. fees)  : {0:0.##} EUR -> {1:0.##} ETH", MaxEursToSpend, MaxEthAmountToArbitrage);

@@ -11,11 +11,8 @@ using Common;
 namespace Tests
 {
     [TestFixture]
-    public class Runner
+    public class Runner : TestBase
     {
-        ILogger Logger = new TestLogger();
-        IDatabaseAccess DataAccess = new DatabaseAccess.DatabaseAccess("testdb.sqlite");
-
         [Explicit]
         [Test]
         public async Task Kraken_GetOpenOrders()
@@ -105,49 +102,6 @@ namespace Tests
 
             Assert.AreEqual((PriceValue.FromEUR(100m) + PriceValue.FromEUR(50.5m)).Value, 150.5m);
             await Task.Delay(0);
-        }
-
-        IExchange GetKraken()
-        {
-            return new Kraken.KrakenBuyer(Kraken.KrakenConfiguration.FromAppConfig(), Logger);
-        }
-
-        IExchange GetGdax()
-        {
-            return new Gdax.GdaxSeller(Gdax.GdaxConfiguration.FromAppConfig(), Logger, isSandbox: false);
-        }
-
-        IArbitrager GetKrakenGdaxArbitrager()
-        {
-            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), new DefaultProfitCalculator(), DataAccess, Logger);
-        }
-
-        string GetDebugString(object obj)
-        {
-            if (obj == null)
-            {
-                return "(null)";
-            }
-
-            var jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(obj, Newtonsoft.Json.Formatting.Indented, new Newtonsoft.Json.JsonSerializerSettings()
-            {
-
-            });
-
-            return jsonString;
-        }
-    }
-
-    public class TestLogger : Common.LoggerBase
-    {
-        protected override LoggerBase Clone()
-        {
-            return new TestLogger();
-        }
-
-        protected override void Log(LogLine logLine)
-        {
-            System.Diagnostics.Debug.WriteLine(logLine.DefaultLine);
-        }
+        }        
     }
 }

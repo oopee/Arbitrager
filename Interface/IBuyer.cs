@@ -44,7 +44,8 @@ namespace Interface
     {
         Unknown = 0,
         Limit = 1,
-        Other = 2
+        Market = 2,
+        Other = 999
     }
 
     public enum OrderState
