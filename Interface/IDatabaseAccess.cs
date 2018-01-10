@@ -8,9 +8,11 @@ namespace Interface
 {
     public interface IDatabaseAccess
     {
-        Task TestAsync();
-
+        /// <summary>
+        /// Removes the whole database and makes it ready for re-creation.
+        /// </summary>
         Task ResetDatabase();
 
+        Task StoreTransaction(FullMyOrder transaction);
     }
 }

@@ -80,13 +80,6 @@ namespace Tests
 
         [Explicit]
         [Test]
-        public async Task Database_Test()
-        {
-            await DataAccess.TestAsync();
-        }
-
-        [Explicit]
-        [Test]
         public async Task PriceValue_Test()
         {
             var eurPrice = PriceValue.FromEUR(123.9583734m);

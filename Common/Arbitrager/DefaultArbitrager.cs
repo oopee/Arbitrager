@@ -278,6 +278,8 @@ namespace Common
                 // we couldn't by any eth -> abort
                 ctx.Error = ArbitrageError.ZeroEthBought;
             }
+
+            await m_dataAccess.StoreTransaction(buyOrderInfo);
         }
 
         protected virtual async Task DoArbitrage_PlaceSellOrder(ArbitrageContext ctx)
@@ -311,6 +313,8 @@ namespace Common
             var sellOrderInfo = await Seller.GetOrderInfo(ctx.SellOrderId.Value);
             ctx.SellOrder = sellOrderInfo;
             logger.Debug("\tgot buy sell info (filledVolume: {0}, cost: {1}, state: {2})", sellOrderInfo.FilledVolume, sellOrderInfo.Cost, sellOrderInfo.State);
+
+            await m_dataAccess.StoreTransaction(sellOrderInfo);
 
             // TODO!
         }

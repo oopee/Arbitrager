@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Common;
 using DatabaseAccess.Entities;
+using Interface;
 using Microsoft.EntityFrameworkCore;
 
 namespace DatabaseAccess
@@ -14,7 +16,7 @@ namespace DatabaseAccess
             m_configurationName = configurationName;
         }
 
-        private async Task GetContext(Func<DbContext, Task> contextAction)
+        private async Task<T> GetContext<T>(Func<DbContext, Task<T>> contextAction)
         {
             // Create the DbContext
             using (var db = new DbContext(m_configurationName))
@@ -24,8 +26,22 @@ namespace DatabaseAccess
                 await db.Database.EnsureCreatedAsync();
 
                 // Run action
-                await contextAction(db);
+                return await contextAction(db);
             }
+        }
+
+        private async Task GetContext(Func<DbContext, Task> contextAction)
+        {
+            await GetContext<object>(async db =>
+            {
+                await contextAction(db);
+                return null;
+            });
+        }
+
+        private void Guard(bool check, string msg)
+        {
+            Common.Guard.IsTrue(check, "DB: " + msg);
         }
 
         public async Task ResetDatabase()
@@ -37,28 +53,60 @@ namespace DatabaseAccess
             }
         }
 
-        public async Task TestAsync()
+        public async Task StoreTransaction(FullMyOrder transaction)
         {
-            await GetContext(async db =>
+            // TODO: More of this stuff should really come within FullMyOrder
+            var EUR = Asset.EUR.Name;
+            var ETH = Asset.ETH.Name;
+
+            if (transaction != null)
             {
-                db.Logs.Add(new DbLogLine()
+                Guard(transaction.State == OrderState.Closed, "Tried to store a transaction which wasn't closed");
+                Guard(transaction.Type == OrderType.Buy || transaction.Type == OrderType.Sell, "Tried to store transaction of unknown type");
+
+                await GetContext(async db =>
                 {
-                    Message = "Test method called",
-                    Type = DbLogLine.LogType.Test
-                });
-                db.Logs.Add(new DbLogLine()
-                {
-                    Message = "Test method called again",
-                    Type = DbLogLine.LogType.Test,
-                    Items = new System.Collections.Generic.List<DbLogItem>()
+                    // Create transaction and setup stuff that doesn't depend on direction
+                    var tx = new DbTransaction()
                     {
-                        new DbLogItem() { ItemNumber = 10 },
-                        new DbLogItem() { ItemNumber = 20 },
-                        new DbLogItem() { ItemNumber = 30 }
+                        Timestamp = transaction.OpenTime, // <-- TODO: Can we use OpenTime for this?
+                        ExtOrderId = transaction.Id.Id,
+                        Description = transaction.ToString(),
+                        BaseAsset = ETH,
+                        QuoteAsset = EUR,
+                        UnitPrice = transaction.PricePerUnit
+                    };
+
+                    // Then do type dependent stuff
+                    if (transaction.Type == OrderType.Buy)
+                    {
+                        // At the moment buying means buying ETH with EUR at Kraken
+                        tx.Source = "Kraken";
+                        tx.Target = "Kraken";
+                        tx.SourceAsset = EUR;
+                        tx.TargetAsset = ETH;
+                        tx.SourceSentAmount = transaction.Cost; // TODO: does Krakens Cost include Fee or not?
+                        tx.SourceFee = transaction.Fee;
+                        tx.TargetFee = 0.0m;
+                        tx.TargetReceivedAmount = transaction.FilledVolume;
                     }
+                    else // Sell 
+                    {
+                        // At the moment selling means selling ETH for EUR at GDAX
+                        tx.Source = "GDAX";
+                        tx.Target = "GDAX";
+                        tx.SourceAsset = ETH;
+                        tx.TargetAsset = EUR;
+                        tx.SourceSentAmount = transaction.FilledVolume;
+                        tx.SourceFee = 0.0m;
+                        tx.TargetFee = transaction.Fee; // TODO: Does GDAX Cost include Fee or not?
+                        tx.TargetReceivedAmount = transaction.Cost;
+                    }
+
+                    db.Transactions.Add(tx);
+                    await db.SaveChangesAsync();
                 });
-                await db.SaveChangesAsync();
-            });
+            }
         }
     }
 }

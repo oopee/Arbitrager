@@ -12,12 +12,19 @@ namespace DatabaseAccess
 
     public class DbContext : Microsoft.EntityFrameworkCore.DbContext
     {
+        /*
+         *  Tables
+         */
+
+        public DbSet<DbTransaction> Transactions { get; set; }
+
+        /*
+         *  Logic 
+         */
+
         public static readonly string DATABASE_FILE_NAME_FORMAT = "./arbitrager_{0}.sqlite";
 
         private string m_configuration;
-
-        public DbSet<DbLogLine> Logs { get; set; }
-        public DbSet<DbLogItem> LogItems { get; set; }
 
         public DbContext(string configuration)
         {
