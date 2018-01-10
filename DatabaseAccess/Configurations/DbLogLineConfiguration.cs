@@ -1,13 +1,13 @@
 ﻿using System;
-using Interface.Entities;
+using DatabaseAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace DatabaseAccess.Configurations
 {
-    public class LogLineConfiguration : ConfigurationBase<LogLine>
+    public class DbLogLineConfiguration : ConfigurationBase<DbLogLine>
     {
-        protected override void DoConfigure(EntityTypeBuilder<LogLine> b)
+        protected override void DoConfigure(EntityTypeBuilder<DbLogLine> b)
         {
             b.HasMany(x => x.Items)
              .WithOne(x => x.LogLine)

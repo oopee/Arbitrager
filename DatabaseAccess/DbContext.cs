@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Linq;
-using Interface.Entities;
+using DatabaseAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DatabaseAccess
@@ -16,8 +16,8 @@ namespace DatabaseAccess
 
         private string m_dbFileNameOverride;
 
-        public DbSet<LogLine> Logs { get; set; }
-        public DbSet<LogItem> LogItems { get; set; }
+        public DbSet<DbLogLine> Logs { get; set; }
+        public DbSet<DbLogItem> LogItems { get; set; }
 
         public DbContext(string dbFileNameOverride = null)
         {
@@ -33,11 +33,11 @@ namespace DatabaseAccess
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             var allTypes = System.Reflection.Assembly.GetAssembly(GetType()).GetTypes();
-            var baseType = typeof(Configurations.ConfigurationBase);
+            var baseType = typeof(Configurations.DbConfigurationBase);
             var cfgTypes = allTypes.Where(t => !t.IsAbstract && baseType.IsAssignableFrom(t)).ToList();
             foreach (var t in cfgTypes)
             {
-                var i = (Configurations.ConfigurationBase)t.GetConstructor(new Type[] { }).Invoke(new object[] { });
+                var i = (Configurations.DbConfigurationBase)t.GetConstructor(new Type[] { }).Invoke(new object[] { });
                 i.Configure(modelBuilder);
             }
         }

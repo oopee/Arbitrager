@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-
+using DatabaseAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DatabaseAccess
@@ -20,7 +20,8 @@ namespace DatabaseAccess
             using (var db = new DbContext(m_dbNameOverride))
             {
                 // Ensure the database is up and running
-                db.Database.Migrate();
+                // db.Database.Migrate();
+                await db.Database.EnsureCreatedAsync();
 
                 // Run action
                 await contextAction(db);
@@ -40,20 +41,20 @@ namespace DatabaseAccess
         {
             await GetContext(async db =>
             {
-                db.Logs.Add(new Interface.Entities.LogLine()
+                db.Logs.Add(new DbLogLine()
                 {
                     Message = "Test method called",
-                    Type = Interface.Entities.LogLine.LogType.Test
+                    Type = DbLogLine.LogType.Test
                 });
-                db.Logs.Add(new Interface.Entities.LogLine()
+                db.Logs.Add(new DbLogLine()
                 {
                     Message = "Test method called again",
-                    Type = Interface.Entities.LogLine.LogType.Test,
-                    Items = new System.Collections.Generic.List<Interface.Entities.LogItem>()
+                    Type = DbLogLine.LogType.Test,
+                    Items = new System.Collections.Generic.List<DbLogItem>()
                     {
-                        new Interface.Entities.LogItem() { ItemNumber = 10 },
-                        new Interface.Entities.LogItem() { ItemNumber = 20 },
-                        new Interface.Entities.LogItem() { ItemNumber = 30 }
+                        new DbLogItem() { ItemNumber = 10 },
+                        new DbLogItem() { ItemNumber = 20 },
+                        new DbLogItem() { ItemNumber = 30 }
                     }
                 });
                 await db.SaveChangesAsync();

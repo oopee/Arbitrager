@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Interface.Entities
+namespace DatabaseAccess.Entities
 {
     /// <summary>
     /// Simple dummy item for displaying how references work
     /// </summary>
-    public class LogItem : EntityBase 
+    public class DbLogItem : DbEntityBase 
     {
         /// <summary>
         /// EF knows that this is the correct key for the LogLine property but 
@@ -21,11 +21,11 @@ namespace Interface.Entities
         /// <summary>
         /// This makes the line itself accessible from entity framework
         /// </summary>
-        public virtual LogLine LogLine { get; set; }
+        public virtual DbLogLine LogLine { get; set; }
     }
 
 
-    public class LogLine : EntityBase
+    public class DbLogLine : DbEntityBase
     {
         public string Message { get; set; }
         public LogType Type { get; set; }
@@ -34,7 +34,7 @@ namespace Interface.Entities
         /// This makes Line Items accessible from entity framework
         /// Also supports adding items to lines etc. 
         /// </summary>
-        public virtual List<LogItem> Items { get; set; }
+        public virtual List<DbLogItem> Items { get; set; }
 
         public enum LogType 
         {

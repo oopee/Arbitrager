@@ -4,12 +4,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace DatabaseAccess.Configurations
 {
-    public abstract class ConfigurationBase 
+    public abstract class DbConfigurationBase 
     {
         public abstract void Configure(ModelBuilder b);
     }
 
-    public abstract class ConfigurationBase<TEntity> : ConfigurationBase where TEntity : Interface.Entities.EntityBase
+    public abstract class ConfigurationBase<TEntity> : DbConfigurationBase where TEntity : Entities.DbEntityBase
     {
         public override void Configure(ModelBuilder b)
         {
