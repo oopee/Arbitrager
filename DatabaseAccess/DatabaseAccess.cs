@@ -22,8 +22,7 @@ namespace DatabaseAccess
             using (var db = new DbContext(m_configurationName))
             {
                 // Ensure the database is up and running
-                // db.Database.Migrate();
-                await db.Database.EnsureCreatedAsync();
+                db.Database.Migrate();
 
                 // Run action
                 return await contextAction(db);
