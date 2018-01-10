@@ -12,21 +12,21 @@ namespace DatabaseAccess
 
     public class DbContext : Microsoft.EntityFrameworkCore.DbContext
     {
-        public static readonly string DATABASE_FILE_NAME = "./arbitrager.sqlite";
+        public static readonly string DATABASE_FILE_NAME_FORMAT = "./arbitrager_{0}.sqlite";
 
-        private string m_dbFileNameOverride;
+        private string m_configuration;
 
         public DbSet<DbLogLine> Logs { get; set; }
         public DbSet<DbLogItem> LogItems { get; set; }
 
-        public DbContext(string dbFileNameOverride = null)
+        public DbContext(string configuration)
         {
-            m_dbFileNameOverride = dbFileNameOverride;
+            m_configuration = configuration;
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            var fileName = m_dbFileNameOverride ?? DATABASE_FILE_NAME;
+            var fileName = string.Format(DATABASE_FILE_NAME_FORMAT, m_configuration);
             optionsBuilder.UseSqlite("Filename=" + fileName);
         }
 
@@ -48,7 +48,7 @@ namespace DatabaseAccess
     {
         public DbContext CreateDbContext(string[] args)
         {
-            return new DbContext();
+            return new DbContext("migrations");
         }
     }
 }

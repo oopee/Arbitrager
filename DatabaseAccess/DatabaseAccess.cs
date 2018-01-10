@@ -7,17 +7,17 @@ namespace DatabaseAccess
 {
     public class DatabaseAccess : Interface.IDatabaseAccess
     {
-        private string m_dbNameOverride;
+        private string m_configurationName;
 
-        public DatabaseAccess(string dbNameOverride = null)
+        public DatabaseAccess(string configurationName)
         {
-            m_dbNameOverride = dbNameOverride;
+            m_configurationName = configurationName;
         }
 
         private async Task GetContext(Func<DbContext, Task> contextAction)
         {
             // Create the DbContext
-            using (var db = new DbContext(m_dbNameOverride))
+            using (var db = new DbContext(m_configurationName))
             {
                 // Ensure the database is up and running
                 // db.Database.Migrate();
@@ -31,7 +31,7 @@ namespace DatabaseAccess
         public async Task ResetDatabase()
         {
             // Special case as we don't want to do the normal initialization this time
-            using (var db = new DbContext(m_dbNameOverride))
+            using (var db = new DbContext(m_configurationName))
             {
                 await db.Database.EnsureDeletedAsync();
             }

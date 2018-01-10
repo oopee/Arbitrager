@@ -21,13 +21,14 @@ namespace Arbitrager
             Interface.Logger.StaticLogger = logger;
             //
 
-            var dataAccess = new DatabaseAccess.DatabaseAccess();
+            var configuration = Utils.AppConfigLoader.Instance.AppSettings("configuration");
+
+            var dataAccess = new DatabaseAccess.DatabaseAccess(configuration);
             dataAccess.ResetDatabase().Wait();
 
             IBuyer buyer;
             ISeller seller;
 
-            var configuration = Utils.AppConfigLoader.Instance.AppSettings("configuration");
 
             switch (configuration)
             {
