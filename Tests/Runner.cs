@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Interface;
 using Common;
+using System.Numerics;
+using System.Globalization;
 
 namespace Tests
 {
@@ -78,22 +80,121 @@ namespace Tests
             Logger.Info(GetDebugString(info));*/
         }
 
+        private void EURTests (bool positive)
+        {
+            int factor = positive ? 1 : -1;
+            var p1 = PercentageValue.FromString("  57.5  %  ");
+            var p2 = PercentageValue.FromRatio(0.26m);
+            var p3 = PercentageValue.FromPercentage(30);
+
+            // 100 cents = 1EUR
+            var v1 = 235768.33m;
+            var v2 = 21.82m;
+            PriceValue euroValue1 = PriceValue.FromEUR(v1); // 235768,33
+            PriceValue euroValue2 = PriceValue.FromEUR(v2) * factor; // 21,82
+            
+            PriceValue eur = euroValue1 / euroValue2;
+            Assert.AreEqual(eur.Value, 10805.148029330889092575618698442m * factor);
+            eur = eur.Round();
+            Assert.AreEqual(eur.Value, 10805.14m * factor);
+            eur = euroValue1 * euroValue2;
+            Assert.AreEqual(eur.Value, 5144464.9606m * factor);
+            eur = eur.Round();
+            Assert.AreEqual(eur.Value, 5144464.96m * factor);
+
+            var sum = v1 + v2;
+            var difference = v1 - v2;
+            eur = euroValue1 - euroValue2;
+            Assert.AreEqual(eur.Value, positive ? difference : sum);
+            eur = euroValue1 + euroValue2;
+            Assert.AreEqual(eur.Value, positive ? sum : difference);
+
+            // PercentageValue
+            eur = (euroValue1 * factor) * p1;
+            Assert.AreEqual(eur.Value, 135566.78975m * factor);
+            eur = (euroValue1 * factor).AddPercentage(p2);
+            Assert.AreEqual(eur.Value, 297068.0958m * factor);
+            eur = (euroValue1 * factor).SubtractPercentage(p3);
+            Assert.AreEqual(eur.Value, 165037.831m * factor);
+
+            // ROUNDINGS
+            var round = PriceValue.FromEUR(1.33333333333m).Round(RoundingStrategy.AlwaysRoundDown);
+            Assert.AreEqual(round.Value, 1.33m);
+            round = PriceValue.FromEUR(1.335m).Round(RoundingStrategy.Default);
+            Assert.AreEqual(round.Value, 1.34m);
+            round = PriceValue.FromEUR(1.33333333333m).Round(RoundingStrategy.AlwaysRoundUp);
+            Assert.AreEqual(round.Value, 1.34m);
+            round = PriceValue.FromEUR(1.33333333333m).Round(decimalPlaces: 6);
+            Assert.AreEqual(round.Value, 1.333333m);
+
+            // ToString
+            var pv = PriceValue.FromEUR(1.333333m);
+            Assert.AreEqual(pv.ToString(), "1,33");
+            Assert.AreEqual(pv.ToStringWithAsset(), "1,33 EUR");
+        }
+
+        private void ETHTests(bool positive)
+        {
+            int factor = positive ? 1 : -1;
+            var p1 = PercentageValue.FromPercentage(0.2663m);
+            PercentageValue p2 = 0.112m;
+            
+            // 1000000000000000000 wei = 1 ETH
+            var v1 = 11.158978324796219532m;
+            var v2 = 50.155700000000000000m;
+            var v3 = 50000000.9826384562m;
+            PriceValue ethValue1 = PriceValue.FromETH(v1); // 11,158978324796219532
+            PriceValue ethValue2 = PriceValue.FromETH(v2) * factor; // 50,155700000000000000
+            PriceValue ethValue3 = PriceValue.FromETH(v3); // 50000000,9826384562
+
+            PriceValue eth = ethValue1 / ethValue2;
+            Assert.AreEqual(eth.Value, 0.22248674277891086221506229601022m * factor);
+            eth = eth.Round();
+            Assert.AreEqual(eth.Value, 0.222486742778910862m * factor);
+            eth = ethValue2 * ethValue3;
+            Assert.AreEqual(eth.Value, 2507785049.28491961763034m * factor);
+            eth = eth.Round();
+            Assert.AreEqual(eth.Value, 2507785049.28491961763034m * factor);
+            
+            eth = ethValue2 - ethValue1;
+            Assert.AreEqual(eth.Value, positive ? v2 - v1 : (v2 * -1) - v1);
+            eth = ethValue2 + ethValue1;
+            Assert.AreEqual(eth.Value, positive ? v2 + v1 : (v2 * -1) + v1);
+
+            // PercentageValue
+            eth = (ethValue1 * factor) * p1;
+            Assert.AreEqual(eth.Value, 0.029716359278932332613716 * factor);
+            eth = (ethValue1 * factor).AddPercentage(p2);
+            Assert.AreEqual(eth.Value, 12.408783897173396119584m * factor);
+            eth = (ethValue1 * factor).SubtractPercentage(p2);
+            Assert.AreEqual(eth.Value, 9.909172752419042944416m * factor);
+
+            // ROUNDINGS
+            var round = PriceValue.FromETH(2.9716359278932332613716m).Round(RoundingStrategy.AlwaysRoundDown);
+            Assert.AreEqual(round.Value, 2.971635927893233261m);
+            round = PriceValue.FromETH(12.408783897173396119584m).Round(RoundingStrategy.Default);
+            Assert.AreEqual(round.Value, 12.408783897173396120m);
+            round = PriceValue.FromETH(2.9716359278932332613716m).Round(RoundingStrategy.AlwaysRoundUp);
+            Assert.AreEqual(round.Value, 2.971635927893233262m);
+            round = PriceValue.FromETH(2.9716359278932332613716m).Round(RoundingStrategy.Default, decimalPlaces: 10);
+            Assert.AreEqual(round.Value, 2.9716359279m);
+
+            // ToString
+            var pv = PriceValue.FromETH(2.97m);
+            Assert.AreEqual(pv.ToString(), "2,970000000000000000");
+            Assert.AreEqual(pv.ToStringWithAsset(), "2,970000000000000000 ETH");
+        }
+
         [Explicit]
         [Test]
-        public async Task PriceValue_Test()
+        public async Task PriceValue_Tests()
         {
-            var eurPrice = PriceValue.FromEUR(123.9583734m);
-            var eurPriceNegative = eurPrice * -1;
-            Assert.AreEqual(eurPrice.Round().Value, 123.95m);
-            Assert.AreEqual(eurPriceNegative.Round().Value, -123.95m);
-            Assert.AreEqual(eurPrice.Round(RoundingStrategy.Default, 4).Value, 123.9584m);
-            Assert.AreEqual(eurPrice.Round(RoundingStrategy.AlwaysRoundUp, 6).Value, 123.958374m);
+            EURTests(true);
+            EURTests(false);
 
-            var ethPrice = PriceValue.FromETH(2.1999835m);
-            Assert.AreEqual(ethPrice.Round().Value, 2.1999m);
-            Assert.AreEqual(ethPrice.Round(RoundingStrategy.Default, 6).Value, 2.199984m);
-
-            Assert.AreEqual((PriceValue.FromEUR(100m) + PriceValue.FromEUR(50.5m)).Value, 150.5m);
+            ETHTests(true);
+            ETHTests(false);
+            
             await Task.Delay(0);
         }        
     }

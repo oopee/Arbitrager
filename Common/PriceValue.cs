@@ -17,38 +17,52 @@ namespace Common
         ETH
     }
 
+    public class AssetSettings
+    {
+        public static Dictionary<AssetType, AssetSettings> DefaultSettings = new Dictionary<AssetType, AssetSettings>()
+        {
+            { AssetType.EUR, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2 } },
+            { AssetType.ETH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } }
+        };
+
+        public RoundingStrategy DefaultRoundingStrategy { get; set; }
+        public int DecimalPlaces { get; set; }
+    }
+
+
     public struct Asset
     {
-        public static readonly Asset ETH = new Asset(AssetType.ETH, RoundingStrategy.AlwaysRoundDown, 4);
-        public static readonly Asset EUR = new Asset(AssetType.EUR, RoundingStrategy.AlwaysRoundDown, 2);
-
+        // 1 ETH = 1000000000000000000 wei (normalized: 100000000000000000000)
+        public static readonly Asset ETH = new Asset(AssetType.ETH);
+        // 1 EUR = 100 cents  (normalized: 10000)
+        public static readonly Asset EUR = new Asset(AssetType.EUR);
+        
         public AssetType Type { get; set; }
         public string Name => Enum.GetName(typeof(AssetType), Type);
+        public RoundingStrategy RoundingStrategy { get; private set; }
+        public int DecimalPlaces { get; private set; }
 
-        private RoundingStrategy m_roundingStrategy;
-        private int m_decimalPlaces;
-
-        public Asset(AssetType type, RoundingStrategy rounding, int decimalPlaces)
+        public Asset(AssetType type, RoundingStrategy? rounding = null, int? decimalPlaces = null)
         {
             Type = type;
-            m_roundingStrategy = rounding;
-            m_decimalPlaces = decimalPlaces;
+            RoundingStrategy = rounding ?? AssetSettings.DefaultSettings[type].DefaultRoundingStrategy;
+            DecimalPlaces = decimalPlaces ?? AssetSettings.DefaultSettings[type].DecimalPlaces;
         }
-
-        public decimal Round(decimal v, bool sign, RoundingStrategy? r = null, int? decimalPlaces = null)
+        
+        public decimal Round(decimal v, RoundingStrategy? r = null, int? decimalPlaces = null)
         {
-            // todo negatiivinen numero?
-            RoundingStrategy roundingStrategyToUse = r ?? m_roundingStrategy;
-            int decimalPlacesToUse = decimalPlaces ?? m_decimalPlaces;
+            var sing = v >= 0;
+            RoundingStrategy roundingStrategyToUse = r ?? RoundingStrategy;
+            int decimalPlacesToUse = decimalPlaces ?? DecimalPlaces;
 
             switch (roundingStrategyToUse)
             {
                 case RoundingStrategy.Default:
                     return Math.Round(v, decimalPlacesToUse);
                 case RoundingStrategy.AlwaysRoundDown:
-                    return sign ? RoundDown(v, decimalPlacesToUse) : RoundUp(v, decimalPlacesToUse);
+                    return sing ? RoundDown(v, decimalPlacesToUse) : RoundUp(v, decimalPlacesToUse);
                 case RoundingStrategy.AlwaysRoundUp:
-                    return sign ? RoundUp(v, decimalPlacesToUse) : RoundDown(v, decimalPlacesToUse);
+                    return sing ? RoundUp(v, decimalPlacesToUse) : RoundDown(v, decimalPlacesToUse);
                 default:
                     throw new NotImplementedException(string.Format("Unknown RoundingAccuracy {0}", Enum.GetName(typeof(RoundingStrategy), roundingStrategyToUse)));
             }
@@ -65,7 +79,7 @@ namespace Common
             var power = Convert.ToDecimal(Math.Pow(10, decimalPlaces));
             return Math.Ceiling(i * power) / power;
         }
-
+        
         public static bool operator ==(Asset a, Asset b)
         {
             return a.Name == b.Name;
@@ -97,11 +111,13 @@ namespace Common
         public decimal Value { get; private set; }
         public Asset Asset { get; private set; }
         public bool Sign => Value >= 0;
+        public bool IsValid { get; private set; }
 
         public PriceValue(decimal value, Asset asset)
         {
             Value = value;
             Asset = asset;
+            IsValid = true;
         }
 
         public static PriceValue FromETH(decimal value)
@@ -122,13 +138,28 @@ namespace Common
         /// <returns></returns>
         public PriceValue Round(RoundingStrategy? strategy = null, int? decimalPlaces = null)
         {
-            var roundedValue = Asset.Round(Value, Sign, strategy, decimalPlaces);
+            var roundedValue = Asset.Round(Value, strategy, decimalPlaces);
             return new PriceValue(roundedValue, Asset);
         }
+        
+        public PriceValue AddPercentage(PercentageValue percentage)
+        {
+            return this * (decimal)percentage.ChangeMultiplier;
+        }
 
+        public PriceValue SubtractPercentage(PercentageValue percentage)
+        {
+            return this * (1.0m - percentage.Ratio);
+        }
+        
         public override string ToString()
         {
-            return string.Format("{0} {1}", Value, Asset);
+            return Value.ToString("N" + Asset.DecimalPlaces);
+        }
+
+        public string ToStringWithAsset()
+        {
+            return string.Format("{0} {1}", this, Asset);
         }
 
         public int CompareTo(object obj)
@@ -141,6 +172,13 @@ namespace Common
                 return -1;
             }
             return (int)(Value - other.Value);
+        }
+
+        public static PriceValue InvalidValue => new PriceValue() { IsValid = false };
+
+        public static PriceValue operator *(PriceValue price, PercentageValue percentage)
+        {
+            return price * percentage.Ratio;
         }
 
         public static PriceValue operator +(PriceValue a, PriceValue b)
