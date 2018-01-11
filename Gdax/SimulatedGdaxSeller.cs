@@ -62,12 +62,17 @@ namespace Gdax
 
         public abstract Task<IBidOrderBook> GetBids();
 
-        public async Task<MyOrder> PlaceMarketSellOrder(decimal volume)
+        public async Task<MyOrder> PlaceImmediateSellOrder(decimal minLimitPrice, decimal volume)
         {
+            if (volume > BalanceEth)
+            {
+                throw new Exception("Invalid ETH balance");
+            }
+
             var bids = await GetBids();
 
-            // Limit order with Immediate or Cancel -> only take orders with unit price is less than 'price' argument
-            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(bids.Bids, null, volume).ToList();
+            // Limit order with Immediate or Cancel -> only take orders with unit price more than 'price' argument
+            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(bids.Bids.Where(x => x.PricePerUnit >= minLimitPrice), null, volume).ToList();
 
             var sum = orders.Select(x => x.PricePerUnit * x.VolumeUnits).DefaultIfEmpty().Sum();
             var fee = sum * TakerFeePercentage;
@@ -83,7 +88,7 @@ namespace Gdax
                 Cost = totalCost,
                 PricePerUnit = pricePerUnitWithoutFee,
                 State = filledVolume == volume ? OrderState.Closed : OrderState.Cancelled,
-                StartTime = DateTime.UtcNow,
+                StartTime = TimeService.UtcNow,
                 Fee = fee,
                 OrderType = OrderType2.Market,
                 Type = OrderType.Sell,
@@ -91,6 +96,9 @@ namespace Gdax
             });
 
             m_orderStorage.Orders.Add(newOrder);
+
+            BalanceEur += totalCost;
+            BalanceEth -= filledVolume;
 
             return new MyOrder()
             {

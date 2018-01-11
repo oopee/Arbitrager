@@ -76,8 +76,11 @@ namespace Kraken
 
             if (totalCost > BalanceEur)
             {
-                throw new Exception("Invalid balance");
-            }            
+                throw new Exception("Invalid EUR balance");
+            }
+
+            BalanceEur -= totalCost;
+            BalanceEth += filledVolume;
 
             var newOrder = new Common.Simulation.SimulatedOrder(new FullMyOrder()
             {
@@ -86,7 +89,7 @@ namespace Kraken
                 Cost = totalCost,
                 PricePerUnit = pricePerUnitWithoutFee,
                 State = filledVolume == volume ? OrderState.Closed : OrderState.Cancelled,
-                StartTime = DateTime.UtcNow,
+                StartTime = TimeService.UtcNow,
                 Fee = fee,
                 OrderType = OrderType2.Limit,
                 Type = OrderType.Buy,

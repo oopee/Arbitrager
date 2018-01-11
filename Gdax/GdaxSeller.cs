@@ -37,7 +37,7 @@ namespace Gdax
                 {
                     PricePerUnit = x.First(),
                     VolumeUnits = x.Skip(1).First(),
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = TimeService.UtcNow
                 }));
             }
 
@@ -47,7 +47,7 @@ namespace Gdax
                 {
                     PricePerUnit = x.First(),
                     VolumeUnits = x.Skip(1).First(),
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = TimeService.UtcNow
                 }));
             }
 
@@ -68,12 +68,14 @@ namespace Gdax
             };
         }
 
-        public async Task<MyOrder> PlaceMarketSellOrder(decimal volume)
+        public async Task<MyOrder> PlaceImmediateSellOrder(decimal minLimitPrice, decimal volume)
         {
-            var order = await m_client.OrdersService.PlaceMarketOrderAsync(
-                GDAXClient.Services.Orders.OrderSide.Sell,
-                GDAXClient.Services.Orders.ProductType.EthEur,
-                volume);
+            var order = await m_client.OrdersService.PlaceLimitOrderAsync(
+                GDAXClient.Services.Orders.OrderSide.Sell, 
+                GDAXClient.Services.Orders.ProductType.EthEur, 
+                volume, 
+                minLimitPrice, 
+                GDAXClient.Services.Orders.TimeInForce.IOC);
 
             var orderResult = new MyOrder()
             {

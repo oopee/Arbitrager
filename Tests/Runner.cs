@@ -69,7 +69,7 @@ namespace Tests
         [Test]
         public async Task Gdax_ShowOrderInfo()
         {
-            await Task.Delay(0);
+            var order = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("160d8288-08ca-477c-b19f-c2753e2f5070").ToString()));
             /*var exchange = GetGdax();
 
             var order = await ((ISeller)exchange).PlaceSellOrder(99999m, 0.001m);

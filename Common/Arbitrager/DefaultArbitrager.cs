@@ -22,6 +22,9 @@ namespace Common
         public ISeller Seller => m_seller;
         public IProfitCalculator ProfitCalculator => m_profitCalculator;
 
+        public int MaxBuyRetries => 10;
+        public TimeSpan MaxBuyTotalTime => TimeSpan.FromSeconds(30);
+
         public DefaultArbitrager(
             IBuyer buyer,
             ISeller seller,
@@ -180,6 +183,11 @@ namespace Common
 
                     case ArbitrageState.GetSellOrderInfo:
                         await DoArbitrage_GetSellOrderInfo(ctx);
+                        newState = ArbitrageState.CalculateFinalResult;
+                        break;
+
+                    case ArbitrageState.CalculateFinalResult:
+                        await DoArbitrage_CalculateFinalResult(ctx);
                         newState = ArbitrageState.Finished;
                         break;
 
@@ -246,10 +254,59 @@ namespace Common
             var maxEthToBuy = ctx.Info.MaxEthAmountToArbitrage;
 
             logger.Debug("Placing buy order (limit: {0} EUR, volume: {1} ETH)", buyLimitPricePerUnit, maxEthToBuy);
-            var buyOrder = await Buyer.PlaceImmediateBuyOrder(buyLimitPricePerUnit, maxEthToBuy);
-            logger.Debug("\tbuy order placed (orderId: {0})", buyOrder.Id);
+            var buyOrderId = await TryPlaceBuyOrder(buyLimitPricePerUnit, maxEthToBuy, logger);
+            if (buyOrderId == null)
+            {
+                logger.Error("\tbuy order could not be placed. Aborting...");
+                ctx.Error = ArbitrageError.CouldNotPlaceBuyOrder;
+            }
+            else
+            {
+                logger.Debug("\tbuy order placed (orderId: {0})", buyOrderId);
+                ctx.BuyOrderId = buyOrderId;
+            }            
+        }
 
-            ctx.BuyOrderId = buyOrder.Id;
+        protected async Task<OrderId?> TryPlaceBuyOrder(decimal buyLimitPricePerUnit, decimal maxEthToBuy, ILogger logger)
+        {
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+
+            int i = 0;
+            for (; i < MaxBuyRetries && sw.Elapsed < MaxBuyTotalTime; ++i)
+            {
+                var startTime = TimeService.UtcNow;
+                try
+                {                    
+                    var buyOrder = await Buyer.PlaceImmediateBuyOrder(buyLimitPricePerUnit, maxEthToBuy);
+                    return buyOrder.Id;
+                }
+                catch (Exception e)
+                {
+                    logger.Error("\tError! Reason: {0}", e.Message);
+                    logger.Error("\ttry to determine if order was placed or not... (wait for a while first)");
+                    await Task.Delay(5000);
+                    logger.Error("\t\tget closed orders...");
+                    var closedOrders = await Buyer.GetClosedOrders(new GetOrderArgs() { StartUtc = startTime });
+                    var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxEthToBuy) && x.StartTime >= startTime).FirstOrDefault();
+                    if (order != null)
+                    {
+                        logger.Error("\t\tfound recently closed order with same volume! Volume: {0}, StartTime: {1}, State: {2}, Id: {3}", order.Volume, order.StartTime, order.State, order.Id);
+                        // Buy order was successful
+                        return order.Id;
+                    }
+                }
+
+                logger.Info("\tretrying...");
+            }
+
+            logger.Error("\tmaxretry count (retires: {0}) or max time (time: {1:N2}s) reached, aborting...", i, sw.Elapsed.TotalSeconds);
+            return null;
+        }
+
+        private static bool FuzzyCompare(decimal a, decimal b)
+        {
+            return Math.Abs(a - b) < 0.01m;
         }
 
         protected virtual async Task DoArbitrage_GetBuyOrderInfo(ArbitrageContext ctx)
@@ -294,7 +351,7 @@ namespace Common
             var ethToSell = ctx.BuyEthAmount.Value;
 
             logger.Debug("Placing sell order (volume: {0} ETH)", ethToSell);
-            var sellOrder = await Seller.PlaceMarketSellOrder(ethToSell);
+            var sellOrder = await Seller.PlaceImmediateSellOrder(ctx.Info.EstimatedAvgBuyUnitPrice * 0.9m, ethToSell);
             logger.Debug("\tsell order placed (orderId: {0})", sellOrder.Id);
 
             ctx.SellOrderId = sellOrder.Id;
@@ -315,8 +372,46 @@ namespace Common
             logger.Debug("\tgot buy sell info (filledVolume: {0}, cost: {1}, state: {2})", sellOrderInfo.FilledVolume, sellOrderInfo.Cost, sellOrderInfo.State);
 
             await m_dataAccess.StoreTransaction(sellOrderInfo);
+        }
 
-            // TODO!
+        protected virtual async Task DoArbitrage_CalculateFinalResult(ArbitrageContext ctx)
+        {
+            if (ctx.SellOrder == null)
+            {
+                throw new InvalidOperationException("DoArbitrage_CalculateFinalResult: SellOrder has not been set!");
+            }
+
+            if (ctx.BuyOrder == null)
+            {
+                throw new InvalidOperationException("DoArbitrage_CalculateFinalResult: BuyOrder has not been set!");
+            }
+
+            var buyerBalanceTask = m_buyer.GetCurrentBalance();
+            var sellerBalanceTask = m_seller.GetCurrentBalance();
+
+            await buyerBalanceTask;
+            await sellerBalanceTask;
+
+            ctx.FinishedResult = new ArbitrageContext.FinishedResultData()
+            {
+                EthBought = ctx.BuyOrder.FilledVolume,
+                EthSold = ctx.SellOrder.FilledVolume,
+                FiatSpent = ctx.BuyOrder.Cost,
+                FiatEarned = ctx.SellOrder.Cost,
+                BuyerBalance = buyerBalanceTask.Result,
+                SellerBalance = sellerBalanceTask.Result
+            };
+
+            Logger.Debug("\tfinal result: {0}", ctx.FinishedResult);
+            if (ctx.FinishedResult.EthDelta != 0)
+            {
+                Logger.Debug("\tWARNING! All ETH could not be sold! Remaining eth: {0} ETH", ctx.FinishedResult.EthDelta);
+            }
+
+            if (ctx.FinishedResult.FiatDelta < 0)
+            {
+                Logger.Debug("\tWARNING! Negative profit: {0} EUR", ctx.FinishedResult.FiatDelta);
+            }
         }
 
         protected virtual Task OnStateBegin(ArbitrageContext ctx)

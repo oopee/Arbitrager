@@ -36,6 +36,7 @@ namespace Interface
         GetBuyOrderInfo,
         PlaceSellOrder,
         GetSellOrderInfo,
+        CalculateFinalResult,
         Finished
     }
 
@@ -44,7 +45,8 @@ namespace Interface
         Unknown,
         ManuallyAborted,
         InvalidBalance,
-        ZeroEthBought
+        ZeroEthBought,
+        CouldNotPlaceBuyOrder
     }
 
     public class ArbitrageContext
@@ -71,6 +73,8 @@ namespace Interface
         public FullMyOrder BuyOrder { get; set; }
         public FullMyOrder SellOrder { get; set; }
 
+        public FinishedResultData FinishedResult { get; set; }
+
         public static ArbitrageContext Start(decimal? fiatToSpend)
         {
             var ctx = new ArbitrageContext()
@@ -81,6 +85,22 @@ namespace Interface
             };
 
             return ctx;
+        }
+
+        public class FinishedResultData
+        {
+            public decimal EthBought { get; set; }
+            public decimal EthSold { get; set; }
+            public decimal FiatSpent { get; set; }
+            public decimal FiatEarned { get; set; }
+
+            public BalanceResult BuyerBalance { get; set; }
+            public BalanceResult SellerBalance { get; set; }
+
+            public decimal FiatDelta => FiatEarned - FiatSpent;
+            public decimal EthDelta => EthSold - EthBought;
+
+            public override string ToString() => string.Format("EthBought {0} | EthSold {1} | EthDelta {2} | FiatSpent {3} | FiatEarned {4} | FiatDelta {5} | BuyerBalance {6:0.##} EUR, {7:0.####} ETH | SellerBalancer {8:0.##} EUR, {9:0.####} ETH", EthBought, EthSold, EthDelta, FiatSpent, FiatEarned, FiatDelta, BuyerBalance.Eur, BuyerBalance.Eth, SellerBalance.Eur, SellerBalance.Eth);
         }
     }
 
