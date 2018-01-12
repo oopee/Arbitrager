@@ -27,6 +27,9 @@ namespace ArbitrageDataOutputter
 
         [Option('l', "fiatlimit", Default = 2000, Required = false, HelpText = "Amount of fiat to use for profit calculations")]
         public int FiatLimit { get; set; }
+
+        [Option('s', "datasource", Default = "real", Required = false, HelpText = "Data source to use ('real' or 'fake'")]
+        public string DataSource { get; set; }
     }
 
     [Verb("csv", HelpText = "Output to CSV file")]
@@ -115,10 +118,19 @@ namespace ArbitrageDataOutputter
 
         static IArbitrageDataSource GetDataSource(CommonOptions options)
         {
-            var arbitrager = GetKrakenGdaxArbitrager();
-            var source = new ArbitragerDataSource(arbitrager, options.FiatLimit);
+            if (options.DataSource == "fake")
+            {
+                return new FakeDataSource();
+            }
+            else if (options.DataSource == "real")
+            {
+                var arbitrager = GetKrakenGdaxArbitrager();
+                var source = new ArbitragerDataSource(arbitrager, options.FiatLimit);
 
-            return source;
+                return source;
+            }
+
+            throw new NotSupportedException(options.DataSource);
         }
 
         static IArbitrager GetKrakenGdaxArbitrager()
