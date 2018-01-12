@@ -49,13 +49,13 @@ namespace ArbitrageDataOutputter
         protected override void OnStarted()
         {
             var slackMessage = GetColoredMessage("#36a64f", "Bot started");
-            Client.SendMessageAsync(slackMessage).Wait();
+            // Client.SendMessageAsync(slackMessage).Wait();
         }
 
         protected override void OnStopped()
         {
             var slackMessage = GetColoredMessage("#d00000", "Bot stopped");
-            Client.SendMessageAsync(slackMessage).Wait();
+            // Client.SendMessageAsync(slackMessage).Wait();
         }
 
         private SlackClient.SlackMessage GetColoredMessage(string hexColor, string message)

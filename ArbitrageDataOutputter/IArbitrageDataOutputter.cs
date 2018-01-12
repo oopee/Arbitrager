@@ -29,6 +29,11 @@ namespace ArbitrageDataOutputter
 
         private Timer Timer { get; set; }
 
+        private System.Net.HttpStatusCode? LastErrorCode { get; set; }
+        private DateTime? LastErrorTime { get; set; }
+        private DateTime? LastErrorPrintTime { get; set; }
+        private int ErrorCount { get; set; }
+
         public AbstractArbitrageDataOutputter(IArbitrageDataSource dataSource)
         {
             DataSource = dataSource;
@@ -42,11 +47,41 @@ namespace ArbitrageDataOutputter
             {
                 var data = await DataSource.GetCurrentData();
                 await OutputData(data);
+
+                if (LastErrorTime != null)
+                {
+                    Console.WriteLine($"{DateTime.Now} Got successful output after {ErrorCount} errors");
+                    LastErrorTime = null;
+                    LastErrorPrintTime = null;
+                    LastErrorCode = null;
+                    ErrorCount = 0;
+                }
+            }
+            catch (System.Net.WebException e)
+            {
+                var response = (System.Net.HttpWebResponse)e.Response;
+                if (LastErrorPrintTime == null)
+                {
+                    Console.WriteLine($"{DateTime.Now} Got HTTP error response {(int)response.StatusCode} {response.StatusCode}");
+                    LastErrorPrintTime = DateTime.Now;
+                }
+                else if ((DateTime.Now - LastErrorPrintTime.Value).TotalMinutes > 15)
+                {
+                    Console.WriteLine($"{DateTime.Now} API still returning HTTP error response {(int)response.StatusCode} {response.StatusCode}");
+                    LastErrorPrintTime = DateTime.Now;
+                }
+
+                LastErrorTime = DateTime.Now;
+                LastErrorCode = response.StatusCode;
+                ++ErrorCount;
             }
             catch (Exception e)
             {
                 Console.WriteLine("Error outputting data:");
                 Console.WriteLine(e.ToString());
+
+                LastErrorTime = DateTime.Now;
+                ++ErrorCount;
             }
         }
 

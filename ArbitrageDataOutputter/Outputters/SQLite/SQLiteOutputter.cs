@@ -37,6 +37,16 @@ namespace ArbitrageDataOutputter
             return Task.FromResult(0);
         }
 
+        protected override void OnStarted()
+        {
+            Console.WriteLine($"Started outputting data to SQLite database {SQLiteFile}");
+        }
+
+        protected override void OnStopped()
+        {
+            Console.WriteLine($"Stopped outputting data to SQLite database {SQLiteFile}");
+        }
+
         private SqliteConnection GetConnection()
         {
             var connectionString = "Data Source=" + SQLiteFile;

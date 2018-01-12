@@ -1343,6 +1343,10 @@ namespace KrakenApi
                         return result;
                     }
                 }
+                else if (exception != null)
+                {
+                    throw exception;
+                }
             }
             while (result == null);
 

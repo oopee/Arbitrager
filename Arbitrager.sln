@@ -25,7 +25,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakenApi", "3rdParty\Krake
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DatabaseAccess", "DatabaseAccess\DatabaseAccess.csproj", "{B954A9AB-3045-4C36-8D9E-2F1245B09AE4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ArbitrageDataOutputter", "ArbitrageDataOutputter\ArbitrageDataOutputter.csproj", "{DFD361F9-58C2-42CC-B992-77FC00D7A15F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArbitrageDataOutputter", "ArbitrageDataOutputter\ArbitrageDataOutputter.csproj", "{DFD361F9-58C2-42CC-B992-77FC00D7A15F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbitrager.API", "Arbitrager.API\Arbitrager.API.csproj", "{16C7FC7C-1BC3-4193-909C-81EFD3113A39}"
 EndProject
