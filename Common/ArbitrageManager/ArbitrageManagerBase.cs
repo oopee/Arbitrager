@@ -117,7 +117,7 @@ namespace Common.ArbitrageManager
             arbitrageCtx.AbortIfFiatToSpendIsMoreThanBalance = false;
             await m_arbitrager.Arbitrage(arbitrageCtx);
 
-            string msg = string.Format("\tArbitrageInfo: Profit {0:0.#}%, {1:0.##} EUR | (Bid) {2:0.##} EUR - (Ask) {3:0.##} EUR = (Spread) {4:0.##} EUR | (Orders) {5:0.##} EUR -> {6:0.##} ETH -> {7:0.##} EUR | (Balance) {8:0.##} EUR, {9:0.##} ETH | (Chunk) {10:0.##} EUR",
+            string msg = string.Format("\tArbitrageInfo: Profit {0:0.#}%, {1:0.##} EUR | (Bid) {2:0.##} EUR - (Ask) {3:0.##} EUR = (Spread) {4:0.##} EUR | (Orders) {5:0.##} EUR -> {6:0.####} ETH -> {7:0.##} EUR | (Balance) {8:0.##} EUR, {9:0.####} ETH | (Chunk) {10:0.##} EUR",
                 arbitrageCtx.Info.MaxProfitPercentage * 100,
                 arbitrageCtx.Info.MaxEurProfit,
                 arbitrageCtx.Info.BestSellPrice,
@@ -148,7 +148,7 @@ namespace Common.ArbitrageManager
                 if (result.EthToBuy != null)
                 {
                     arbitrageCtx.BuyOrder_EthAmountToBuy = result.EthToBuy;
-                    m_logger.Info("\toverride EthAmountToBuy = {0:0.##} ETH", arbitrageCtx.BuyOrder_EthAmountToBuy);
+                    m_logger.Info("\toverride EthAmountToBuy = {0:0.####} ETH", arbitrageCtx.BuyOrder_EthAmountToBuy);
                 }
 
                 if (result.BuyLimitPrice != null)
@@ -169,7 +169,7 @@ namespace Common.ArbitrageManager
                 {
                     m_logger.Info("\tarbitrage finished!");
                     string finalResult =
-                        string.Format("\tProfit {0:0.#}%, {1:0.##} EUR | (Buy) {2:0.##} EUR -> {3:0.##} ETH  | (Sell) {3:0.##} ETH -> {4:0.##} EUR | (BuyerBalance) {5:0.##} EUR, {6:0.##} ETH | (SellerBalance) {7:0.##} EUR, {8:0.##} ETH",
+                        string.Format("\tProfit {0:0.#}%, {1:0.##} EUR | (Buy) {2:0.##} EUR -> {3:0.####} ETH  | (Sell) {4:0.####} ETH -> {5:0.##} EUR | (BuyerBalance) {6:0.##} EUR, {7:0.####} ETH | (SellerBalance) {8:0.##} EUR, {9:0.####} ETH",
                         arbitrageCtx.FinishedResult.Profit * 100,
                         arbitrageCtx.FinishedResult.FiatDelta,
                         arbitrageCtx.FinishedResult.FiatSpent,
@@ -190,12 +190,13 @@ namespace Common.ArbitrageManager
         {
             await Task.Delay(0);
 
-            if (info.ProfitCalculation.Profit > 2m)
+            var percentage = info.ProfitCalculation.ProfitPercentage * 100;
+            if (percentage > 2m)
             {
                 return new ShouldDoArbitrageResult()
                 {
                     DoArbitrage = true,
-                    Reason = string.Format("Profit {0:0.##}% > 2%", info.ProfitCalculation.Profit),
+                    Reason = string.Format("Profit {0:0.##}% > 2%", percentage),
                     ArbitrageInfo = info
                 };
             }
@@ -203,7 +204,7 @@ namespace Common.ArbitrageManager
             return new ShouldDoArbitrageResult()
             {
                 DoArbitrage = false,
-                Reason = "Profit ({0}:0.##}) is too small"
+                Reason = string.Format("Profit {0:0.##}% is too small", percentage)
             };
         }
 
