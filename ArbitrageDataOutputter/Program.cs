@@ -53,17 +53,25 @@ namespace ArbitrageDataOutputter
         public string WebhookURL { get; set; }
     }
 
+    [Verb("sqlite", HelpText = "Output to Slack channel")]
+    class SQLiteOptions : CommonOptions
+    {
+        [Option('f', "file", Required = true, HelpText = "File for SQLite database")]
+        public string SQLiteFile { get; set; }
+    }
+
     class Program
     {
         static int Main(string[] args)
         {
             // If running with debugger, use project options to set proper command line arguments
 
-            return CommandLine.Parser.Default.ParseArguments<CsvOptions, SheetsOptions, SlackOptions>(args)
+            return CommandLine.Parser.Default.ParseArguments<CsvOptions, SheetsOptions, SlackOptions, SQLiteOptions>(args)
               .MapResult(
                 (CsvOptions opts) => RunCsv(opts),
                 (SheetsOptions opts) => RunGoogleSheets(opts),
                 (SlackOptions opts) => RunSlack(opts),
+                (SQLiteOptions opts) => RunSQLite(opts),
                 errs => HandleErrors(errs));
         }
 
@@ -92,6 +100,14 @@ namespace ArbitrageDataOutputter
         {
             var source = GetDataSource(options);
             var outputter = new SlackAlertOutputter(source, options.WebhookURL);
+
+            return RunOutputter(outputter, options);
+        }
+
+        static int RunSQLite(SQLiteOptions options)
+        {
+            var source = GetDataSource(options);
+            var outputter = new SQLiteOutputter(source, options.SQLiteFile);
 
             return RunOutputter(outputter, options);
         }

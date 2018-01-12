@@ -8,7 +8,9 @@
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.2.0" />
     <PackageReference Include="CsvHelper" Version="6.1.0" />
+    <PackageReference Include="Dapper" Version="1.50.4" />
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.32.0.1084" />
+    <PackageReference Include="Microsoft.Data.SQLite" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup>
