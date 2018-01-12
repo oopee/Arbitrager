@@ -29,7 +29,6 @@ namespace Arbitrager
             IBuyer buyer;
             ISeller seller;
 
-
             switch (configuration)
             {
                 case "fake":
@@ -52,19 +51,37 @@ namespace Arbitrager
             logger.Info("IBuyer       : {0}", buyer.GetType().Name);
             logger.Info("ISeller      : {0}", seller.GetType().Name);
 
-            var shell = new Shell(
-                new ConsoleArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),
-                dataAccess,
-                Logger.StaticLogger);
+            var appType = Utils.AppConfigLoader.Instance.AppSettings("consoleArbitragerAppType") ?? "manual";
 
-            try
+            if (appType == "manual")
             {
-                shell.Run().Wait();
+                var shell = new Shell(
+                    new ConsoleArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),
+                    dataAccess,
+                    Logger.StaticLogger);
+
+                try
+                {
+                    shell.Run().Wait();
+                }
+                catch (Exception e)
+                {
+                    logger.Error("EXCEPTION: {0}", e);
+                    Console.ReadLine();
+                }
             }
-            catch (Exception e)
+            else if (appType == "auto")
             {
-                logger.Error("EXCEPTION: {0}", e);
-                Console.ReadLine();
+                var manager = new Common.ArbitrageManager.DefaultArbitrageManager(
+                    new DefaultArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),
+                    Logger.StaticLogger,
+                    TimeService.Clock);
+
+                manager.Run().Wait();
+            }
+            else
+            {
+                throw new ArgumentException("Invalid consoleArbitragerAppType (see App.config). Valid values are: manual, auto");
             }
         }
     }   

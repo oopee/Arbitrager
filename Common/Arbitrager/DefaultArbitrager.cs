@@ -206,6 +206,12 @@ namespace Common
 
                 logger.Debug("\tmoving to next state {0}", newState);
                 ctx.State = newState;
+
+                if (ctx.BreakOnState == ctx.State)
+                {
+                    logger.Debug("\tbreaking execution...");
+                    return ctx;
+                }
             }
 
             logger.Debug("\tfinished!");
@@ -226,10 +232,17 @@ namespace Common
             if (!ctx.SpendWholeBalance && ctx.UserFiatToSpend > info.EurBalance)
             {
                 // Explicit EUR amount was specified but it is more than we have at exchange B -> abort
-                // NOTE: we could simply ignore this check and go on. In that case if user specified too large EUR amount his whole balance would be used.
-                //       As we don't want to guess if the user did this on purpose or if it was a typo, it is better to abort and let the user try again
-                ctx.Error = ArbitrageError.InvalidBalance;
-                return;
+                if (ctx.AbortIfFiatToSpendIsMoreThanBalance)
+                {
+                    // NOTE: we could simply ignore this check and go on. In that case if user specified too large EUR amount his whole balance would be used.
+                    //       As we don't want to guess if the user did this on purpose or if it was a typo, it is better to abort and let the user try again
+                    ctx.Error = ArbitrageError.InvalidBalance;
+                    return;
+                }
+                else
+                {
+                    ctx.UserFiatToSpend = info.EurBalance;
+                }
             }
 
             if (!info.IsEurBalanceSufficient || !info.IsEthBalanceSufficient)
@@ -239,22 +252,38 @@ namespace Common
             }
 
             ctx.Info = info;
+            ctx.BuyOrder_LimitPriceToUse = ctx.Info.BuyLimitPricePerUnit;
+            ctx.BuyOrder_EthAmountToBuy = ctx.Info.MaxEthAmountToArbitrage;
         }
 
         protected virtual async Task DoArbitrage_PlaceBuyOrder(ArbitrageContext ctx)
         {
             var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_PlaceBuyOrder");
 
+            // Check that state is valid
             if (ctx.BuyOrderId != null)
             {
                 throw new InvalidOperationException(string.Format("DoArbitrage_PlaceBuyOrder: BuyOrderId already set! ({0})", ctx.BuyOrderId));
             }
 
-            var buyLimitPricePerUnit = ctx.Info.BuyLimitPricePerUnit;
-            var maxEthToBuy = ctx.Info.MaxEthAmountToArbitrage;
+            if (ctx.BuyOrder_LimitPriceToUse == null)
+            {
+                throw new InvalidOperationException("DoArbitrage_PlaceBuyOrder: BuyOrder_LimitPriceToUse is null");
+            }
+
+            if (ctx.BuyOrder_EthAmountToBuy == null)
+            {
+                throw new InvalidOperationException("DoArbitrage_PlaceBuyOrder: BuyOrder_EthAmountToBuy is null");
+            }
+
+            // Place order
+            var buyLimitPricePerUnit = ctx.BuyOrder_LimitPriceToUse.Value;
+            var maxEthToBuy = ctx.BuyOrder_EthAmountToBuy.Value;
 
             logger.Debug("Placing buy order (limit: {0} EUR, volume: {1} ETH)", buyLimitPricePerUnit, maxEthToBuy);
             var buyOrderId = await TryPlaceBuyOrder(buyLimitPricePerUnit, maxEthToBuy, logger);
+
+            // Handle result
             if (buyOrderId == null)
             {
                 logger.Error("\tbuy order could not be placed. Aborting...");
@@ -402,15 +431,15 @@ namespace Common
                 SellerBalance = sellerBalanceTask.Result
             };
 
-            Logger.Debug("\tfinal result: {0}", ctx.FinishedResult);
+            m_logger.Debug("\tfinal result: {0}", ctx.FinishedResult);
             if (ctx.FinishedResult.EthDelta != 0)
             {
-                Logger.Debug("\tWARNING! All ETH could not be sold! Remaining eth: {0} ETH", ctx.FinishedResult.EthDelta);
+                m_logger.Debug("\tWARNING! All ETH could not be sold! Remaining eth: {0} ETH", ctx.FinishedResult.EthDelta);
             }
 
             if (ctx.FinishedResult.FiatDelta < 0)
             {
-                Logger.Debug("\tWARNING! Negative profit: {0} EUR", ctx.FinishedResult.FiatDelta);
+                m_logger.Debug("\tWARNING! Negative profit: {0} EUR", ctx.FinishedResult.FiatDelta);
             }
         }
 

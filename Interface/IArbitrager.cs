@@ -56,11 +56,17 @@ namespace Interface
         /// </summary>
         public ArbitrageState State { get; set; }
 
+        public ArbitrageState? BreakOnState { get; set; }
+
         public bool SpendWholeBalance { get; set; }
         /// <summary>
         /// The amount of fiat that user wants to spend
         /// </summary>
         public decimal UserFiatToSpend { get; set; }
+
+        // For PlaceBuyOrder
+        public decimal? BuyOrder_LimitPriceToUse { get; set; }
+        public decimal? BuyOrder_EthAmountToBuy { get; set; }
 
         public ArbitrageError? Error { get; set; }
         public ArbitrageInfo Info { get; set; }
@@ -75,6 +81,8 @@ namespace Interface
 
         public FinishedResultData FinishedResult { get; set; }
 
+        public bool AbortIfFiatToSpendIsMoreThanBalance { get; set; } = true;
+
         public static ArbitrageContext Start(decimal? fiatToSpend)
         {
             var ctx = new ArbitrageContext()
@@ -84,6 +92,13 @@ namespace Interface
                 State = ArbitrageState.NotStarted
             };
 
+            return ctx;
+        }
+
+        public static ArbitrageContext GetInfo(decimal? fiatToSpend)
+        {
+            var ctx = Start(fiatToSpend);
+            ctx.BreakOnState = ArbitrageState.PlaceBuyOrder;
             return ctx;
         }
 
@@ -99,6 +114,7 @@ namespace Interface
 
             public decimal FiatDelta => FiatEarned - FiatSpent;
             public decimal EthDelta => EthSold - EthBought;
+            public decimal Profit => FiatSpent == 0m ? 0m : FiatDelta / FiatSpent;
 
             public override string ToString() => string.Format("EthBought {0} | EthSold {1} | EthDelta {2} | FiatSpent {3} | FiatEarned {4} | FiatDelta {5} | BuyerBalance {6:0.##} EUR, {7:0.####} ETH | SellerBalancer {8:0.##} EUR, {9:0.####} ETH", EthBought, EthSold, EthDelta, FiatSpent, FiatEarned, FiatDelta, BuyerBalance.Eur, BuyerBalance.Eth, SellerBalance.Eur, SellerBalance.Eth);
         }

@@ -38,14 +38,18 @@ namespace Common
 
             string str = args?.Length > 0 ? string.Format(format, args) : format;
 
+            logLine.DefaultLine = string.Format("{0} {1,-5}: {2}", logLine.DateTime, type, str);
+
+            /*
             if (string.IsNullOrWhiteSpace(Name))
             {
-                logLine.DefaultLine = string.Format("{0} {1}\t: {2}", logLine.DateTime, type, str);
+                logLine.DefaultLine = string.Format("{0} {1,-5}: {2}", logLine.DateTime, type, str);
             }
             else
             {
-                logLine.DefaultLine = string.Format("{0} {1}\t: {3}: {2}", logLine.DateTime, type, str, Name);
+                logLine.DefaultLine = string.Format("{0} {1,-5}: {3}: {2}", logLine.DateTime, type, str, Name);
             }
+            */
 
             Log(logLine);
         }
