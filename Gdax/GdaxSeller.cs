@@ -15,6 +15,8 @@ namespace Gdax
         GDAXClient.GDAXClient m_client;
         ILogger m_logger;
 
+        Dictionary<string, FullOrder> s_orders = new Dictionary<string, FullOrder>();
+
         public string Name => "GDAX";
         public decimal TakerFeePercentage => 0.003m; // 0.3%
         public decimal MakerFeePercentage => 0.000m; // 0%
@@ -68,7 +70,7 @@ namespace Gdax
             };
         }
 
-        public async Task<MyOrder> PlaceImmediateSellOrder(decimal minLimitPrice, decimal volume)
+        public async Task<MinimalOrder> PlaceImmediateSellOrder(decimal minLimitPrice, decimal volume)
         {
             var order = await m_client.OrdersService.PlaceLimitOrderAsync(
                 GDAXClient.Services.Orders.OrderSide.Sell, 
@@ -77,20 +79,36 @@ namespace Gdax
                 minLimitPrice, 
                 GDAXClient.Services.Orders.TimeInForce.IOC);
 
-            var orderResult = new MyOrder()
+            var orderResult = new MinimalOrder()
             {
                 Id = new OrderId(order.Id.ToString()),
-                PricePerUnit = order.Price,
-                Volume = order.Size,
-                Type = OrderType.Sell
+                Side = OrderSide.Sell
             };
 
             m_logger.Info("GdaxSeller: placed sell order {0}", orderResult);
 
+            // NOTE: GDAX may purge some (meaningless) orders. This means that if our order did not get filled (event partially),
+            // it is possible that we cannot get the order from GDAX anymore. That is why we are storing all order results so that
+            // GetOrderInfo() returns something meaningful for these orders.
+            var fullOrder = ParseOrder(order);
+            lock (s_orders)
+            {
+                // Purge all orders that are more than one day old
+                var now = TimeService.UtcNow;
+                var keysToRemove = s_orders.Where(x => x.Value.OpenTime + TimeSpan.FromDays(1) < now).Select(x => x.Key).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    s_orders.Remove(key);
+                }
+
+                // Add order to cache
+                s_orders[fullOrder.Id.Id] = fullOrder;
+            }
+
             return orderResult;
         }
 
-        public async Task<List<FullMyOrder>> GetOpenOrders()
+        public async Task<List<FullOrder>> GetOpenOrders()
         {
             var orders = await m_client.OrdersService.GetAllOrdersAsync();
 
@@ -98,13 +116,28 @@ namespace Gdax
             return result;
         }
 
-        public async Task<FullMyOrder> GetOrderInfo(OrderId id)
+        public async Task<FullOrder> GetOrderInfo(OrderId id)
         {
             var order = await m_client.OrdersService.GetOrderByIdAsync(id.ToString());
+            if (order == null)
+            {
+                // See comments in PlaceImmediateSellOrder.
+                lock (s_orders)
+                {
+                    if (s_orders.TryGetValue(id.Id, out FullOrder fullOrder))
+                    {
+                        fullOrder.State = OrderState.Closed;
+                        return fullOrder;
+                    }
+                }
+
+                return null;
+            }
+
             return ParseOrder(order);
         }
 
-        public Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null)
+        public Task<List<FullOrder>> GetClosedOrders(GetOrderArgs args = null)
         {
             throw new NotImplementedException();
         }
@@ -156,45 +189,47 @@ namespace Gdax
             };
         }
 
-        private FullMyOrder ParseOrder(GDAXClient.Services.Orders.OrderResponse order)
+        private FullOrder ParseOrder(GDAXClient.Services.Orders.OrderResponse order)
         {
-            return new FullMyOrder()
+            var side = ParseSide(order.Side);
+
+            return new FullOrder()
             {
                 Id = new OrderId(order.Id.ToString()),
                 Fee = order.Fill_fees,
                 OpenTime = order.Created_at,
-                StartTime = null,
+                CloseTime = order.Done_at == default(DateTime) ? null : (DateTime?)order.Done_at,
                 ExpireTime = null,
                 FilledVolume = order.Filled_size,
                 Volume = order.Size,
-                PricePerUnit = order.Price,
-                Type = ParseSide(order.Side),
-                OrderType = ParseOrderType(order.Type),
+                LimitPrice = order.Price,
+                Side = side,
+                Type = ParseOrderType(order.Type),
                 State = ParseState(order.Status),
-                Cost = order.Executed_value // TODO
+                CostExcludingFee = order.Executed_value
             };
         }
 
-        private OrderType ParseSide(string side)
+        private OrderSide ParseSide(string side)
         {
             switch (side)
             {
-                case "buy": return OrderType.Buy;
-                case "sell": return OrderType.Sell;
+                case "buy": return OrderSide.Buy;
+                case "sell": return OrderSide.Sell;
                 default:
                     m_logger.Error("GdaxSeller.ParseSide: unknown value '{0}", side);
-                    return OrderType.Unknown;
+                    return OrderSide.Unknown;
             }
         }
 
-        private OrderType2 ParseOrderType(string type)
+        private OrderType ParseOrderType(string type)
         {
             switch (type)
             {
-                case "limit": return OrderType2.Limit;
+                case "limit": return OrderType.Limit;
                 default:
                     m_logger.Error("GdaxSeller.ParseOrderType: unknown value '{0}", type);
-                    return OrderType2.Unknown;
+                    return OrderType.Unknown;
             }
         }
 

@@ -52,7 +52,7 @@ namespace DatabaseAccess
             }
         }
 
-        public async Task StoreTransaction(FullMyOrder transaction)
+        public async Task StoreTransaction(FullOrder transaction)
         {
             // TODO: More of this stuff should really come within FullMyOrder
             var EUR = Asset.EUR.Name;
@@ -61,7 +61,7 @@ namespace DatabaseAccess
             if (transaction != null)
             {
                 Guard(transaction.State == OrderState.Closed, "Tried to store a transaction which wasn't closed");
-                Guard(transaction.Type == OrderType.Buy || transaction.Type == OrderType.Sell, "Tried to store transaction of unknown type");
+                Guard(transaction.Side == OrderSide.Buy || transaction.Side == OrderSide.Sell, "Tried to store transaction of unknown type");
 
                 await GetContext(async db =>
                 {
@@ -73,18 +73,18 @@ namespace DatabaseAccess
                         Description = transaction.ToString(),
                         BaseAsset = ETH,
                         QuoteAsset = EUR,
-                        UnitPrice = transaction.PricePerUnit
+                        UnitPrice = transaction.LimitPrice ?? 0m
                     };
 
                     // Then do type dependent stuff
-                    if (transaction.Type == OrderType.Buy)
+                    if (transaction.Side == OrderSide.Buy)
                     {
                         // At the moment buying means buying ETH with EUR at Kraken
                         tx.Source = "Kraken";
                         tx.Target = "Kraken";
                         tx.SourceAsset = EUR;
                         tx.TargetAsset = ETH;
-                        tx.SourceSentAmount = transaction.Cost; // TODO: does Krakens Cost include Fee or not?
+                        tx.SourceSentAmount = transaction.CostIncludingFee; // TODO: does Krakens Cost include Fee or not?
                         tx.SourceFee = transaction.Fee;
                         tx.TargetFee = 0.0m;
                         tx.TargetReceivedAmount = transaction.FilledVolume;
@@ -99,7 +99,7 @@ namespace DatabaseAccess
                         tx.SourceSentAmount = transaction.FilledVolume;
                         tx.SourceFee = 0.0m;
                         tx.TargetFee = transaction.Fee; // TODO: Does GDAX Cost include Fee or not?
-                        tx.TargetReceivedAmount = transaction.Cost;
+                        tx.TargetReceivedAmount = transaction.CostIncludingFee;
                     }
 
                     db.Transactions.Add(tx);

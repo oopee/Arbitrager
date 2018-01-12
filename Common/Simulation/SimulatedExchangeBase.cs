@@ -30,7 +30,7 @@ namespace Common.Simulation
             return m_orderStorage.CancelOrder(id);
         }
 
-        public async Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null)
+        public async Task<List<FullOrder>> GetClosedOrders(GetOrderArgs args = null)
         {
             await Task.Yield();
             return m_orderStorage.GetClosedOrders(args);
@@ -52,13 +52,13 @@ namespace Common.Simulation
             };
         }
 
-        public async Task<List<FullMyOrder>> GetOpenOrders()
+        public async Task<List<FullOrder>> GetOpenOrders()
         {
             await Task.Yield();
             return m_orderStorage.GetOpenOrders();
         }
 
-        public async Task<FullMyOrder> GetOrderInfo(OrderId id)
+        public async Task<FullOrder> GetOrderInfo(OrderId id)
         {
             await Task.Yield();
             return m_orderStorage.GetOrder(id);
@@ -104,31 +104,31 @@ namespace Common.Simulation
             };
         }
 
-        public List<FullMyOrder> GetClosedOrders(GetOrderArgs args = null)
+        public List<FullOrder> GetClosedOrders(GetOrderArgs args = null)
         {
-            IEnumerable<FullMyOrder> orders = Orders.Where(x => x.Order.State != OrderState.Open).Select(x => x.Order);
+            IEnumerable<FullOrder> orders = Orders.Where(x => x.Order.State != OrderState.Open).Select(x => x.Order);
             if (args != null)
             {
                 if (args.StartUtc != null)
                 {
-                    orders = orders.Where(x => x.StartTime == null || args.StartUtc <= x.StartTime);
+                    orders = orders.Where(x => x.OpenTime == null || args.StartUtc <= x.OpenTime);
                 }
 
                 if (args.EndUtc != null)
                 {
-                    orders = orders.Where(x => x.StartTime == null || x.StartTime <= args.EndUtc);
+                    orders = orders.Where(x => x.OpenTime == null || x.OpenTime <= args.EndUtc);
                 }
             }
 
             return orders.ToList();
         }
 
-        public List<FullMyOrder> GetOpenOrders()
+        public List<FullOrder> GetOpenOrders()
         {
             return Orders.Where(x => x.Order.State == OrderState.Open).Select(x => x.Order).ToList();
         }
 
-        public FullMyOrder GetOrder(OrderId id)
+        public FullOrder GetOrder(OrderId id)
         {
             return Orders.Where(x => x.Order.Id == id).FirstOrDefault()?.Order;
         }
@@ -136,9 +136,9 @@ namespace Common.Simulation
 
     public class SimulatedOrder
     {
-        public FullMyOrder Order { get; set; }
+        public FullOrder Order { get; set; }
 
-        public SimulatedOrder(FullMyOrder order)
+        public SimulatedOrder(FullOrder order)
         {
             Order = order;
         }

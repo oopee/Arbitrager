@@ -13,6 +13,6 @@ namespace Interface
         /// </summary>
         Task ResetDatabase();
 
-        Task StoreTransaction(FullMyOrder transaction);
+        Task StoreTransaction(FullOrder transaction);
     }
 }

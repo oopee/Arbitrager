@@ -70,8 +70,8 @@ namespace Interface
         public OrderId? SellOrderId { get; set; }
         public ILogger Logger { get; set; }
 
-        public FullMyOrder BuyOrder { get; set; }
-        public FullMyOrder SellOrder { get; set; }
+        public FullOrder BuyOrder { get; set; }
+        public FullOrder SellOrder { get; set; }
 
         public FinishedResultData FinishedResult { get; set; }
 

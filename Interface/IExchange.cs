@@ -14,8 +14,8 @@ namespace Interface
 
         Task<BalanceResult> GetCurrentBalance();
 
-        Task<List<FullMyOrder>> GetOpenOrders();
-        Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null);
+        Task<List<FullOrder>> GetOpenOrders();
+        Task<List<FullOrder>> GetClosedOrders(GetOrderArgs args = null);
         Task<CancelOrderResult> CancelOrder(OrderId id);
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace Interface
         Task<WithdrawCryptoResult> WithdrawCryptoToAddress(decimal amount, string currency, string address);
 
         Task<PaymentMethodResult> GetPaymentMethods();
-        Task<FullMyOrder> GetOrderInfo(OrderId id);
+        Task<FullOrder> GetOrderInfo(OrderId id);
     }
 
     public class GetOrderArgs

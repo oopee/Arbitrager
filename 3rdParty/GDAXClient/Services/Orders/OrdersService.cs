@@ -106,11 +106,23 @@ namespace GDAXClient.Services.Orders
 
         public async Task<OrderResponse> GetOrderByIdAsync(string id)
         {
-            var httpResponseMessage = await SendHttpRequestMessageAsync(HttpMethod.Get, authenticator, $"/orders/{id}");
-            var contentBody = await httpClient.ReadAsStringAsync(httpResponseMessage).ConfigureAwait(false);
-            var orderResponse = JsonConvert.DeserializeObject<OrderResponse>(contentBody);
+            try
+            {
+                var httpResponseMessage = await SendHttpRequestMessageAsync(HttpMethod.Get, authenticator, $"/orders/{id}");
+                var contentBody = await httpClient.ReadAsStringAsync(httpResponseMessage).ConfigureAwait(false);
+                var orderResponse = JsonConvert.DeserializeObject<OrderResponse>(contentBody);
 
-            return orderResponse;
+                return orderResponse;
+            }
+            catch (HttpRequestException e)
+            {
+                if (e.Message == "{\"message\":\"NotFound\"}")
+                {
+                    return null;
+                }
+
+                throw;
+            }
         }
     }
 }

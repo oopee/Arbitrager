@@ -23,7 +23,7 @@ namespace Tests
             var buy = ctx.BuyOrder;
             var sell = ctx.SellOrder;
 
-            Assert.AreEqual(999.9999999999999999999999999m, buy.Cost);
+            Assert.AreEqual(999.9999999999999999999999999m, buy.CostIncludingFee);
         }
 
         TestArbitrager GetTestArbitrager(decimal eurBalance, decimal ethBalance)

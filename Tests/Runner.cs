@@ -71,7 +71,12 @@ namespace Tests
         [Test]
         public async Task Gdax_ShowOrderInfo()
         {
+            /*
             var order = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("160d8288-08ca-477c-b19f-c2753e2f5070").ToString()));
+            var order2 = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("d76171c3-abe7-43fd-bfe1-ec75396d9848").ToString()));
+            */
+            var order3 = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("9e84e4c6-a1b5-4107-9235-c49e99b03c1d").ToString()));
+            
             /*var exchange = GetGdax();
 
             var order = await ((ISeller)exchange).PlaceSellOrder(99999m, 0.001m);
@@ -187,7 +192,19 @@ namespace Tests
 
         [Explicit]
         [Test]
-        public async Task PriceValue_Tests()
+        public async Task Gdax_PlaceSellorder()
+        {
+
+            var exchange = GetGdax();
+
+            var order = await ((ISeller)exchange).PlaceImmediateSellOrder(99999m, 0.001m);
+            var info = await exchange.GetOrderInfo(order.Id);
+            Logger.Info(GetDebugString(info));
+        }
+
+        [Explicit]
+        [Test]
+        public async Task PriceValue_Test()
         {
             EURTests(true);
             EURTests(false);

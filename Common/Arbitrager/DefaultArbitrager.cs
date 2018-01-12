@@ -288,10 +288,10 @@ namespace Common
                     await Task.Delay(5000);
                     logger.Error("\t\tget closed orders...");
                     var closedOrders = await Buyer.GetClosedOrders(new GetOrderArgs() { StartUtc = startTime });
-                    var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxEthToBuy) && x.StartTime >= startTime).FirstOrDefault();
+                    var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxEthToBuy) && x.OpenTime >= startTime).FirstOrDefault();
                     if (order != null)
                     {
-                        logger.Error("\t\tfound recently closed order with same volume! Volume: {0}, StartTime: {1}, State: {2}, Id: {3}", order.Volume, order.StartTime, order.State, order.Id);
+                        logger.Error("\t\tfound recently closed order with same volume! Volume: {0}, CreatedTime: {1}, State: {2}, Id: {3}", order.Volume, order.OpenTime, order.State, order.Id);
                         // Buy order was successful
                         return order.Id;
                     }
@@ -322,7 +322,7 @@ namespace Common
             var buyOrderInfo = await Buyer.GetOrderInfo(ctx.BuyOrderId.Value);
             ctx.BuyOrder = buyOrderInfo;
             ctx.BuyEthAmount = buyOrderInfo.FilledVolume;
-            logger.Debug("\tgot buy order info (filledVolume: {0}, cost: {1}, state: {2})", ctx.BuyEthAmount, buyOrderInfo.Cost, buyOrderInfo.State);
+            logger.Debug("\tgot buy order info (filledVolume: {0}, cost: {1}, state: {2})", ctx.BuyEthAmount, buyOrderInfo.CostIncludingFee, buyOrderInfo.State);
 
             if (buyOrderInfo.State == OrderState.Open)
             {
@@ -369,7 +369,7 @@ namespace Common
             logger.Debug("Getting sell order info (orderId: {0})", ctx.SellOrderId);
             var sellOrderInfo = await Seller.GetOrderInfo(ctx.SellOrderId.Value);
             ctx.SellOrder = sellOrderInfo;
-            logger.Debug("\tgot buy sell info (filledVolume: {0}, cost: {1}, state: {2})", sellOrderInfo.FilledVolume, sellOrderInfo.Cost, sellOrderInfo.State);
+            logger.Debug("\tgot buy sell info (filledVolume: {0}, cost: {1}, state: {2})", sellOrderInfo.FilledVolume, sellOrderInfo.CostIncludingFee, sellOrderInfo.State);
 
             await m_dataAccess.StoreTransaction(sellOrderInfo);
         }
@@ -396,8 +396,8 @@ namespace Common
             {
                 EthBought = ctx.BuyOrder.FilledVolume,
                 EthSold = ctx.SellOrder.FilledVolume,
-                FiatSpent = ctx.BuyOrder.Cost,
-                FiatEarned = ctx.SellOrder.Cost,
+                FiatSpent = ctx.BuyOrder.CostIncludingFee,
+                FiatEarned = ctx.SellOrder.CostIncludingFee,
                 BuyerBalance = buyerBalanceTask.Result,
                 SellerBalance = sellerBalanceTask.Result
             };

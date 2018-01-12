@@ -30,9 +30,9 @@ namespace Kraken
                 3000);
         }
 
-        public async Task<MyOrder> PlaceImmediateBuyOrder(decimal price, decimal volume)
+        public async Task<MinimalOrder> PlaceImmediateBuyOrder(decimal price, decimal volume)
         {
-            MyOrder myOrder = null;
+            MinimalOrder myOrder = null;
 
             await Task.Run(() =>
             {
@@ -49,12 +49,10 @@ namespace Kraken
                 var result = m_client.AddOrder(order);
                 m_logger.Info("KrakenBuyer: Placed order {0} ({1})", result?.Descr.Order, result?.Descr.Close);
 
-                myOrder = new MyOrder()
+                myOrder = new MinimalOrder()
                 {
                     Id = new OrderId(result.Txid.Single()), // TODO: what if there are multiple ids?
-                    PricePerUnit = price,
-                    Volume = volume,
-                    Type = OrderType.Buy
+                    Side = OrderSide.Buy
                 };
             });
 
@@ -169,9 +167,9 @@ namespace Kraken
             };
         }
 
-        public async Task<List<FullMyOrder>> GetOpenOrders()
+        public async Task<List<FullOrder>> GetOpenOrders()
         {
-            List<FullMyOrder> orders = new List<FullMyOrder>();
+            List<FullOrder> orders = new List<FullOrder>();
 
             await Task.Run(() =>
             {
@@ -187,9 +185,9 @@ namespace Kraken
             return orders;
         }
 
-        public async Task<List<FullMyOrder>> GetClosedOrders(GetOrderArgs args = null)
+        public async Task<List<FullOrder>> GetClosedOrders(GetOrderArgs args = null)
         {
-            List<FullMyOrder> orders = new List<FullMyOrder>();
+            List<FullOrder> orders = new List<FullOrder>();
 
             await Task.Run(() =>
             {
@@ -207,9 +205,9 @@ namespace Kraken
             return orders;
         }
 
-        public async Task<FullMyOrder> GetOrderInfo(OrderId id)
+        public async Task<FullOrder> GetOrderInfo(OrderId id)
         {
-            FullMyOrder order = null;
+            FullOrder order = null;
 
             await Task.Run(() =>
             {
@@ -226,7 +224,7 @@ namespace Kraken
             return order;
         }
 
-        private FullMyOrder ParseOrder(string id, KrakenApi.OrderInfo value)
+        private FullOrder ParseOrder(string id, KrakenApi.OrderInfo value)
         {
             /*
            "open": {
@@ -256,22 +254,23 @@ namespace Kraken
                }
                */
 
-            var order = new FullMyOrder()
+            var order = new FullOrder()
             {
                 Id = new OrderId(id),
-                PricePerUnit = value.Price,
+                LimitPrice = value.Price,
                 Volume = value.Volume,
                 FilledVolume = value.VolumeExecuted,
                 Fee = value.Fee,
-                Cost = value.Cost,
+                CostExcludingFee = value.Cost,
 
                 OpenTime = Common.Utils.UnixTimeToDateTime(value.OpenTm),
                 ExpireTime = Common.Utils.UnixTimeToDateTimeNullable(value.ExpireTm),
-                StartTime = Common.Utils.UnixTimeToDateTimeNullable(value.StartTm),
+                // StartTime = Common.Utils.UnixTimeToDateTimeNullable(value.StartTm),
+                CloseTime = value.CloseTm != null ? Common.Utils.UnixTimeToDateTimeNullable(value.CloseTm.Value) : null,
 
                 State = ParseState(value.Status),
-                Type = ParseType(value.Descr.Type),
-                OrderType = ParseOrderType(value.Descr.OrderType)
+                Side = ParseType(value.Descr.Type),
+                Type = ParseOrderType(value.Descr.OrderType)
             };
 
             return order;
@@ -290,26 +289,26 @@ namespace Kraken
             }
         }
 
-        private OrderType ParseType(string value)
+        private OrderSide ParseType(string value)
         {
             switch (value)
             {
-                case "buy": return OrderType.Buy;
-                case "sell": return OrderType.Sell;
+                case "buy": return OrderSide.Buy;
+                case "sell": return OrderSide.Sell;
                 default:
                     m_logger.Error("KrakernBuyer.ParseType: unknown value '{0}'", value);
-                    return OrderType.Unknown;
+                    return OrderSide.Unknown;
             }
         }
 
-        private OrderType2 ParseOrderType(string value)
+        private OrderType ParseOrderType(string value)
         {
             switch (value)
             {
-                case "limit": return OrderType2.Limit;
+                case "limit": return OrderType.Limit;
                 default:
                     m_logger.Error("KrakernBuyer.ParseOrderType: unknown value '{0}'", value);
-                    return OrderType2.Unknown;
+                    return OrderType.Unknown;
             }
         }        
     }

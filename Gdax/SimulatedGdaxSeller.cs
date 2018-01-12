@@ -62,7 +62,7 @@ namespace Gdax
 
         public abstract Task<IBidOrderBook> GetBids();
 
-        public async Task<MyOrder> PlaceImmediateSellOrder(decimal minLimitPrice, decimal volume)
+        public async Task<MinimalOrder> PlaceImmediateSellOrder(decimal minLimitPrice, decimal volume)
         {
             if (volume > BalanceEth)
             {
@@ -81,18 +81,24 @@ namespace Gdax
             var pricePerUnitWithFee = filledVolume == 0 ? 0 : (sum - fee) / filledVolume;
             var totalCost = sum - fee;
 
-            var newOrder = new Common.Simulation.SimulatedOrder(new FullMyOrder()
+            var createTime = TimeService.UtcNow;
+            await Task.Delay(10);
+            var closeTime = TimeService.UtcNow;
+
+            var newOrder = new Common.Simulation.SimulatedOrder(new FullOrder()
             {
                 Volume = volume,
                 FilledVolume = filledVolume,
-                Cost = totalCost,
-                PricePerUnit = pricePerUnitWithoutFee,
+                CostExcludingFee = sum,
+                LimitPrice = minLimitPrice,
                 State = filledVolume == volume ? OrderState.Closed : OrderState.Cancelled,
-                StartTime = TimeService.UtcNow,
+                OpenTime = createTime,
                 Fee = fee,
-                OrderType = OrderType2.Market,
-                Type = OrderType.Sell,
-                Id = new OrderId(Guid.NewGuid().ToString())
+                Type = OrderType.Market,
+                Side = OrderSide.Sell,
+                Id = new OrderId(Guid.NewGuid().ToString()),
+                CloseTime = closeTime,
+                ExpireTime = null
             });
 
             m_orderStorage.Orders.Add(newOrder);
@@ -100,12 +106,10 @@ namespace Gdax
             BalanceEur += totalCost;
             BalanceEth -= filledVolume;
 
-            return new MyOrder()
+            return new MinimalOrder()
             {
                 Id = newOrder.Order.Id,
-                Type = newOrder.Order.Type,
-                Volume = newOrder.Order.FilledVolume,
-                PricePerUnit = pricePerUnitWithFee
+                Side = newOrder.Order.Side,
             };
         }        
     }    

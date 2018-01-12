@@ -60,7 +60,7 @@ namespace Kraken
 
         public abstract Task<IAskOrderBook> GetAsks();
 
-        public async Task<MyOrder> PlaceImmediateBuyOrder(decimal price, decimal volume)
+        public async Task<MinimalOrder> PlaceImmediateBuyOrder(decimal price, decimal volume)
         {
             var asks = await GetAsks();
 
@@ -82,28 +82,32 @@ namespace Kraken
             BalanceEur -= totalCost;
             BalanceEth += filledVolume;
 
-            var newOrder = new Common.Simulation.SimulatedOrder(new FullMyOrder()
+            var createTime = TimeService.UtcNow;
+            await Task.Delay(10);
+            var closeTime = TimeService.UtcNow;
+
+            var newOrder = new Common.Simulation.SimulatedOrder(new FullOrder()
             {
                 Volume = volume,
                 FilledVolume = filledVolume,
-                Cost = totalCost,
-                PricePerUnit = pricePerUnitWithoutFee,
+                CostExcludingFee = sum,
+                LimitPrice = pricePerUnitWithoutFee,
                 State = filledVolume == volume ? OrderState.Closed : OrderState.Cancelled,
-                StartTime = TimeService.UtcNow,
+                OpenTime = createTime,
+                CloseTime = closeTime,
+                ExpireTime = null,
                 Fee = fee,
-                OrderType = OrderType2.Limit,
-                Type = OrderType.Buy,
+                Type = OrderType.Limit,
+                Side = OrderSide.Buy,
                 Id = new OrderId(Guid.NewGuid().ToString())
             });
 
             m_orderStorage.Orders.Add(newOrder);
 
-            return new MyOrder()
+            return new MinimalOrder()
             {
                 Id = newOrder.Order.Id,
-                Type = newOrder.Order.Type,
-                Volume = newOrder.Order.FilledVolume,
-                PricePerUnit = pricePerUnitWithFee
+                Side = newOrder.Order.Side,
             };
         }        
     }    
