@@ -38,11 +38,10 @@ namespace ArbitrageDataOutputter
             Client = new SlackClient(uri);
             Rules = new List<AlertRule>();
 
-            AddAlertRule(0, TimeSpan.FromDays(24), "Current spread", "SPREAD0");
-            AddAlertRule(2, TimeSpan.FromHours(24), "Profitable spread", "SPREAD2");
-            AddAlertRule(3, TimeSpan.FromHours(12), "Good spread", "SPREAD3");
-            AddAlertRule(4, TimeSpan.FromHours(1), "Very good spread", "SPREAD4");
-            AddAlertRule(5, TimeSpan.FromMinutes(15), "Excellent spread", "SPREAD5");
+            AddAlertRule(2.5m, TimeSpan.FromHours(3), "Profitable spread", "SPREAD2.5");
+            AddAlertRule(3, TimeSpan.FromHours(1), "Good spread", "SPREAD3");
+            AddAlertRule(4, TimeSpan.FromMinutes(15), "Very good spread", "SPREAD4");
+            AddAlertRule(5, TimeSpan.FromMinutes(5), "Excellent spread", "SPREAD5");
             AddAlertRule(6, TimeSpan.FromMinutes(5), "All in!", "SPREAD6+");
         }
 
@@ -107,7 +106,7 @@ namespace ArbitrageDataOutputter
             var attachment = new SlackClient.SlackAttachment()
             {
                 Color = "#36a64f",
-                Pretext = string.Format("{0} - {1:0.00}% [{2}]", alert.Description, info.MaxNegativeSpreadPercentage * 100, alert.Tag)
+                Pretext = GetPretext(info, alert)
             };
 
             attachment.Fallback = attachment.Pretext;
@@ -123,19 +122,31 @@ namespace ArbitrageDataOutputter
             return slackMessage;
         }
 
+        private string GetPretext(ArbitrageDataPoint info, AlertRule alert)
+        {
+            string text = string.Format("{0} - {1:0.00}%", alert.Description, info.MaxNegativeSpreadPercentage * 100);
+            if (!string.IsNullOrWhiteSpace(alert.Tag))
+            {
+                text = $"{text} [{alert.Tag}]";
+            }
+
+            return text;
+        }
+
         private AlertRule CheckAlerts(ArbitrageDataPoint info)
         {
             decimal comparisonValue = GetThresholdComparisonValue(info);
             var highestRule = GetHighestRule(comparisonValue);
+
+            // If there is no last alert, post current spread
+            if (LastAlertTime == null && highestRule == null)
+            {
+                return new AlertRule(0, TimeSpan.FromDays(1), "Current spread", "");
+            }
+
             if (highestRule == null)
             {
                 return null;
-            }
-
-            // If there is no last alert, anything above threshold counts
-            if (LastAlertTime == null)
-            {
-                return highestRule;
             }
 
             // If at least minimum time has passed, post again
@@ -143,6 +154,7 @@ namespace ArbitrageDataOutputter
             {
                 return highestRule;
             }
+            // If value has risen from previous, always alert
             else if (comparisonValue > LastAlertValue)
             {
                 return highestRule;
