@@ -28,14 +28,14 @@ namespace Arbitrager.API.Controllers
         public async Task<ArbitrageInfo> GetInfo(decimal? amount = null)
         {
             BalanceOption fiatOption = amount == null ? BalanceOption.CapToBalance : BalanceOption.IgnoreBalance;
-            var info = await m_arbitrager.GetInfoForArbitrage(amount ?? decimal.MaxValue, fiatOption, decimal.MaxValue, BalanceOption.IgnoreBalance);
+            var info = await m_arbitrager.GetInfoForArbitrage(PriceValue.FromEUR(amount ?? decimal.MaxValue), fiatOption, PriceValue.FromETH(decimal.MaxValue), BalanceOption.IgnoreBalance);
             return info;
         }
 
         [Route("execute")]
         public async Task<ArbitrageContext> PostExecute(decimal? amount = null)
         {
-            var ctx = await m_arbitrager.Arbitrage(ArbitrageContext.Start(amount));
+            var ctx = await m_arbitrager.Arbitrage(ArbitrageContext.Start(PriceValue.FromEUR(amount)));
             return ctx;
         }
     }

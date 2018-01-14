@@ -201,10 +201,12 @@ namespace Interface
             return Ratio.GetHashCode();
         }
 
+        /* too dangerous (is value ratio or percentage?)
         public static implicit operator PercentageValue(decimal value)
         {
             return new PercentageValue(value);
         }
+        */
 
         public int CompareTo(object obj)
         {

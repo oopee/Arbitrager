@@ -17,20 +17,20 @@ namespace Tests
         public async Task Arbitrage_TestFull()
         {
             var arbitrager = GetTestArbitrager(2000, 3);
-            var ctx = await arbitrager.Arbitrage(ArbitrageContext.Start(1000));
+            var ctx = await arbitrager.Arbitrage(ArbitrageContext.Start(PriceValue.FromEUR(1000)));
 
             // TODO: Assert values after rounding has been implemented
             var buy = ctx.BuyOrder;
             var sell = ctx.SellOrder;
 
-            Assert.AreEqual(999.9999999999999999999999999m, buy.CostIncludingFee);
+            Assert.AreEqual(999.9999999999999999999999999m, buy.CostIncludingFee.Value);
         }
 
         TestArbitrager GetTestArbitrager(decimal eurBalance, decimal ethBalance)
         {
             var arbitrager = new TestArbitrager(DataAccess, Logger);
-            arbitrager.Buyer.BalanceEur = eurBalance;
-            arbitrager.Seller.BalanceEth = ethBalance;
+            arbitrager.Buyer.BalanceEur = PriceValue.FromEUR(eurBalance);
+            arbitrager.Seller.BalanceEth = PriceValue.FromETH(ethBalance);
             return arbitrager;
         }
     }

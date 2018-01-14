@@ -120,14 +120,24 @@ namespace Interface
             IsValid = true;
         }
 
-        public static PriceValue FromETH(decimal? value)
+        public static PriceValue FromETH(decimal value)
         {
-            return value.HasValue ? new PriceValue(value.Value, Asset.ETH) : InvalidValue;
+            return new PriceValue(value, Asset.ETH);
+        }
+
+        public static PriceValue FromEUR(decimal value)
+        {
+            return new PriceValue(value, Asset.EUR);
+        }
+
+        public static PriceValue? FromETH(decimal? value)
+        {
+            return value.HasValue ? (PriceValue?)new PriceValue(value.Value, Asset.ETH) : null;
         }
         
-        public static PriceValue FromEUR(decimal? value)
+        public static PriceValue? FromEUR(decimal? value)
         {
-            return value.HasValue ? new PriceValue(value.Value, Asset.EUR) : InvalidValue;
+            return value.HasValue ? (PriceValue?)new PriceValue(value.Value, Asset.EUR) : null;
         }
 
         /// <summary>
@@ -174,6 +184,11 @@ namespace Interface
             return (int)(Value - other.Value);
         }
 
+        public PriceValue AsZero()
+        {
+            return new PriceValue(0m, Asset);
+        }
+
         public static PriceValue InvalidValue => new PriceValue() { IsValid = false };
 
         public static PriceValue operator *(PriceValue price, PercentageValue percentage)
@@ -203,6 +218,11 @@ namespace Interface
             return new PriceValue(a.Value - b, a.Asset);
         }
 
+        public static PriceValue operator -(PriceValue a)
+        {
+            return new PriceValue(-a.Value, a.Asset);
+        }
+
         public static PriceValue operator *(PriceValue a, PriceValue b)
         {
             Guard.IsTrue(a.Asset == b.Asset, "cannot multiply different assets");
@@ -228,8 +248,7 @@ namespace Interface
         public static PriceValue operator /(PriceValue a, decimal b)
         {
             return new PriceValue(a.Value / b, a.Asset);
-        }
-        
+        }        
 
         public static bool operator ==(PriceValue a, PriceValue b)
         {
@@ -293,6 +312,38 @@ namespace Interface
         public static bool operator >(PriceValue a, decimal b)
         {
             return a.Value > b;
+        }
+
+        public static bool operator <(decimal a, PriceValue b)
+        {
+            return a < b.Value;
+        }
+
+        public static bool operator <=(decimal a, PriceValue b)
+        {
+            return a <= b.Value;
+        }
+
+        public static bool operator >=(decimal a, PriceValue b)
+        {
+            return a >= b.Value;
+        }
+
+        public static bool operator >(decimal a, PriceValue b)
+        {
+            return a > b.Value;
+        }
+
+        public static PriceValue Min(PriceValue a, PriceValue b)
+        {
+            Guard.IsTrue(a.Asset == b.Asset, "cannot compare different assets");
+            return new PriceValue(Math.Min(a.Value, b.Value), a.Asset);
+        }
+
+        public static PriceValue Max(PriceValue a, PriceValue b)
+        {
+            Guard.IsTrue(a.Asset == b.Asset, "cannot compare different assets");
+            return new PriceValue(Math.Max(a.Value, b.Value), a.Asset);
         }
 
         public override bool Equals(object obj)

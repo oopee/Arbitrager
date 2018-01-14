@@ -16,8 +16,8 @@ namespace Kraken
         public FakeBuyer(ILogger logger, string orderBookJson = null)
             : base("FakeBuyer", logger)
         {
-            TakerFeePercentage = 0.3m / 100;
-            MakerFeePercentage = 0m / 100;
+            TakerFeePercentage = PercentageValue.FromPercentage(0.3m);
+            MakerFeePercentage = PercentageValue.FromPercentage(0.0m);
 
             m_orderBook = Newtonsoft.Json.JsonConvert.DeserializeObject<OrderBook>((orderBookJson ?? DefaultOrderBookJson).Replace("'", "\""));
         }
@@ -60,18 +60,18 @@ namespace Kraken
 
         public abstract Task<IAskOrderBook> GetAsks();
 
-        public async Task<MinimalOrder> PlaceImmediateBuyOrder(decimal price, decimal volume)
+        public async Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue price, PriceValue volume)
         {
             var asks = await GetAsks();
 
             // Limit order with Immediate or Cancel -> only take orders with unit price is less than 'price' argument
-            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(asks.Asks.Where(x => x.PricePerUnit <= price), null, volume).ToList();
+            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(asks.Asks.Where(x => x.PricePerUnit <= price), null, volume.Value).ToList();
 
-            var sum = orders.Select(x => x.PricePerUnit * x.VolumeUnits).DefaultIfEmpty().Sum();
+            var sum = new PriceValue(orders.Select(x => x.PricePerUnit * x.VolumeUnits).DefaultIfEmpty().Sum(), price.Asset);
             var fee = sum * TakerFeePercentage;
-            var filledVolume = orders.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum();
-            var pricePerUnitWithoutFee = filledVolume == 0 ? 0 : sum / filledVolume;
-            var pricePerUnitWithFee = filledVolume == 0 ? 0 : (sum + fee) / filledVolume;
+            var filledVolume = new PriceValue(orders.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum(), volume.Asset);
+            var pricePerUnitWithoutFee = filledVolume == 0 ? sum.AsZero() : sum / filledVolume.Value;
+            var pricePerUnitWithFee = filledVolume == 0 ? sum.AsZero() : (sum + fee) / filledVolume.Value;
             var totalCost = sum + fee;
 
             if (totalCost > BalanceEur)

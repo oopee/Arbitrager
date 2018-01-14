@@ -13,11 +13,11 @@ namespace Common.Simulation
 
         public string Name { get; private set; }
 
-        public decimal TakerFeePercentage { get; set; }
-        public decimal MakerFeePercentage { get; set; }
+        public PercentageValue TakerFeePercentage { get; set; }
+        public PercentageValue MakerFeePercentage { get; set; }
 
-        public decimal BalanceEur { get; set; }
-        public decimal BalanceEth { get; set; }
+        public PriceValue BalanceEur { get; set; }
+        public PriceValue BalanceEth { get; set; }
 
         public SimulatedExchangeBase(string name)
         {
@@ -44,8 +44,8 @@ namespace Common.Simulation
             {
                 All = new Dictionary<string, decimal>()
                 {
-                    { "ETH", BalanceEth },
-                    { "EUR", BalanceEur }
+                    { "ETH", BalanceEth.Value },
+                    { "EUR", BalanceEur.Value }
                 },
                 Eth = BalanceEth,
                 Eur = BalanceEur

@@ -108,12 +108,12 @@ namespace Arbitrager
             if (verb == "info")
             {
                 BalanceOption fiatOption = eur == null ? BalanceOption.CapToBalance : BalanceOption.IgnoreBalance;
-                var info = await m_arbitrager.GetInfoForArbitrage(eur ?? decimal.MaxValue, fiatOption, decimal.MaxValue, BalanceOption.IgnoreBalance);
+                var info = await m_arbitrager.GetInfoForArbitrage(PriceValue.FromEUR(eur ?? decimal.MaxValue), fiatOption, PriceValue.FromETH(decimal.MaxValue), BalanceOption.IgnoreBalance);
                 Console.WriteLine(info.ToString());
             }
             else if (verb == "do")
             {
-                await m_arbitrager.Arbitrage(ArbitrageContext.Start(eur));
+                await m_arbitrager.Arbitrage(ArbitrageContext.Start(PriceValue.FromEUR(eur)));
             }
         }
 
@@ -176,13 +176,13 @@ namespace Arbitrager
             return null;
         }
 
-        private async Task ShowStatus(PriceValue cashLimit = default(PriceValue))
+        private async Task ShowStatus(PriceValue? cashLimit = null)
         {
             var status = await m_arbitrager.GetStatus(true);
             ProfitCalculation profitCalculation = null;
-            if (cashLimit.IsValid)
+            if (cashLimit.HasValue)
             {
-                profitCalculation = m_arbitrager.ProfitCalculator.CalculateProfit(status.Buyer, status.Seller, cashLimit);
+                profitCalculation = m_arbitrager.ProfitCalculator.CalculateProfit(status.Buyer, status.Seller, cashLimit.Value);
             }
 
             Console.WriteLine(status.ToString());

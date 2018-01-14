@@ -13,8 +13,8 @@ namespace Kraken
         ILogger m_logger;
 
         public string Name => "Kraken";
-        public decimal TakerFeePercentage => 0.0026m; // 0.26%
-        public decimal MakerFeePercentage => 0.0016m; // 0.16%
+        public PercentageValue TakerFeePercentage => PercentageValue.FromPercentage(0.26m); // 0.26%
+        public PercentageValue MakerFeePercentage => PercentageValue.FromPercentage(0.16m); // 0.16%
 
         public KrakenConfiguration Configuration { get; private set; }        
 
@@ -30,7 +30,7 @@ namespace Kraken
                 3000);
         }
 
-        public async Task<MinimalOrder> PlaceImmediateBuyOrder(decimal price, decimal volume)
+        public async Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue price, PriceValue volume)
         {
             MinimalOrder myOrder = null;
 
@@ -47,8 +47,8 @@ namespace Kraken
                     Pair = "XETHZEUR",
                     Type = "buy",
                     OrderType = "limit",
-                    Price = price,
-                    Volume = volume,
+                    Price = price.Value,
+                    Volume = volume.Value,
                     // ExpireTm = Common.Utils.DateTimeToUnixTime(TimeService.UtcNow.AddMinutes(1))
                 };                
 
@@ -131,8 +131,8 @@ namespace Kraken
                 return new BalanceResult()
                 {
                     All = balance,
-                    Eur = balance.FirstOrDefault(x => x.Key == "ZEUR").Value,
-                    Eth = balance.FirstOrDefault(x => x.Key == "XETH").Value
+                    Eur = PriceValue.FromEUR(balance.FirstOrDefault(x => x.Key == "ZEUR").Value),
+                    Eth = PriceValue.FromETH(balance.FirstOrDefault(x => x.Key == "XETH").Value)
                 };
             });
 
@@ -282,10 +282,10 @@ namespace Kraken
             {
                 Id = new OrderId(id),
                 LimitPrice = null,
-                Volume = value.Volume,
-                FilledVolume = value.VolumeExecuted,
-                Fee = value.Fee,
-                CostExcludingFee = value.Cost,
+                Volume = PriceValue.FromETH(value.Volume),
+                FilledVolume = PriceValue.FromETH(value.VolumeExecuted),
+                Fee = PriceValue.FromEUR(value.Fee),
+                CostExcludingFee = PriceValue.FromEUR(value.Cost),
 
                 OpenTime = Common.Utils.UnixTimeToDateTime(value.OpenTm),
                 ExpireTime = Common.Utils.UnixTimeToDateTimeNullable(value.ExpireTm),

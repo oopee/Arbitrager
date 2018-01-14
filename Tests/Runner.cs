@@ -43,7 +43,11 @@ namespace Tests
         [Test]
         public async Task Kraken_Gdax_GetArbitrageInfo()
         {
-            var info = await GetKrakenGdaxArbitrager().GetInfoForArbitrage(decimal.MaxValue, BalanceOption.CapToBalance, decimal.MaxValue, BalanceOption.IgnoreBalance);
+            var info = await GetKrakenGdaxArbitrager().GetInfoForArbitrage(
+                PriceValue.FromEUR(decimal.MaxValue), 
+                BalanceOption.CapToBalance, 
+                PriceValue.FromETH(decimal.MaxValue), 
+                BalanceOption.IgnoreBalance);
             Logger.Info(info.ToString());
         }
 
@@ -146,7 +150,7 @@ namespace Tests
         {
             int factor = positive ? 1 : -1;
             var p1 = PercentageValue.FromPercentage(0.2663m);
-            PercentageValue p2 = 0.112m;
+            PercentageValue p2 = PercentageValue.FromRatio(0.112m);
             
             // 1000000000000000000 wei = 1 ETH
             var v1 = 11.158978324796219532m;
@@ -200,7 +204,7 @@ namespace Tests
         {
             var exchange = GetGdax();
 
-            var order = await ((ISeller)exchange).PlaceImmediateSellOrder(99999m, 0.001m);
+            var order = await ((ISeller)exchange).PlaceImmediateSellOrder(PriceValue.FromEUR(99999m), PriceValue.FromETH(0.001m));
             var info = await exchange.GetOrderInfo(order.Id);
             Logger.Info(GetDebugString(info));
         }
@@ -211,7 +215,7 @@ namespace Tests
         {
             var exchange = GetKraken();
 
-            var order = await ((IBuyer)exchange).PlaceImmediateBuyOrder(0.1m, 1m);
+            var order = await ((IBuyer)exchange).PlaceImmediateBuyOrder(PriceValue.FromEUR(0.1m), PriceValue.FromETH(1m));
             var info = await exchange.GetOrderInfo(order.Id);
             Logger.Info(GetDebugString(info));
         }

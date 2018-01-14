@@ -14,7 +14,7 @@ namespace Interface
         Task<AccountsInfo> GetAccountsInfo();
         IProfitCalculator ProfitCalculator { get; }
         Task<ArbitrageContext> Arbitrage(ArbitrageContext ctx);
-        Task<ArbitrageInfo> GetInfoForArbitrage(decimal maxFiatToSpend, BalanceOption fiatOptions, decimal maxEthToSpend, BalanceOption ethOptions);
+        Task<ArbitrageInfo> GetInfoForArbitrage(PriceValue maxFiatToSpend, BalanceOption fiatOptions, PriceValue maxEthToSpend, BalanceOption ethOptions);
     }
 
     public enum BalanceOption
@@ -62,17 +62,17 @@ namespace Interface
         /// <summary>
         /// The amount of fiat that user wants to spend
         /// </summary>
-        public decimal UserFiatToSpend { get; set; }
+        public PriceValue UserFiatToSpend { get; set; }
 
         // For PlaceBuyOrder
-        public decimal? BuyOrder_LimitPriceToUse { get; set; }
-        public decimal? BuyOrder_EthAmountToBuy { get; set; }
+        public PriceValue? BuyOrder_LimitPriceToUse { get; set; }
+        public PriceValue? BuyOrder_EthAmountToBuy { get; set; }
 
         public ArbitrageError? Error { get; set; }
         public ArbitrageInfo Info { get; set; }
 
         public OrderId? BuyOrderId { get; set; }
-        public decimal? BuyEthAmount { get; set; }
+        public PriceValue? BuyEthAmount { get; set; }
         public OrderId? SellOrderId { get; set; }
         public ILogger Logger { get; set; }
 
@@ -83,19 +83,19 @@ namespace Interface
 
         public bool AbortIfFiatToSpendIsMoreThanBalance { get; set; } = true;
 
-        public static ArbitrageContext Start(decimal? fiatToSpend)
+        public static ArbitrageContext Start(PriceValue? fiatToSpend)
         {
             var ctx = new ArbitrageContext()
             {
                 SpendWholeBalance = fiatToSpend == null,
-                UserFiatToSpend = fiatToSpend ?? 0,
+                UserFiatToSpend = fiatToSpend ?? PriceValue.FromEUR(0),
                 State = ArbitrageState.NotStarted
             };
 
             return ctx;
         }
 
-        public static ArbitrageContext GetInfo(decimal? fiatToSpend)
+        public static ArbitrageContext GetInfo(PriceValue? fiatToSpend)
         {
             var ctx = Start(fiatToSpend);
             ctx.BreakOnState = ArbitrageState.PlaceBuyOrder;
@@ -104,17 +104,17 @@ namespace Interface
 
         public class FinishedResultData
         {
-            public decimal EthBought { get; set; }
-            public decimal EthSold { get; set; }
-            public decimal FiatSpent { get; set; }
-            public decimal FiatEarned { get; set; }
+            public PriceValue EthBought { get; set; }
+            public PriceValue EthSold { get; set; }
+            public PriceValue FiatSpent { get; set; }
+            public PriceValue FiatEarned { get; set; }
 
             public BalanceResult BuyerBalance { get; set; }
             public BalanceResult SellerBalance { get; set; }
 
-            public decimal FiatDelta => FiatEarned - FiatSpent;
-            public decimal EthDelta => EthSold - EthBought;
-            public decimal Profit => FiatSpent == 0m ? 0m : FiatDelta / FiatSpent;
+            public PriceValue FiatDelta => FiatEarned - FiatSpent;
+            public PriceValue EthDelta => EthSold - EthBought;
+            public PercentageValue ProfitPercentage => FiatSpent == 0m ? PercentageValue.Zero : PercentageValue.FromRatio((FiatDelta / FiatSpent).Value);
 
             public override string ToString() => string.Format("EthBought {0} | EthSold {1} | EthDelta {2} | FiatSpent {3} | FiatEarned {4} | FiatDelta {5} | BuyerBalance {6:0.##} EUR, {7:0.####} ETH | SellerBalancer {8:0.##} EUR, {9:0.####} ETH", EthBought, EthSold, EthDelta, FiatSpent, FiatEarned, FiatDelta, BuyerBalance.Eur, BuyerBalance.Eth, SellerBalance.Eur, SellerBalance.Eth);
         }
@@ -127,28 +127,28 @@ namespace Interface
 
         public string BuyerName => Status.Buyer.Name;
         public string SellerName => Status.Seller.Name;
-        public decimal MaxNegativeSpreadPercentage => Status.Difference.MaxNegativeSpreadPercentage;
-        public decimal MaxNegativeSpreadEur => Status.Difference.MaxNegativeSpread;
-        public decimal EurBalance => Status.Buyer.Balance.Eur;
-        public decimal EthBalance => Status.Seller.Balance.Eth;
+        public PercentageValue MaxNegativeSpreadPercentage => Status.Difference.MaxNegativeSpreadPercentage;
+        public PriceValue MaxNegativeSpreadEur => Status.Difference.MaxNegativeSpread;
+        public PriceValue EurBalance => Status.Buyer.Balance.Eur;
+        public PriceValue EthBalance => Status.Seller.Balance.Eth;
 
-        public decimal MaxEthAmountToArbitrage => ProfitCalculation.EthsToArbitrage.Value; // TODO pricevalue
-        public decimal MaxEursToSpend => ProfitCalculation.FiatSpent.Value; // TODO pricevalue
-        public decimal MaxEursToEarn => ProfitCalculation.FiatEarned.Value; // TODO pricevalue
-        public decimal MaxEurProfit => ProfitCalculation.Profit.Value; // TODO pricevalue
-        public decimal MaxProfitPercentage => ProfitCalculation.ProfitPercentage.Ratio; // TODO pricevalue
-        public decimal MaxBuyFee => ProfitCalculation.BuyFee.Value; // TODO pricevalue
-        public decimal MaxSellFee => ProfitCalculation.SellFee.Value; // TODO pricevalue
+        public PriceValue MaxEthAmountToArbitrage => ProfitCalculation.EthsToArbitrage;
+        public PriceValue MaxEursToSpend => ProfitCalculation.FiatSpent;
+        public PriceValue MaxEursToEarn => ProfitCalculation.FiatEarned;
+        public PriceValue MaxEurProfit => ProfitCalculation.Profit;
+        public PercentageValue MaxProfitPercentage => ProfitCalculation.ProfitPercentage;
+        public PriceValue MaxBuyFee => ProfitCalculation.BuyFee;
+        public PriceValue MaxSellFee => ProfitCalculation.SellFee;
 
-        public decimal EstimatedAvgBuyUnitPrice => ProfitCalculation.EthBuyCount > 0 ? (ProfitCalculation.FiatSpent / ProfitCalculation.EthBuyCount).Value : 0m; // TODO pricevalue
-        public decimal EstimatedAvgSellUnitPrice => ProfitCalculation.EthSellCount > 0 ? (ProfitCalculation.FiatEarned / ProfitCalculation.EthSellCount).Value : 0m; // TODO pricevalue
-        public decimal EstimatedAvgNegativeSpread => EstimatedAvgSellUnitPrice - EstimatedAvgBuyUnitPrice;
-        public decimal EstimatedAvgNegativeSpreadPercentage => EstimatedAvgNegativeSpread / EstimatedAvgBuyUnitPrice;
+        public PriceValue EstimatedAvgBuyUnitPrice => ProfitCalculation.EthBuyCount > 0 ? (ProfitCalculation.FiatSpent / ProfitCalculation.EthBuyCount.Value) : PriceValue.FromEUR(0);
+        public PriceValue EstimatedAvgSellUnitPrice => ProfitCalculation.EthSellCount > 0 ? (ProfitCalculation.FiatEarned / ProfitCalculation.EthSellCount.Value) : PriceValue.FromEUR(0);
+        public PriceValue EstimatedAvgNegativeSpread => EstimatedAvgSellUnitPrice - EstimatedAvgBuyUnitPrice;
+        public PercentageValue EstimatedAvgNegativeSpreadPercentage => EstimatedAvgBuyUnitPrice.Value > 0 ? PercentageValue.FromRatio(EstimatedAvgNegativeSpread.Value / EstimatedAvgBuyUnitPrice.Value) : PercentageValue.Zero;
 
-        public decimal BestBuyPrice => Status.Buyer.Asks.Asks.FirstOrDefault()?.PricePerUnit ?? 0m; 
-        public decimal BestSellPrice => Status.Seller.Bids.Bids.FirstOrDefault()?.PricePerUnit ?? 0m;
+        public PriceValue BestBuyPrice => PriceValue.FromEUR(Status.Buyer.Asks.Asks.FirstOrDefault()?.PricePerUnit ?? 0m);
+        public PriceValue BestSellPrice => PriceValue.FromEUR(Status.Seller.Bids.Bids.FirstOrDefault()?.PricePerUnit ?? 0m);
 
-        public decimal BuyLimitPricePerUnit => ProfitCalculation.BuyLimitPricePerUnit.Value; // TODO pricevalue
+        public PriceValue BuyLimitPricePerUnit => ProfitCalculation.BuyLimitPricePerUnit;
 
         public bool IsEurBalanceSufficient => ProfitCalculation.FiatSpent <= Status.Buyer.Balance.Eur;
         public bool IsEthBalanceSufficient => ProfitCalculation.EthSellCount <= Status.Seller.Balance.Eth;
@@ -161,12 +161,12 @@ namespace Interface
             b.AppendLine("\tEUR balance at {0}: {1}", BuyerName, EurBalance);
             b.AppendLine("\tETH balance at {0}: {1}", SellerName, EthBalance);
             b.AppendLine();
-            b.AppendLine("\tAvg. neg. spread % (i. fees): {0:0.##} %", EstimatedAvgNegativeSpreadPercentage * 100);
+            b.AppendLine("\tAvg. neg. spread % (i. fees): {0}", EstimatedAvgNegativeSpreadPercentage);
             b.AppendLine("\tAvg. neg. spread (inc. fees): {0:0.##} EUR", EstimatedAvgNegativeSpread);
             b.AppendLine("\tAvg. buy price (incl. fees) : {0:0.##} EUR", EstimatedAvgBuyUnitPrice);
             b.AppendLine("\tAvg. sell price (incl. fees): {0:0.##} EUR", EstimatedAvgSellUnitPrice);
             b.AppendLine();
-            b.AppendLine("\tMax negative spread %       : {0:0.##} %", MaxNegativeSpreadPercentage * 100);
+            b.AppendLine("\tMax negative spread %       : {0}", MaxNegativeSpreadPercentage);
             b.AppendLine("\tMax negative spread         : {0:0.##} EUR", MaxNegativeSpreadEur);
             b.AppendLine("\tBest buy price              : {0:0.##} EUR", BestBuyPrice);
             b.AppendLine("\tBest sell price             : {0:0.##} EUR", BestSellPrice);
@@ -178,7 +178,7 @@ namespace Interface
             b.AppendLine("\tEstimated buy (incl. fees)  : {0:0.##} EUR -> {1:0.##} ETH", MaxEursToSpend, MaxEthAmountToArbitrage);
             b.AppendLine("\tEstimated sell (incl. fees) : {0:0.##} ETH -> {1:0.##} EUR", MaxEthAmountToArbitrage, MaxEursToEarn);
             b.AppendLine("\tEstimated profit            : {0:0.##} EUR", MaxEurProfit);
-            b.AppendLine("\tEstimated profit %          : {0:0.##} %", MaxProfitPercentage * 100m);
+            b.AppendLine("\tEstimated profit %          : {0}", MaxProfitPercentage);
             b.AppendLine();
             b.AppendLine("\tIs profitable               : {0}", IsProfitable ? "Yes" : "No");
             b.AppendLine("\tIs EUR balance sufficient   : {0}", IsEurBalanceSufficient ? "Yes" : "No");
@@ -239,8 +239,8 @@ namespace Interface
             {
                 Difference = new DifferenceStatus()
                 {
-                    MaxNegativeSpread = 0m,
-                    MaxNegativeSpreadPercentage = 0m
+                    MaxNegativeSpread = PriceValue.FromEUR(0),
+                    MaxNegativeSpreadPercentage = PercentageValue.Zero
                 };
 
                 if (Buyer.Asks.Asks.Count > 0 && Seller.Bids.Bids.Count > 0)
@@ -248,8 +248,8 @@ namespace Interface
                     var negativeSpread = Buyer.Asks.Asks[0].PricePerUnit - Seller.Bids.Bids[0].PricePerUnit;
                     if (negativeSpread < 0) 
                     {
-                        Difference.MaxNegativeSpread = Math.Abs(negativeSpread);
-                        Difference.MaxNegativeSpreadPercentage = Difference.MaxNegativeSpread / Buyer.Asks.Asks[0].PricePerUnit;
+                        Difference.MaxNegativeSpread = PriceValue.FromEUR(Math.Abs(negativeSpread));
+                        Difference.MaxNegativeSpreadPercentage = PercentageValue.FromRatio(Difference.MaxNegativeSpread.Value / Buyer.Asks.Asks[0].PricePerUnit);
                     }
                 }
             }
@@ -312,7 +312,7 @@ namespace Interface
             else
             {
                 b.AppendLine("\t\tMax. negative spread: {0}€", Difference.MaxNegativeSpread);
-                b.AppendLine("\t\tMax. negative spread: {0}% (of lowest ask)", (Difference.MaxNegativeSpreadPercentage * 100).ToString("0.##"));
+                b.AppendLine("\t\tMax. negative spread: {0} (of lowest ask)", (Difference.MaxNegativeSpreadPercentage * 100));
             }
 
             return b.ToString();
@@ -339,8 +339,8 @@ namespace Interface
             b.AppendLine("\t\tETH available to buy:\t\t{0:0.0000}", calc.EthBuyCount);
             b.AppendLine("\t\tETH available to sell:\t\t{0:0.0000}", calc.EthSellCount);
             b.AppendLine("\t\tETH value at other exchange:\t{0:0.00}e", calc.FiatEarned);
-            b.AppendLine("\t\tProfit:\t\t\t\t{0:0.00}e ({1:0.00}%)", calc.Profit, calc.Profit / calc.FiatSpent * 100.0m);
-            b.AppendLine("\t\tProfit after tax:\t\t{0:0.00}e ({1:0.00}%)", calc.ProfitAfterTax, calc.ProfitAfterTax / calc.FiatSpent * 100.0m);
+            b.AppendLine("\t\tProfit:\t\t\t\t{0:0.00}e ({1})", calc.Profit, PercentageValue.FromRatio((calc.Profit / calc.FiatSpent).Value));
+            b.AppendLine("\t\tProfit after tax:\t\t{0:0.00}e ({1:0.00}%)", calc.ProfitAfterTax, PercentageValue.FromRatio((calc.ProfitAfterTax / calc.FiatSpent).Value));
         }
     }
 
@@ -375,12 +375,12 @@ namespace Interface
         /// <summary>
         /// Absolute value of negative spead (negative spread -> ask is lower than bid). If spread is positive, then this value is zero.
         /// </summary>
-        public decimal MaxNegativeSpread { get; set; }
+        public PriceValue MaxNegativeSpread { get; set; }
 
         /// <summary>
         /// Ratio MaxNegativeSpread / LowestAskPrice.
         /// </summary>
-        public decimal MaxNegativeSpreadPercentage { get; set; }
+        public PercentageValue MaxNegativeSpreadPercentage { get; set; }
     }
 
     public class PaymentMethod

@@ -224,9 +224,9 @@ namespace Common
 
             // Calculate arbitrage info
             var info = await GetInfoForArbitrage(
-                maxFiatToSpend: ctx.SpendWholeBalance ? decimal.MaxValue : ctx.UserFiatToSpend,
+                maxFiatToSpend: ctx.SpendWholeBalance ? PriceValue.FromEUR(decimal.MaxValue) : ctx.UserFiatToSpend,
                 fiatOptions: BalanceOption.CapToBalance,
-                maxEthToSpend: decimal.MaxValue,
+                maxEthToSpend: PriceValue.FromETH(decimal.MaxValue),
                 ethOptions: BalanceOption.CapToBalance);
 
             if (!ctx.SpendWholeBalance && ctx.UserFiatToSpend > info.EurBalance)
@@ -296,7 +296,7 @@ namespace Common
             }            
         }
 
-        protected async Task<OrderId?> TryPlaceBuyOrder(decimal buyLimitPricePerUnit, decimal maxEthToBuy, ILogger logger)
+        protected async Task<OrderId?> TryPlaceBuyOrder(PriceValue buyLimitPricePerUnit, PriceValue maxEthToBuy, ILogger logger)
         {
             var sw = new System.Diagnostics.Stopwatch();
             sw.Start();
@@ -312,6 +312,11 @@ namespace Common
                 }
                 catch (Exception e)
                 {
+                    if (e is ArgumentException)
+                    {
+                        throw;
+                    }
+
                     logger.Error("\tError! Reason: {0}", e.Message);
                     logger.Error("\ttry to determine if order was placed or not... (wait for a while first)");
                     await Task.Delay(5000);
@@ -333,9 +338,9 @@ namespace Common
             return null;
         }
 
-        private static bool FuzzyCompare(decimal a, decimal b)
+        private static bool FuzzyCompare(PriceValue a, PriceValue b)
         {
-            return Math.Abs(a - b) < 0.01m;
+            return Math.Abs(a.Value - b.Value) < 0.01m;
         }
 
         protected virtual async Task DoArbitrage_GetBuyOrderInfo(ArbitrageContext ctx)
@@ -377,10 +382,11 @@ namespace Common
                 throw new InvalidOperationException("DoArbitrage_PlaceSellOrder: BuyEthAmount has not been set!");
             }
 
-            var ethToSell = ctx.BuyEthAmount.Value;
+            var ethToSell = ctx.BuyEthAmount.Value.Round(decimalPlaces: 5);
+            var sellLimitPrice = (ctx.Info.EstimatedAvgBuyUnitPrice * 0.9m).Round();
 
-            logger.Debug("Placing sell order (volume: {0} ETH)", ethToSell);
-            var sellOrder = await Seller.PlaceImmediateSellOrder(ctx.Info.EstimatedAvgBuyUnitPrice * 0.9m, ethToSell);
+            logger.Debug("Placing sell order (volume: {0} ETH, sell limit price: {1} EUR)", ethToSell, sellLimitPrice);
+            var sellOrder = await Seller.PlaceImmediateSellOrder(sellLimitPrice, ethToSell);
             logger.Debug("\tsell order placed (orderId: {0})", sellOrder.Id);
 
             ctx.SellOrderId = sellOrder.Id;
@@ -453,29 +459,29 @@ namespace Common
             return Task.CompletedTask;
         }
 
-        public async Task<ArbitrageInfo> GetInfoForArbitrage(decimal maxFiatToSpend, BalanceOption fiatOptions, decimal maxEthToSpend, BalanceOption ethOptions)
+        public async Task<ArbitrageInfo> GetInfoForArbitrage(PriceValue maxFiatToSpend, BalanceOption fiatOptions, PriceValue maxEthToSpend, BalanceOption ethOptions)
         {
             // Get current prices, balances etc
             var status = await GetStatus(true);
 
             if (fiatOptions == BalanceOption.CapToBalance)
             {
-                maxFiatToSpend = Math.Min(maxFiatToSpend, status.Buyer.Balance.Eur);
+                maxFiatToSpend = PriceValue.Min(maxFiatToSpend, status.Buyer.Balance.Eur);
             }
 
             if (ethOptions == BalanceOption.CapToBalance)
             {
-                maxEthToSpend = Math.Min(maxEthToSpend, status.Seller.Balance.Eth);
+                maxEthToSpend = PriceValue.Min(maxEthToSpend, status.Seller.Balance.Eth);
             }
 
             // Calculate estimated profit based on prices/balances/etc
-            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, PriceValue.FromEUR(maxFiatToSpend), PriceValue.FromETH(maxEthToSpend));
+            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, maxFiatToSpend, maxEthToSpend);
 
             ArbitrageInfo info = new ArbitrageInfo()
             {
                 Status = status,
                 ProfitCalculation = calc,
-                IsProfitable = calc.ProfitPercentage >= 0.02m // 2% threshold
+                IsProfitable = calc.ProfitPercentage >= PercentageValue.FromPercentage(2) // 2% threshold
             };
 
             return info;

@@ -40,12 +40,12 @@ namespace Arbitrager.API
             switch (configuration)
             {
                 case "fake":
-                    buyer = new FakeBuyer(Logger.StaticLogger) { BalanceEth = 0m, BalanceEur = 2000m };
-                    seller = new FakeSeller(Logger.StaticLogger) { BalanceEth = 1m, BalanceEur = 0m };
+                    buyer = new FakeBuyer(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(0m), BalanceEur = PriceValue.FromEUR(2000m) };
+                    seller = new FakeSeller(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(1m), BalanceEur = PriceValue.FromEUR(0m) };
                     break;
                 case "simulated":
-                    buyer = new SimulatedKrakenBuyer(GetKrakenConfiguration(), Logger.StaticLogger) { BalanceEth = 0m, BalanceEur = 2000m };
-                    seller = new SimulatedGdaxSeller(GetGdaxConfiguration(), Logger.StaticLogger, isSandbox: false) { BalanceEth = 1m, BalanceEur = 0m };
+                    buyer = new SimulatedKrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(0m), BalanceEur = PriceValue.FromEUR(2000m) };
+                    seller = new SimulatedGdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = PriceValue.FromETH(1m), BalanceEur = PriceValue.FromEUR(0m) };
                     break;
                 case "real":
                     buyer = new KrakenBuyer(GetKrakenConfiguration(), Logger.StaticLogger);

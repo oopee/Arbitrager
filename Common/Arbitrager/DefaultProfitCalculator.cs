@@ -8,7 +8,7 @@ namespace Common
 {
     public class DefaultProfitCalculator : Interface.IProfitCalculator
     {
-        public ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, PriceValue fiatLimit, PriceValue ethLimit = default(PriceValue))
+        public ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, PriceValue fiatLimit, PriceValue? ethLimit = null)
         {
             // First check how much ETH can we buy for the cash limit.
             // We have to calculate this first in case the bids we have (top 1 or top 50)
@@ -16,9 +16,9 @@ namespace Common
             PriceValue ethTotalBids = seller.Bids.Bids.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum().ToETH(); // TODO pricevalue
 
             // Cap max amount of ETH to buy (if requested)
-            if (ethLimit != PriceValue.InvalidValue)
+            if (ethLimit != null)
             {                
-                ethTotalBids = Math.Min(ethLimit.Value, ethTotalBids.Value).ToETH();
+                ethTotalBids = PriceValue.Min(ethLimit.Value, ethTotalBids);
             }
 
             // Use all money until cash limit or available eth count is reached,

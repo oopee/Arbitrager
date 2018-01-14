@@ -9,14 +9,14 @@ namespace Interface
     public interface IBuyer : IExchange
     {
         Task<IAskOrderBook> GetAsks();
-        Task<MinimalOrder> PlaceImmediateBuyOrder(decimal limitPricePerUnit, decimal maxVolume);
+        Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPricePerUnit, PriceValue maxVolume);
     }
 
     public class BalanceResult
     {
         public Dictionary<string, decimal> All { get; set; }
-        public decimal Eth { get; set; }
-        public decimal Eur { get; set; }
+        public PriceValue Eth { get; set; }
+        public PriceValue Eur { get; set; }
     }
 
     public class MinimalOrder
@@ -78,35 +78,35 @@ namespace Interface
         /// <summary>
         /// The total volume of BASE currency to buy/sell.
         /// </summary>
-        public decimal Volume { get; set; }
+        public PriceValue Volume { get; set; }
 
         /// <summary>
         /// The actual/executed value of BASE currency that was bought/sold. The final value of this property is determined after
         /// the order has been closed/cancelled.
         /// </summary>
-        public decimal FilledVolume { get; set; }
+        public PriceValue FilledVolume { get; set; }
 
         /// <summary>
         /// The limit price used in this order. This is applicable only if order type is 'Limit'.
         /// </summary>
-        public decimal? LimitPrice { get; set; }
+        public PriceValue? LimitPrice { get; set; }
 
         /// <summary>
         /// A fee in QUOTE currency. The fee may be set only after order has been closed/cancelled. Note that for buy orders the fee increases the total cost
         /// (i.e. causes more quote currency to be spent) and for sell orders the fee decreases the total cost (i.e. causes less quote currency to be earned).
         /// </summary>
-        public decimal Fee { get; set; }
+        public PriceValue Fee { get; set; }
 
         /// <summary>
         /// A cost of this order in QUOTE currency WITHOUT FEES.
         /// </summary>
-        public decimal CostExcludingFee { get; set; }
+        public PriceValue CostExcludingFee { get; set; }
 
         /// <summary>
         /// A cost of this order in QUOTE currency WITH FEES. Note that for buy orders this is greater or equal to CostExcludingFee 
         /// and for sell this is less or equal to CostExcludingFee.
         /// </summary>
-        public decimal CostIncludingFee => CostExcludingFee + (Side == OrderSide.Buy ? Fee : -Fee);
+        public PriceValue CostIncludingFee => CostExcludingFee + (Side == OrderSide.Buy ? Fee : -Fee);
 
         /// <summary>
         /// Timestamp when this order was created and opened.
@@ -126,7 +126,7 @@ namespace Interface
         /// <summary>
         /// Average unit price, basically CostIncludingFee / FilledVolume.
         /// </summary>
-        public decimal AverageUnitPrice => FilledVolume == 0 ? 0 : CostIncludingFee / FilledVolume;
+        public PriceValue AverageUnitPrice => FilledVolume.Value == 0 ? new PriceValue(0m, FilledVolume.Asset) : CostIncludingFee / FilledVolume.Value;
 
         public override string ToString()
         {
@@ -138,7 +138,7 @@ namespace Interface
                 case OrderType.Other:
                     return string.Format("{0} {1} ({2}), {6} {3}€ for {4} ETH (avg. unit price {5}€).", State, Side, Id, CostIncludingFee, FilledVolume, AverageUnitPrice, Type.ToString().ToUpper());
                 case OrderType.Limit:
-                    return string.Format("{0} {1} ({2}), LIMIT {3}€ x {4} (= {5}€). Filled: {6}€ for {7} ETH (avg. unit price {8}€)", State, Side, Id, LimitPrice, Volume, LimitPrice * Volume, CostIncludingFee, FilledVolume, AverageUnitPrice);
+                    return string.Format("{0} {1} ({2}), LIMIT {3}€ x {4} (= {5}€). Filled: {6}€ for {7} ETH (avg. unit price {8}€)", State, Side, Id, LimitPrice, Volume, LimitPrice * Volume.Value, CostIncludingFee, FilledVolume, AverageUnitPrice);
             }            
         }
     }

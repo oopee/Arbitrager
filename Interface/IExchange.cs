@@ -9,8 +9,8 @@ namespace Interface
     public interface IExchange
     {
         string Name { get; }
-        decimal TakerFeePercentage { get; }
-        decimal MakerFeePercentage { get; }
+        PercentageValue TakerFeePercentage { get; }
+        PercentageValue MakerFeePercentage { get; }
 
         Task<BalanceResult> GetCurrentBalance();
 

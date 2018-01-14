@@ -6,7 +6,7 @@ namespace Interface
 {
     public interface IProfitCalculator
     {
-        ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, PriceValue fiatLimit, PriceValue ethLimit = default(PriceValue));
+        ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, PriceValue fiatLimit, PriceValue? ethLimit = null);
     }
 
     public class ProfitCalculation
@@ -49,7 +49,7 @@ namespace Interface
         /// <summary>
         /// Profit / FiatSpent
         /// </summary>
-        public PercentageValue ProfitPercentage => FiatSpent > 0m ? (Profit / FiatSpent).Value : 0m;
+        public PercentageValue ProfitPercentage => FiatSpent > 0m ? PercentageValue.FromRatio((Profit / FiatSpent).Value) : PercentageValue.Zero;
 
         /// <summary>
         /// FIAT earned by selling EthCount of ETH at exhange S (includes fees).
@@ -86,8 +86,8 @@ namespace Interface
             b.AppendLine("\t\tETH available to buy:\t\t{0:0.0000}", EthBuyCount);
             b.AppendLine("\t\tETH available to sell:\t\t{0:0.0000}", EthSellCount);
             b.AppendLine("\t\tETH value at other exchange:\t{0:0.00}e", FiatEarned);
-            b.AppendLine("\t\tProfit:\t\t\t\t{0:0.00}e ({1:0.00}%)", Profit, Profit / FiatSpent * 100.0m);
-            b.AppendLine("\t\tProfit after tax:\t\t{0:0.00}e ({1:0.00}%)", ProfitAfterTax, ProfitAfterTax / FiatSpent * 100.0m);
+            b.AppendLine("\t\tProfit:\t\t\t\t{0:0.00}e ({1})", Profit, PercentageValue.FromRatio((Profit / FiatSpent).Value));
+            b.AppendLine("\t\tProfit after tax:\t\t{0:0.00}e ({1})", ProfitAfterTax, PercentageValue.FromRatio((ProfitAfterTax / FiatSpent).Value));
 
             return b.ToString();
         }

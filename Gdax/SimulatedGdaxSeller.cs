@@ -18,8 +18,8 @@ namespace Gdax
         public FakeSeller(ILogger logger, string orderBookJson = null)
             : base("FakeSeller", logger)
         {
-            TakerFeePercentage = 0.3m / 100;
-            MakerFeePercentage = 0m / 100;
+            TakerFeePercentage = PercentageValue.FromPercentage(0.3m);
+            MakerFeePercentage = PercentageValue.FromPercentage(0.0m);
 
             m_orderBook = Newtonsoft.Json.JsonConvert.DeserializeObject<OrderBook>((orderBookJson ?? DefaultOrderBookJson).Replace("'", "\""));
         }
@@ -62,7 +62,7 @@ namespace Gdax
 
         public abstract Task<IBidOrderBook> GetBids();
 
-        public async Task<MinimalOrder> PlaceImmediateSellOrder(decimal minLimitPrice, decimal volume)
+        public async Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume)
         {
             if (volume > BalanceEth)
             {
@@ -72,13 +72,13 @@ namespace Gdax
             var bids = await GetBids();
 
             // Limit order with Immediate or Cancel -> only take orders with unit price more than 'price' argument
-            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(bids.Bids.Where(x => x.PricePerUnit >= minLimitPrice), null, volume).ToList();
+            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(bids.Bids.Where(x => x.PricePerUnit >= minLimitPrice), null, volume.Value).ToList();
 
-            var sum = orders.Select(x => x.PricePerUnit * x.VolumeUnits).DefaultIfEmpty().Sum();
+            var sum = new PriceValue(orders.Select(x => x.PricePerUnit * x.VolumeUnits).DefaultIfEmpty().Sum(), minLimitPrice.Asset);
             var fee = sum * TakerFeePercentage;
-            var filledVolume = orders.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum();
-            var pricePerUnitWithoutFee = filledVolume == 0 ? 0 : sum / filledVolume;
-            var pricePerUnitWithFee = filledVolume == 0 ? 0 : (sum - fee) / filledVolume;
+            var filledVolume = new PriceValue(orders.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum(), volume.Asset);
+            var pricePerUnitWithoutFee = filledVolume == 0 ? sum.AsZero() : sum / filledVolume.Value;
+            var pricePerUnitWithFee = filledVolume == 0 ? sum.AsZero() : (sum - fee) / filledVolume.Value;
             var totalCost = sum - fee;
 
             var createTime = TimeService.UtcNow;

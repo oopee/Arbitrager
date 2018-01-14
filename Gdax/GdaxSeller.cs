@@ -18,8 +18,8 @@ namespace Gdax
         Dictionary<string, FullOrder> s_orders = new Dictionary<string, FullOrder>();
 
         public string Name => "GDAX";
-        public decimal TakerFeePercentage => 0.003m; // 0.3%
-        public decimal MakerFeePercentage => 0.000m; // 0%
+        public PercentageValue TakerFeePercentage => PercentageValue.FromPercentage(0.3m); // 0.3%
+        public PercentageValue MakerFeePercentage => PercentageValue.FromPercentage(0.0m); // 0%
 
         public GdaxSeller(GdaxConfiguration configuration, ILogger logger, bool isSandbox)
         {
@@ -65,18 +65,18 @@ namespace Gdax
             return new BalanceResult()
             {
                 All = all,
-                Eth = all.Where(x => x.Key == "ETH").FirstOrDefault().Value,
-                Eur = all.Where(x => x.Key == "EUR").FirstOrDefault().Value
+                Eth = PriceValue.FromETH(all.Where(x => x.Key == "ETH").FirstOrDefault().Value),
+                Eur = PriceValue.FromEUR(all.Where(x => x.Key == "EUR").FirstOrDefault().Value)
             };
         }
 
-        public async Task<MinimalOrder> PlaceImmediateSellOrder(decimal minLimitPrice, decimal volume)
+        public async Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume)
         {
             var order = await m_client.OrdersService.PlaceLimitOrderAsync(
                 GDAXClient.Services.Orders.OrderSide.Sell, 
                 GDAXClient.Services.Orders.ProductType.EthEur, 
-                volume, 
-                minLimitPrice, 
+                volume.Value, 
+                minLimitPrice.Value, 
                 GDAXClient.Services.Orders.TimeInForce.IOC);
 
             var orderResult = new MinimalOrder()
@@ -196,17 +196,17 @@ namespace Gdax
             return new FullOrder()
             {
                 Id = new OrderId(order.Id.ToString()),
-                Fee = order.Fill_fees,
+                Fee = PriceValue.FromEUR(order.Fill_fees),
                 OpenTime = order.Created_at,
                 CloseTime = order.Done_at == default(DateTime) ? null : (DateTime?)order.Done_at,
                 ExpireTime = null,
-                FilledVolume = order.Filled_size,
-                Volume = order.Size,
-                LimitPrice = order.Price,
+                FilledVolume = PriceValue.FromETH(order.Filled_size),
+                Volume = PriceValue.FromETH(order.Size),
+                LimitPrice = PriceValue.FromEUR(order.Price),
                 Side = side,
                 Type = ParseOrderType(order.Type),
                 State = ParseState(order.Status),
-                CostExcludingFee = order.Executed_value
+                CostExcludingFee = PriceValue.FromEUR(order.Executed_value)
             };
         }
 

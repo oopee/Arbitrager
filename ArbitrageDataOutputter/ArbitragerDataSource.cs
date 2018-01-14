@@ -28,13 +28,13 @@ namespace ArbitrageDataOutputter
             var dataPoint = new ArbitrageDataPoint()
             {
                 TimeStamp = DateTime.Now,
-                BestBid = info.BestSellPrice,
-                BestAsk = info.BestBuyPrice,
-                MaxNegativeSpreadEur = info.MaxNegativeSpreadEur,
-                MaxNegativeSpreadPercentage = info.MaxNegativeSpreadPercentage,
+                BestBid = info.BestSellPrice.Value,
+                BestAsk = info.BestBuyPrice.Value,
+                MaxNegativeSpreadEur = info.MaxNegativeSpreadEur.Value,
+                MaxNegativeSpreadPercentage = info.MaxNegativeSpreadPercentage.Ratio,
                 FiatLimit = FiatLimit,
-                MaxProfitPercentage = info.MaxProfitPercentage,
-                MaxProfitEur = info.MaxEurProfit
+                MaxProfitPercentage = info.MaxProfitPercentage.Ratio,
+                MaxProfitEur = info.MaxEurProfit.Value
             };
 
             return dataPoint;
@@ -52,7 +52,7 @@ namespace ArbitrageDataOutputter
             {
                 Status = status,
                 ProfitCalculation = calc,
-                IsProfitable = calc.ProfitPercentage >= 0.02m // 2% threshold
+                IsProfitable = calc.ProfitPercentage >= PercentageValue.FromPercentage(2m) // 2% threshold
             };
 
             return info;
