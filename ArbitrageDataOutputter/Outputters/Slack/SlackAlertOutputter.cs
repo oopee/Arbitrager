@@ -38,8 +38,8 @@ namespace ArbitrageDataOutputter
             Client = new SlackClient(uri);
             Rules = new List<AlertRule>();
 
-            AddAlertRule(2.5m, TimeSpan.FromHours(3), "Profitable spread", "SPREAD2.5");
-            AddAlertRule(3, TimeSpan.FromHours(1), "Good spread", "SPREAD3");
+            AddAlertRule(2, TimeSpan.FromHours(1), "Profitable spread", "SPREAD2");
+            AddAlertRule(3, TimeSpan.FromMinutes(30), "Good spread", "SPREAD3");
             AddAlertRule(4, TimeSpan.FromMinutes(15), "Very good spread", "SPREAD4");
             AddAlertRule(5, TimeSpan.FromMinutes(5), "Excellent spread", "SPREAD5");
             AddAlertRule(6, TimeSpan.FromMinutes(5), "All in!", "SPREAD6+");
@@ -165,7 +165,7 @@ namespace ArbitrageDataOutputter
 
         private decimal GetThresholdComparisonValue(ArbitrageDataPoint info)
         {
-            return info.MaxNegativeSpreadPercentage * 100;
+            return info.MaxProfitPercentage * 100;
         }
 
         private AlertRule GetHighestRule(decimal comparisonValue)

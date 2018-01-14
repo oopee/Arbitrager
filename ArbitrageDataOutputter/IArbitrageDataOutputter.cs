@@ -34,6 +34,8 @@ namespace ArbitrageDataOutputter
         private DateTime? LastErrorPrintTime { get; set; }
         private int ErrorCount { get; set; }
 
+        public int Decimals { get; protected set; } = 4; // This way even when multiplied by 100 to get percentage we have two decimals
+
         public AbstractArbitrageDataOutputter(IArbitrageDataSource dataSource)
         {
             DataSource = dataSource;
@@ -46,6 +48,7 @@ namespace ArbitrageDataOutputter
             try
             {
                 var data = await DataSource.GetCurrentData();
+                RoundPercentages(data);
                 await OutputData(data);
 
                 if (LastErrorTime != null)
@@ -83,6 +86,13 @@ namespace ArbitrageDataOutputter
                 LastErrorTime = DateTime.Now;
                 ++ErrorCount;
             }
+        }
+
+        private void RoundPercentages(ArbitrageDataPoint datapoint)
+        {
+            datapoint.MaxNegativeSpreadPercentage = Math.Round(datapoint.MaxNegativeSpreadPercentage, Decimals, MidpointRounding.AwayFromZero);
+            datapoint.MaxProfitPercentage = Math.Round(datapoint.MaxProfitPercentage, Decimals, MidpointRounding.AwayFromZero);
+            datapoint.MaxProfitEur = Math.Round(datapoint.MaxProfitEur, Decimals, MidpointRounding.AwayFromZero);
         }
 
         public virtual async Task Start()
