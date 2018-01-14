@@ -34,6 +34,12 @@ namespace Kraken
         {
             MinimalOrder myOrder = null;
 
+            if (volume < 0.02m)
+            {
+                // Min order size of ETH is 0.02: https://support.kraken.com/hc/en-us/articles/205893708-What-is-the-minimum-order-size-
+                throw new ArgumentException("Volume must be >= 0.02 ETH");
+            }
+
             await Task.Run(() =>
             {
                 var order = new KrakenApi.KrakenOrder()
@@ -43,7 +49,7 @@ namespace Kraken
                     OrderType = "limit",
                     Price = price,
                     Volume = volume,
-                    ExpireTmFromNow = 1 // expire after 1 second
+                    // ExpireTm = Common.Utils.DateTimeToUnixTime(TimeService.UtcNow.AddMinutes(1))
                 };                
 
                 var result = m_client.AddOrder(order);
@@ -54,6 +60,24 @@ namespace Kraken
                     Id = new OrderId(result.Txid.Single()), // TODO: what if there are multiple ids?
                     Side = OrderSide.Buy
                 };
+
+                // Kraken does not support Immediate or Cancel. Also, expiretm parameter does not work properly, so we have to cancel order manually.
+                for (int i = 0; i < 5; ++i) // retry cancel 5 times
+                {
+                    try
+                    {
+                        m_client.CancelOrder(myOrder.Id.Id);
+                        break;
+                    }
+                    catch (KrakenApi.KrakenException e)
+                    {
+                        if (e.Message == "EOrder:Unknown order")
+                        {
+                            break;
+                        }
+                    }
+                    m_logger.Error("COULD NOT CANCEL KRAKEN ORDER! Retrying max 5 times..");
+                }
             });
 
             return myOrder;
@@ -257,7 +281,7 @@ namespace Kraken
             var order = new FullOrder()
             {
                 Id = new OrderId(id),
-                LimitPrice = value.Price,
+                LimitPrice = null,
                 Volume = value.Volume,
                 FilledVolume = value.VolumeExecuted,
                 Fee = value.Fee,

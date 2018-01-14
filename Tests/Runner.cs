@@ -61,10 +61,14 @@ namespace Tests
         {
             var exchange = GetKraken();
 
-            var order = await ((IBuyer)exchange).PlaceImmediateBuyOrder(0.1m, 1m);
+            var info = await exchange.GetOrderInfo(new OrderId("OEJ2TW-FIVDX-ITK2EW"));
+
+            /*
+            var order = await ((IBuyer)exchange).PlaceImmediateBuyOrder(1200, 0.02m);
             var info = await exchange.GetOrderInfo(order.Id);
             await exchange.CancelOrder(order.Id);
             Logger.Info(GetDebugString(info));
+            */
         }
 
         [Explicit]
@@ -194,10 +198,20 @@ namespace Tests
         [Test]
         public async Task Gdax_PlaceSellorder()
         {
-
             var exchange = GetGdax();
 
             var order = await ((ISeller)exchange).PlaceImmediateSellOrder(99999m, 0.001m);
+            var info = await exchange.GetOrderInfo(order.Id);
+            Logger.Info(GetDebugString(info));
+        }
+
+        [Explicit]
+        [Test]
+        public async Task Kraken_PlaceBuyOrder()
+        {
+            var exchange = GetKraken();
+
+            var order = await ((IBuyer)exchange).PlaceImmediateBuyOrder(0.1m, 1m);
             var info = await exchange.GetOrderInfo(order.Id);
             Logger.Info(GetDebugString(info));
         }

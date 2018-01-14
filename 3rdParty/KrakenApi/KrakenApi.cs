@@ -2079,7 +2079,7 @@ namespace KrakenApi
             }
             else if (order.ExpireTmFromNow != null)
             {
-                // relative timestamp
+                // relative timestamp. DOES NOT WORK FOR SOME REASON!
                 param.Add("expiretm", string.Format("+{0}", order.ExpireTmFromNow));
             }
                     
