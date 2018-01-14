@@ -40,7 +40,7 @@ namespace DatabaseAccess
 
         private void Guard(bool check, string msg)
         {
-            Common.Guard.IsTrue(check, "DB: " + msg);
+            Interface.Guard.IsTrue(check, "DB: " + msg);
         }
 
         public async Task ResetDatabase()

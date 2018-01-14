@@ -61,7 +61,7 @@ namespace Arbitrager
                             cashLimit = parsedCashLimit;
                         }
 
-                        await ShowStatus(cashLimit);
+                        await ShowStatus(PriceValue.FromEUR(cashLimit));
 
                         break;
                     case "accounts":
@@ -176,13 +176,13 @@ namespace Arbitrager
             return null;
         }
 
-        private async Task ShowStatus(decimal? cashLimit = null)
+        private async Task ShowStatus(PriceValue cashLimit = default(PriceValue))
         {
             var status = await m_arbitrager.GetStatus(true);
             ProfitCalculation profitCalculation = null;
-            if (cashLimit != null)
+            if (cashLimit.IsValid)
             {
-                profitCalculation = m_arbitrager.ProfitCalculator.CalculateProfit(status.Buyer, status.Seller, cashLimit.Value);
+                profitCalculation = m_arbitrager.ProfitCalculator.CalculateProfit(status.Buyer, status.Seller, cashLimit);
             }
 
             Console.WriteLine(status.ToString());

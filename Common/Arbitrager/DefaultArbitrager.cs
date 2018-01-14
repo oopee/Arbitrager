@@ -469,7 +469,7 @@ namespace Common
             }
 
             // Calculate estimated profit based on prices/balances/etc
-            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, maxFiatToSpend, maxEthToSpend);
+            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, PriceValue.FromEUR(maxFiatToSpend), PriceValue.FromETH(maxEthToSpend));
 
             ArbitrageInfo info = new ArbitrageInfo()
             {

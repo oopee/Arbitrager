@@ -46,7 +46,7 @@ namespace ArbitrageDataOutputter
             var status = await Arbitrager.GetStatus(false);
             
             // Calculate estimated profit based on prices/balances/etc
-            var calc = ProfitCalculator.CalculateProfit(status.Buyer, status.Seller, fiatLimit);
+            var calc = ProfitCalculator.CalculateProfit(status.Buyer, status.Seller, PriceValue.FromEUR(fiatLimit));
 
             ArbitrageInfo info = new ArbitrageInfo()
             {

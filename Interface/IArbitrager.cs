@@ -132,23 +132,23 @@ namespace Interface
         public decimal EurBalance => Status.Buyer.Balance.Eur;
         public decimal EthBalance => Status.Seller.Balance.Eth;
 
-        public decimal MaxEthAmountToArbitrage => ProfitCalculation.EthsToArbitrage;
-        public decimal MaxEursToSpend => ProfitCalculation.FiatSpent;
-        public decimal MaxEursToEarn => ProfitCalculation.FiatEarned;
-        public decimal MaxEurProfit => ProfitCalculation.Profit;
-        public decimal MaxProfitPercentage => ProfitCalculation.ProfitPercentage;
-        public decimal MaxBuyFee => ProfitCalculation.BuyFee;
-        public decimal MaxSellFee => ProfitCalculation.SellFee;
+        public decimal MaxEthAmountToArbitrage => ProfitCalculation.EthsToArbitrage.Value; // TODO pricevalue
+        public decimal MaxEursToSpend => ProfitCalculation.FiatSpent.Value; // TODO pricevalue
+        public decimal MaxEursToEarn => ProfitCalculation.FiatEarned.Value; // TODO pricevalue
+        public decimal MaxEurProfit => ProfitCalculation.Profit.Value; // TODO pricevalue
+        public decimal MaxProfitPercentage => ProfitCalculation.ProfitPercentage.Ratio; // TODO pricevalue
+        public decimal MaxBuyFee => ProfitCalculation.BuyFee.Value; // TODO pricevalue
+        public decimal MaxSellFee => ProfitCalculation.SellFee.Value; // TODO pricevalue
 
-        public decimal EstimatedAvgBuyUnitPrice => ProfitCalculation.EthBuyCount > 0 ? ProfitCalculation.FiatSpent / ProfitCalculation.EthBuyCount : 0m;
-        public decimal EstimatedAvgSellUnitPrice => ProfitCalculation.EthSellCount > 0 ? ProfitCalculation.FiatEarned / ProfitCalculation.EthSellCount : 0m;
+        public decimal EstimatedAvgBuyUnitPrice => ProfitCalculation.EthBuyCount > 0 ? (ProfitCalculation.FiatSpent / ProfitCalculation.EthBuyCount).Value : 0m; // TODO pricevalue
+        public decimal EstimatedAvgSellUnitPrice => ProfitCalculation.EthSellCount > 0 ? (ProfitCalculation.FiatEarned / ProfitCalculation.EthSellCount).Value : 0m; // TODO pricevalue
         public decimal EstimatedAvgNegativeSpread => EstimatedAvgSellUnitPrice - EstimatedAvgBuyUnitPrice;
         public decimal EstimatedAvgNegativeSpreadPercentage => EstimatedAvgNegativeSpread / EstimatedAvgBuyUnitPrice;
 
-        public decimal BestBuyPrice => Status.Buyer.Asks.Asks.FirstOrDefault()?.PricePerUnit ?? 0m;
+        public decimal BestBuyPrice => Status.Buyer.Asks.Asks.FirstOrDefault()?.PricePerUnit ?? 0m; 
         public decimal BestSellPrice => Status.Seller.Bids.Bids.FirstOrDefault()?.PricePerUnit ?? 0m;
 
-        public decimal BuyLimitPricePerUnit => ProfitCalculation.BuyLimitPricePerUnit;
+        public decimal BuyLimitPricePerUnit => ProfitCalculation.BuyLimitPricePerUnit.Value; // TODO pricevalue
 
         public bool IsEurBalanceSufficient => ProfitCalculation.FiatSpent <= Status.Buyer.Balance.Eur;
         public bool IsEthBalanceSufficient => ProfitCalculation.EthSellCount <= Status.Seller.Balance.Eth;
@@ -246,7 +246,7 @@ namespace Interface
                 if (Buyer.Asks.Asks.Count > 0 && Seller.Bids.Bids.Count > 0)
                 {
                     var negativeSpread = Buyer.Asks.Asks[0].PricePerUnit - Seller.Bids.Bids[0].PricePerUnit;
-                    if (negativeSpread < 0)
+                    if (negativeSpread < 0) 
                     {
                         Difference.MaxNegativeSpread = Math.Abs(negativeSpread);
                         Difference.MaxNegativeSpreadPercentage = Difference.MaxNegativeSpread / Buyer.Asks.Asks[0].PricePerUnit;
@@ -322,7 +322,7 @@ namespace Interface
         {
             var calc = profitCalculation;
 
-            if (calc.FiatSpent <= 0)
+            if (calc.FiatSpent <= 0m)
             {
                 return;
             }
@@ -350,8 +350,8 @@ namespace Interface
         public BalanceResult Balance { get; set; }
         public IAskOrderBook Asks { get; set; }
 
-        public decimal TakerFee { get; set; }
-        public decimal MakerFee { get; set; }
+        public PercentageValue TakerFee { get; set; }
+        public PercentageValue MakerFee { get; set; }
     }
 
     public class SellerStatus
@@ -360,8 +360,8 @@ namespace Interface
         public BalanceResult Balance { get; set; }
         public IBidOrderBook Bids { get; set; }
 
-        public decimal TakerFee { get; set; }
-        public decimal MakerFee { get; set; }
+        public PercentageValue TakerFee { get; set; }
+        public PercentageValue MakerFee { get; set; }
     }
 
     public class FeeInfo

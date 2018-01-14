@@ -6,7 +6,7 @@ namespace Interface
 {
     public interface IProfitCalculator
     {
-        ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, decimal fiatLimit, decimal? ethLimit = null);
+        ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, PriceValue fiatLimit, PriceValue ethLimit = default(PriceValue));
     }
 
     public class ProfitCalculation
@@ -14,57 +14,57 @@ namespace Interface
         /// <summary>
         /// FIAT spent for buying ETH at exchange B (includes fees).
         /// </summary>
-        public decimal FiatSpent { get; set; }
+        public PriceValue FiatSpent { get; set; }
 
         /// <summary>
         /// Amount of ETH that was bought (using FiatSpent EUR) at exchange B.
         /// </summary>
-        public decimal EthBuyCount { get; set; }
+        public PriceValue EthBuyCount { get; set; }
 
         /// <summary>
         /// Amount of ETH that could be sold at exchange S. This should be the max amount of ETH to arbitrage. This is always less or equal than EthBuyCount.
         /// </summary>
-        public decimal EthSellCount { get; set; }
+        public PriceValue EthSellCount { get; set; }
 
         /// <summary>
         /// Same as EthSellCount (Amount of ETH that could be sold at exchange S. This should be the max amount of ETH to arbitrage. This is always less or equal than EthBuyCount.)
         /// </summary>
-        public decimal EthsToArbitrage => EthSellCount;
+        public PriceValue EthsToArbitrage => EthSellCount;
 
         /// <summary>
         /// The price of most expensive ask to fulfill this trade. This should be used as limit price when placing buy order.
         /// </summary>
-        public decimal BuyLimitPricePerUnit { get; set; }
+        public PriceValue BuyLimitPricePerUnit { get; set; }
 
         /// <summary>
         /// Profit (i.e. FiatEarned - FiatSpent).
         /// </summary>
-        public decimal Profit { get; set; }
+        public PriceValue Profit { get; set; }
 
         /// <summary>
         /// Profit after taxes (0.7*Profit).
         /// </summary>
-        public decimal ProfitAfterTax { get; set; }
+        public PriceValue ProfitAfterTax { get; set; }
 
         /// <summary>
         /// Profit / FiatSpent
         /// </summary>
-        public decimal ProfitPercentage => FiatSpent > 0 ? Profit / FiatSpent : 0;
+        public PercentageValue ProfitPercentage => FiatSpent > 0m ? (Profit / FiatSpent).Value : 0m;
 
         /// <summary>
         /// FIAT earned by selling EthCount of ETH at exhange S (includes fees).
         /// </summary>
-        public decimal FiatEarned { get; set; }
+        public PriceValue FiatEarned { get; set; }
 
         /// <summary>
         /// Amount of fees that have been added to FiatSpent
         /// </summary>
-        public decimal BuyFee { get; set; }
+        public PriceValue BuyFee { get; set; }
 
         /// <summary>
         /// Amount of fees that have been subtracted from FiatEarned
         /// </summary>
-        public decimal SellFee { get; set; }
+        public PriceValue SellFee { get; set; }
 
         /// <summary>
         /// A flag indicating if all incoming FIAT could be used for buying ETH at exchange B (i.e. if there was enough liquidity to fill the order).

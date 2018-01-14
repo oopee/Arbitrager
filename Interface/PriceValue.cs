@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Common
+namespace Interface
 {
     public enum RoundingStrategy
     {
@@ -120,14 +120,14 @@ namespace Common
             IsValid = true;
         }
 
-        public static PriceValue FromETH(decimal value)
+        public static PriceValue FromETH(decimal? value)
         {
-            return new PriceValue(value, Asset.ETH);
+            return value.HasValue ? new PriceValue(value.Value, Asset.ETH) : InvalidValue;
         }
-
-        public static PriceValue FromEUR(decimal value)
+        
+        public static PriceValue FromEUR(decimal? value)
         {
-            return new PriceValue(value, Asset.EUR);
+            return value.HasValue ? new PriceValue(value.Value, Asset.EUR) : InvalidValue;
         }
 
         /// <summary>
@@ -187,10 +187,20 @@ namespace Common
             return new PriceValue(a.Value + b.Value, a.Asset);
         }
 
+        public static PriceValue operator +(PriceValue a, decimal b)
+        {
+            return new PriceValue(a.Value + b, a.Asset);
+        }
+
         public static PriceValue operator -(PriceValue a, PriceValue b)
         {
             Guard.IsTrue(a.Asset == b.Asset, "cannot subtract different assets");
             return new PriceValue(a.Value - b.Value, a.Asset);
+        }
+
+        public static PriceValue operator -(PriceValue a, decimal b)
+        {
+            return new PriceValue(a.Value - b, a.Asset);
         }
 
         public static PriceValue operator *(PriceValue a, PriceValue b)
@@ -215,6 +225,12 @@ namespace Common
             return new PriceValue(a.Value / b.Value, a.Asset);
         }
 
+        public static PriceValue operator /(PriceValue a, decimal b)
+        {
+            return new PriceValue(a.Value / b, a.Asset);
+        }
+        
+
         public static bool operator ==(PriceValue a, PriceValue b)
         {
             return a.Asset == b.Asset && a.Value == b.Value;
@@ -222,7 +238,7 @@ namespace Common
 
         public static bool operator !=(PriceValue a, PriceValue b)
         {
-            return a.Asset != b.Asset || a.Value == b.Value;
+            return a.Asset != b.Asset || a.Value != b.Value;
         }
 
         public static bool operator ==(PriceValue b, decimal a)
@@ -232,7 +248,7 @@ namespace Common
 
         public static bool operator !=(PriceValue b, decimal a)
         {
-            return a == b.Value;
+            return a != b.Value;
         }
 
         public static bool operator <(PriceValue a, PriceValue b)
@@ -247,6 +263,38 @@ namespace Common
             return a.Value > b.Value;
         }
 
+        public static bool operator <=(PriceValue a, PriceValue b)
+        {
+            Guard.IsTrue(a.Asset == b.Asset, "cannot compare value greatness for different assets");
+            return a.Value <= b.Value;
+        }
+
+        public static bool operator >=(PriceValue a, PriceValue b)
+        {
+            Guard.IsTrue(a.Asset == b.Asset, "cannot compare value greatness for different assets");
+            return a.Value >= b.Value;
+        }
+
+        public static bool operator <(PriceValue a, decimal b)
+        {
+            return a.Value < b;
+        }
+
+        public static bool operator <=(PriceValue a, decimal b)
+        {
+            return a.Value <= b;
+        }
+
+        public static bool operator >=(PriceValue a, decimal b)
+        {
+            return a.Value >= b;
+        }
+
+        public static bool operator >(PriceValue a, decimal b)
+        {
+            return a.Value > b;
+        }
+
         public override bool Equals(object obj)
         {
             return obj is PriceValue && this == (PriceValue)obj;
@@ -255,6 +303,19 @@ namespace Common
         public override int GetHashCode()
         {
             return (Value + (decimal)Asset.Type).GetHashCode();
+        }
+    }
+
+    public static class PriceValueExtensions
+    {
+        public static PriceValue ToEUR(this decimal euroAmount)
+        {
+            return PriceValue.FromEUR(euroAmount);
+        }
+
+        public static PriceValue ToETH(this decimal ethAmount)
+        {
+            return PriceValue.FromETH(ethAmount);
         }
     }
 }
