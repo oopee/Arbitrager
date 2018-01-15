@@ -83,7 +83,7 @@ namespace Tests
             var order = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("160d8288-08ca-477c-b19f-c2753e2f5070").ToString()));
             var order2 = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("d76171c3-abe7-43fd-bfe1-ec75396d9848").ToString()));
             */
-            var order3 = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("9e84e4c6-a1b5-4107-9235-c49e99b03c1d").ToString()));
+            var order3 = await (GetGdax()).GetOrderInfo(new OrderId(new Guid("9e84e4c6-a1b5-4107-9235-c49e99b03c1d").ToString()));
             
             /*var exchange = GetGdax();
 
@@ -204,7 +204,7 @@ namespace Tests
         {
             var exchange = GetGdax();
 
-            var order = await ((ISeller)exchange).PlaceImmediateSellOrder(PriceValue.FromEUR(99999m), PriceValue.FromETH(0.001m));
+            var order = await exchange.PlaceImmediateSellOrder(PriceValue.FromEUR(99999m), PriceValue.FromETH(0.001m));
             var info = await exchange.GetOrderInfo(order.Id);
             Logger.Info(GetDebugString(info));
         }
@@ -215,7 +215,18 @@ namespace Tests
         {
             var exchange = GetKraken();
 
-            var order = await ((IBuyer)exchange).PlaceImmediateBuyOrder(PriceValue.FromEUR(0.1m), PriceValue.FromETH(1m));
+            var order = await exchange.PlaceImmediateBuyOrder(PriceValue.FromEUR(0.01m), PriceValue.FromETH(0.2m));
+            var info = await exchange.GetOrderInfo(order.Id);
+            Logger.Info(GetDebugString(info));
+        }
+
+        [Explicit]
+        [Test]
+        public async Task Kraken_PlaceSellOrder()
+        {
+            var exchange = GetKraken();
+
+            var order = await exchange.PlaceImmediateSellOrder(PriceValue.FromEUR(99999m), PriceValue.FromETH(0.2m));
             var info = await exchange.GetOrderInfo(order.Id);
             Logger.Info(GetDebugString(info));
         }

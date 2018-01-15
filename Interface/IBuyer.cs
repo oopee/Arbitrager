@@ -6,12 +6,6 @@ using System.Threading.Tasks;
 
 namespace Interface
 {
-    public interface IBuyer : IExchange
-    {
-        Task<IAskOrderBook> GetAsks();
-        Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPricePerUnit, PriceValue maxVolume);
-    }
-
     public class BalanceResult
     {
         public Dictionary<string, decimal> All { get; set; }

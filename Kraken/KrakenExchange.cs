@@ -7,7 +7,7 @@ using Interface;
 
 namespace Kraken
 {
-    public class KrakenBuyer : Interface.IBuyer
+    public class KrakenExchange : Interface.IExchange
     {
         KrakenApi.Kraken m_client;
         ILogger m_logger;
@@ -16,9 +16,11 @@ namespace Kraken
         public PercentageValue TakerFeePercentage => PercentageValue.FromPercentage(0.26m); // 0.26%
         public PercentageValue MakerFeePercentage => PercentageValue.FromPercentage(0.16m); // 0.16%
 
-        public KrakenConfiguration Configuration { get; private set; }        
+        public KrakenConfiguration Configuration { get; private set; }
 
-        public KrakenBuyer(KrakenConfiguration configuration, ILogger logger)
+        public bool CanGetClosedOrders => true;
+
+        public KrakenExchange(KrakenConfiguration configuration, ILogger logger)
         {
             Configuration = configuration;
 
@@ -30,8 +32,18 @@ namespace Kraken
                 3000);
         }
 
-        public async Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue price, PriceValue volume)
+        public Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPrice, PriceValue volume)
         {
+            return PlaceImmediateOrder(limitPrice, volume, OrderSide.Buy);
+        }
+
+        public Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue limitPrice, PriceValue volume)
+        {
+            return PlaceImmediateOrder(limitPrice, volume, OrderSide.Sell);
+        }
+
+        private async Task<MinimalOrder> PlaceImmediateOrder(PriceValue limitPrice, PriceValue volume, OrderSide side)
+        { 
             MinimalOrder myOrder = null;
 
             if (volume < 0.02m)
@@ -40,20 +52,34 @@ namespace Kraken
                 throw new ArgumentException("Volume must be >= 0.02 ETH");
             }
 
+            string krakenSide;
+            if (side == OrderSide.Buy)
+            {
+                krakenSide = "buy";
+            }
+            else if (side == OrderSide.Sell)
+            {
+                krakenSide = "sell";
+            }
+            else
+            {
+                throw new ArgumentException("side");
+            }
+
             await Task.Run(() =>
             {
                 var order = new KrakenApi.KrakenOrder()
                 { 
                     Pair = "XETHZEUR",
-                    Type = "buy",
+                    Type = krakenSide,
                     OrderType = "limit",
-                    Price = price.Value,
+                    Price = limitPrice.Value,
                     Volume = volume.Value,
                     // ExpireTm = Common.Utils.DateTimeToUnixTime(TimeService.UtcNow.AddMinutes(1))
                 };                
 
                 var result = m_client.AddOrder(order);
-                m_logger.Info("KrakenBuyer: Placed order {0} ({1})", result?.Descr.Order, result?.Descr.Close);
+                m_logger.Info("KrakenExchange: Placed order {0} ({1})", result?.Descr.Order, result?.Descr.Close);
 
                 myOrder = new MinimalOrder()
                 {
@@ -83,13 +109,7 @@ namespace Kraken
             return myOrder;
         }
 
-        public async Task<IAskOrderBook> GetAsks()
-        {
-            var result = await GetOrderBook();
-            return result;
-        }
-
-        private async Task<OrderBook> GetOrderBook()
+        public async Task<IOrderBook> GetOrderBook()
         {
             OrderBook book = new OrderBook();
 
@@ -330,6 +350,7 @@ namespace Kraken
             switch (value)
             {
                 case "limit": return OrderType.Limit;
+                case "market": return OrderType.Market;
                 default:
                     m_logger.Error("KrakernBuyer.ParseOrderType: unknown value '{0}'", value);
                     return OrderType.Unknown;

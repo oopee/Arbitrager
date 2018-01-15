@@ -8,6 +8,8 @@ namespace Interface
 {
     public interface IExchange
     {
+        bool CanGetClosedOrders { get; }
+
         string Name { get; }
         PercentageValue TakerFeePercentage { get; }
         PercentageValue MakerFeePercentage { get; }
@@ -25,7 +27,7 @@ namespace Interface
         /// <param name="currency">Currency code</param>
         /// <param name="account">Account identifier</param>
         Task<WithdrawFiatResult> WithdrawFundsToBankAccount(decimal amount, string currency, string account);
-        
+
         /// <summary>
         /// Withdraw cryptocurrency to given address
         /// </summary>
@@ -36,6 +38,10 @@ namespace Interface
 
         Task<PaymentMethodResult> GetPaymentMethods();
         Task<FullOrder> GetOrderInfo(OrderId id);
+
+        Task<IOrderBook> GetOrderBook();
+        Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPricePerUnit, PriceValue maxVolume);
+        Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume);
     }
 
     public class GetOrderArgs

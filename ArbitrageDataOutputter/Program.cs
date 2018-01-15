@@ -151,7 +151,7 @@ namespace ArbitrageDataOutputter
 
         static IArbitrager GetKrakenGdaxArbitrager()
         {
-            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), new DefaultProfitCalculator(), null, new DummyLogger());
+            return new Common.DefaultArbitrager(new[] { GetKraken(), GetGdax() }, new DefaultProfitCalculator(), null, new DummyLogger());
         }
 
         static IExchange GetKraken()
@@ -162,7 +162,7 @@ namespace ArbitrageDataOutputter
                 Secret = ""
             };
 
-            return new Kraken.KrakenBuyer(krakenConf, new DummyLogger());
+            return new Kraken.KrakenExchange(krakenConf, new DummyLogger());
         }
 
         static IExchange GetGdax()
@@ -174,7 +174,7 @@ namespace ArbitrageDataOutputter
                 Signature = ""
             };
 
-            return new Gdax.GdaxSeller(conf, new DummyLogger(), isSandbox: false);
+            return new Gdax.GdaxExchange(conf, new DummyLogger(), isSandbox: false);
         }
     }
 }

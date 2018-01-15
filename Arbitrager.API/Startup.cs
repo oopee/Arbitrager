@@ -34,22 +34,22 @@ namespace Arbitrager.API
 
             var configuration = Configuration.GetValue<string>("Configuration");
             Console.WriteLine("Using configuration: {0}", configuration);
-            IBuyer buyer;
-            ISeller seller;
+            IExchange buyer;
+            IExchange seller;
 
             switch (configuration)
             {
                 case "fake":
-                    buyer = new FakeBuyer(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(0m), BalanceEur = PriceValue.FromEUR(2000m) };
-                    seller = new FakeSeller(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(1m), BalanceEur = PriceValue.FromEUR(0m) };
+                    buyer = new FakeKrakenExchange(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(0m), BalanceEur = PriceValue.FromEUR(2000m) };
+                    seller = new FakeGdaxExchange(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(1m), BalanceEur = PriceValue.FromEUR(0m) };
                     break;
                 case "simulated":
-                    buyer = new SimulatedKrakenBuyer(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(0m), BalanceEur = PriceValue.FromEUR(2000m) };
-                    seller = new SimulatedGdaxSeller(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = PriceValue.FromETH(1m), BalanceEur = PriceValue.FromEUR(0m) };
+                    buyer = new SimulatedKrakenExchange(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(0m), BalanceEur = PriceValue.FromEUR(2000m) };
+                    seller = new SimulatedGdaxExchange(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = PriceValue.FromETH(1m), BalanceEur = PriceValue.FromEUR(0m) };
                     break;
                 case "real":
-                    buyer = new KrakenBuyer(GetKrakenConfiguration(), Logger.StaticLogger);
-                    seller = new GdaxSeller(GetGdaxConfiguration(), Logger.StaticLogger, isSandbox: false);
+                    buyer = new KrakenExchange(GetKrakenConfiguration(), Logger.StaticLogger);
+                    seller = new GdaxExchange(GetGdaxConfiguration(), Logger.StaticLogger, isSandbox: false);
                     break;
                 default:
                     throw new ArgumentException("Invalid configuration (see appsettings.json). Valid values are: fake, simulated, real");

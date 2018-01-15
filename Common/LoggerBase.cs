@@ -85,5 +85,47 @@ namespace Common
         {
             return new ConsoleLogger();
         }
-    }    
+    }
+
+    public class ConsoleAndFileLogger : LoggerBase
+    {
+        static object s_mutex = new object();
+        string m_filename;
+        string m_filename2;
+
+        public ConsoleAndFileLogger(string filename)
+        {
+            m_filename = filename;
+            m_filename2 = m_filename + ".info.log";
+        }
+
+        protected override void Log(LogLine logLine)
+        {
+            Console.WriteLine(logLine.DefaultLine);
+            try
+            {
+                using (var stream = new System.IO.StreamWriter(m_filename, true))
+                {
+                    stream.WriteLine(logLine.DefaultLine);
+                }
+
+                if (logLine.Type != LogType.Debug)
+                {
+                    using (var stream = new System.IO.StreamWriter(m_filename2, true))
+                    {
+                        stream.WriteLine(logLine.DefaultLine);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+        protected override LoggerBase Clone()
+        {
+            return new ConsoleAndFileLogger(m_filename);
+        }
+    }
 }

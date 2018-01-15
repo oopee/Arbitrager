@@ -6,7 +6,7 @@ namespace Interface
 {
     public interface IProfitCalculator
     {
-        ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, PriceValue fiatLimit, PriceValue? ethLimit = null);
+        ProfitCalculation CalculateProfit(ExchangeStatus buyer, ExchangeStatus seller, PriceValue fiatLimit, PriceValue? ethLimit = null);
     }
 
     public class ProfitCalculation

@@ -9,7 +9,7 @@ using GDAXClient;
 
 namespace Gdax
 {
-    public class GdaxSeller : Interface.ISeller
+    public class GdaxExchange : Interface.IExchange
     {
         GDAXClient.Authentication.Authenticator m_authenticator;
         GDAXClient.GDAXClient m_client;
@@ -21,14 +21,16 @@ namespace Gdax
         public PercentageValue TakerFeePercentage => PercentageValue.FromPercentage(0.3m); // 0.3%
         public PercentageValue MakerFeePercentage => PercentageValue.FromPercentage(0.0m); // 0%
 
-        public GdaxSeller(GdaxConfiguration configuration, ILogger logger, bool isSandbox)
+        public bool CanGetClosedOrders => false;
+
+        public GdaxExchange(GdaxConfiguration configuration, ILogger logger, bool isSandbox)
         {
             m_logger = logger.WithName(GetType().Name);
             m_authenticator = new GDAXClient.Authentication.Authenticator(configuration.Key, configuration.Signature, configuration.Passphrase);
             m_client = new GDAXClient.GDAXClient(m_authenticator, sandBox: isSandbox);
         }
 
-        public async Task<IBidOrderBook> GetBids()
+        public async Task<IOrderBook> GetOrderBook()
         {
             var result = await m_client.ProductsService.GetProductOrderBookAsync(GDAXClient.Services.Orders.ProductType.EthEur, GDAXClient.Products.ProductsService.OrderBookLevel.Top50);
 
@@ -70,13 +72,37 @@ namespace Gdax
             };
         }
 
-        public async Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume)
+        public Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPricePerUnit, PriceValue maxVolume)
         {
+            return PlaceImmediateOrder(limitPricePerUnit, maxVolume, OrderSide.Buy);
+        }
+
+        public Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume)
+        {
+            return PlaceImmediateOrder(minLimitPrice, volume, OrderSide.Sell);
+        }
+
+        private async Task<MinimalOrder> PlaceImmediateOrder(PriceValue limitPrice, PriceValue volume, OrderSide side)
+        {
+            GDAXClient.Services.Orders.OrderSide gdaxSide;
+            if (side == OrderSide.Buy)
+            {
+                gdaxSide = GDAXClient.Services.Orders.OrderSide.Buy;
+            }
+            else if (side == OrderSide.Sell)
+            {
+                gdaxSide = GDAXClient.Services.Orders.OrderSide.Sell;
+            }
+            else
+            {
+                throw new ArgumentException("side");
+            }
+
             var order = await m_client.OrdersService.PlaceLimitOrderAsync(
-                GDAXClient.Services.Orders.OrderSide.Sell, 
+                gdaxSide, 
                 GDAXClient.Services.Orders.ProductType.EthEur, 
                 volume.Value, 
-                minLimitPrice.Value, 
+                limitPrice.Value, 
                 GDAXClient.Services.Orders.TimeInForce.IOC);
 
             var orderResult = new MinimalOrder()
@@ -85,7 +111,7 @@ namespace Gdax
                 Side = OrderSide.Sell
             };
 
-            m_logger.Info("GdaxSeller: placed sell order {0}", orderResult);
+            m_logger.Info("GdaxExchange: placed {0} order {1}", side.ToString().ToLower(), orderResult);
 
             // NOTE: GDAX may purge some (meaningless) orders. This means that if our order did not get filled (event partially),
             // it is possible that we cannot get the order from GDAX anymore. That is why we are storing all order results so that

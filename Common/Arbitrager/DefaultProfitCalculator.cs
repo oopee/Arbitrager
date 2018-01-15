@@ -8,12 +8,12 @@ namespace Common
 {
     public class DefaultProfitCalculator : Interface.IProfitCalculator
     {
-        public ProfitCalculation CalculateProfit(BuyerStatus buyer, SellerStatus seller, PriceValue fiatLimit, PriceValue? ethLimit = null)
+        public ProfitCalculation CalculateProfit(ExchangeStatus buyer, ExchangeStatus seller, PriceValue fiatLimit, PriceValue? ethLimit = null)
         {
             // First check how much ETH can we buy for the cash limit.
             // We have to calculate this first in case the bids we have (top 1 or top 50)
             // do not cover the whole amount we are willing to buy from other exchange
-            PriceValue ethTotalBids = seller.Bids.Bids.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum().ToETH(); // TODO pricevalue
+            PriceValue ethTotalBids = seller.OrderBook.Bids.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum().ToETH(); // TODO pricevalue
 
             // Cap max amount of ETH to buy (if requested)
             if (ethLimit != null)
@@ -28,9 +28,9 @@ namespace Common
             PriceValue buyLimitPrice = default(PriceValue);
             PriceValue buyFee = PriceValue.FromEUR(0);
             int askNro = 0;
-            while (fiatSpent < fiatLimit && ethCount < ethTotalBids && buyer.Asks.Asks.Count > askNro)
+            while (fiatSpent < fiatLimit && ethCount < ethTotalBids && buyer.OrderBook.Asks.Count > askNro)
             {
-                var orders = buyer.Asks.Asks[askNro];
+                var orders = buyer.OrderBook.Asks[askNro];
 
                 var maxVolume = Math.Min((ethTotalBids - ethCount).Value, orders.VolumeUnits); // TODO pricevalue
                 var pricePerUnit = orders.PricePerUnit.ToEUR();
@@ -56,9 +56,9 @@ namespace Common
             int bidNro = 0;
             PriceValue moneyEarned = PriceValue.FromEUR(0);
             PriceValue sellFee = PriceValue.FromEUR(0);
-            while (ethLeftToSell > 0 && seller.Bids.Bids.Count > bidNro)
+            while (ethLeftToSell > 0 && seller.OrderBook.Bids.Count > bidNro)
             {
-                var orders = seller.Bids.Bids[bidNro];
+                var orders = seller.OrderBook.Bids[bidNro];
                 var maxEthToSellAtThisPrice = orders.VolumeUnits.ToETH();
                 var ethToSell = Math.Min(ethLeftToSell.Value, maxEthToSellAtThisPrice.Value);
                 var pricePerUnit = orders.PricePerUnit.ToEUR();

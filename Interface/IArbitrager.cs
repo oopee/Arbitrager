@@ -8,8 +8,7 @@ namespace Interface
 {
     public interface IArbitrager
     {
-        IBuyer Buyer { get; }
-        ISeller Seller { get; }
+        IEnumerable<IExchange> Exchanges { get; }
         Task<Status> GetStatus(bool includeBalance);
         Task<AccountsInfo> GetAccountsInfo();
         IProfitCalculator ProfitCalculator { get; }
@@ -46,11 +45,15 @@ namespace Interface
         ManuallyAborted,
         InvalidBalance,
         ZeroEthBought,
-        CouldNotPlaceBuyOrder
+        CouldNotPlaceBuyOrder,
+        CouldNotPlaceSellOrder,
     }
 
     public class ArbitrageContext
     {
+        public IExchange Buyer { get; set; }
+        public IExchange Seller { get; set; }
+
         /// <summary>
         /// Current state.
         /// </summary>
@@ -120,17 +123,35 @@ namespace Interface
         }
     }
 
+    public class Status
+    {
+        public List<ExchangeStatus> Exchanges { get; set; } = new List<ExchangeStatus>();
+
+        public override string ToString()
+        {
+            StringBuilder b = new StringBuilder();
+            foreach (var e in Exchanges)
+            {
+                b.AppendLine(e.ToString());
+                b.AppendLine();
+            }
+            return b.ToString();
+        }
+    }
+
     public class ArbitrageInfo
     {
-        public Status Status { get; set; }
+        public ExchangeStatus Buyer { get; set; }
+        public ExchangeStatus Seller { get; set; }
+
         public ProfitCalculation ProfitCalculation { get; set; }
 
-        public string BuyerName => Status.Buyer.Name;
-        public string SellerName => Status.Seller.Name;
-        public PercentageValue MaxNegativeSpreadPercentage => Status.Difference.MaxNegativeSpreadPercentage;
-        public PriceValue MaxNegativeSpreadEur => Status.Difference.MaxNegativeSpread;
-        public PriceValue EurBalance => Status.Buyer.Balance.Eur;
-        public PriceValue EthBalance => Status.Seller.Balance.Eth;
+        public string BuyerName => Buyer.Name;
+        public string SellerName => Seller.Name;
+        public PercentageValue MaxNegativeSpreadPercentage => BestBuyPrice.Value == 0m ? PercentageValue.Zero : PercentageValue.FromRatio(MaxNegativeSpreadEur.Value / BestBuyPrice.Value);
+        public PriceValue MaxNegativeSpreadEur => BestSellPrice - BestBuyPrice;
+        public PriceValue EurBalance => Buyer.Balance.Eur;
+        public PriceValue EthBalance => Seller.Balance.Eth;
 
         public PriceValue MaxEthAmountToArbitrage => ProfitCalculation.EthsToArbitrage;
         public PriceValue MaxEursToSpend => ProfitCalculation.FiatSpent;
@@ -145,19 +166,20 @@ namespace Interface
         public PriceValue EstimatedAvgNegativeSpread => EstimatedAvgSellUnitPrice - EstimatedAvgBuyUnitPrice;
         public PercentageValue EstimatedAvgNegativeSpreadPercentage => EstimatedAvgBuyUnitPrice.Value > 0 ? PercentageValue.FromRatio(EstimatedAvgNegativeSpread.Value / EstimatedAvgBuyUnitPrice.Value) : PercentageValue.Zero;
 
-        public PriceValue BestBuyPrice => PriceValue.FromEUR(Status.Buyer.Asks.Asks.FirstOrDefault()?.PricePerUnit ?? 0m);
-        public PriceValue BestSellPrice => PriceValue.FromEUR(Status.Seller.Bids.Bids.FirstOrDefault()?.PricePerUnit ?? 0m);
+        public PriceValue BestBuyPrice => PriceValue.FromEUR(Buyer.OrderBook.Asks.FirstOrDefault()?.PricePerUnit ?? 0m);
+        public PriceValue BestSellPrice => PriceValue.FromEUR(Seller.OrderBook.Bids.FirstOrDefault()?.PricePerUnit ?? 0m);
 
         public PriceValue BuyLimitPricePerUnit => ProfitCalculation.BuyLimitPricePerUnit;
 
-        public bool IsEurBalanceSufficient => ProfitCalculation.FiatSpent <= Status.Buyer.Balance.Eur;
-        public bool IsEthBalanceSufficient => ProfitCalculation.EthSellCount <= Status.Seller.Balance.Eth;
+        public bool IsEurBalanceSufficient => ProfitCalculation.FiatSpent <= Buyer.Balance.Eur;
+        public bool IsEthBalanceSufficient => ProfitCalculation.EthSellCount <= Seller.Balance.Eth;
         public bool IsProfitable { get; set; }
 
         public override string ToString()
         {
             StringBuilder b = new StringBuilder();
             b.AppendLine("ARBITRAGE INFO");
+            b.AppendLine("\t{0} -> {1}", BuyerName, SellerName);
             b.AppendLine("\tEUR balance at {0}: {1}", BuyerName, EurBalance);
             b.AppendLine("\tETH balance at {0}: {1}", SellerName, EthBalance);
             b.AppendLine();
@@ -227,141 +249,31 @@ namespace Interface
             return b.ToString();
         }
     }
-
-    public class Status
+    
+    public class ExchangeStatus
     {
-        public Status(BuyerStatus buyer, SellerStatus seller)
-        {
-            Buyer = buyer;
-            Seller = seller;
+        public string Name => Exchange.Name;
+        public IExchange Exchange { get; set; }
+        public BalanceResult Balance { get; set; }
+        public IOrderBook OrderBook { get; set; }
 
-            if (Buyer != null && Seller != null)
-            {
-                Difference = new DifferenceStatus()
-                {
-                    MaxNegativeSpread = PriceValue.FromEUR(0),
-                    MaxNegativeSpreadPercentage = PercentageValue.Zero
-                };
-
-                if (Buyer.Asks.Asks.Count > 0 && Seller.Bids.Bids.Count > 0)
-                {
-                    var negativeSpread = Buyer.Asks.Asks[0].PricePerUnit - Seller.Bids.Bids[0].PricePerUnit;
-                    if (negativeSpread < 0) 
-                    {
-                        Difference.MaxNegativeSpread = PriceValue.FromEUR(Math.Abs(negativeSpread));
-                        Difference.MaxNegativeSpreadPercentage = PercentageValue.FromRatio(Difference.MaxNegativeSpread.Value / Buyer.Asks.Asks[0].PricePerUnit);
-                    }
-                }
-            }
-        }
-
-        public BuyerStatus Buyer { get; set; }
-        public SellerStatus Seller { get; set; }
-        public DifferenceStatus Difference { get; set; }
+        public PercentageValue TakerFee { get; set; }
+        public PercentageValue MakerFee { get; set; }
 
         public override string ToString()
         {
             StringBuilder b = new StringBuilder();
-            b.AppendLine();
-            b.AppendLine("BUY");
-            if (Buyer == null)
+            b.AppendLine("{0}", Name);
+            if (Balance != null)
             {
-                b.AppendLine("\tNULL");
+                b.AppendLine("\tBalance:");
+                b.AppendLine("\t\tEUR: {0}", Balance.Eur);
+                b.AppendLine("\t\tETH: {0}", Balance.Eth);
             }
-            else
-            {
-                b.AppendLine("\t{0}", Buyer.Name);
-                if (Buyer.Balance != null)
-                {
-                    b.AppendLine("\tBalance:");
-                    b.AppendLine("\t\tEUR: {0}", Buyer.Balance.Eur);
-                    b.AppendLine("\t\tETH: {0}", Buyer.Balance.Eth);
-                }
-                b.AppendLine("\tAsks (best)");
-                b.AppendLine("\t\t{0}", string.Join("\n\t\t", Buyer.Asks.Asks.Take(1)));
-            }
-
-            b.AppendLine();
-            b.AppendLine("SELL");
-            if (Seller == null)
-            {
-                b.AppendLine("\tNULL");
-            }
-            else
-            {
-                b.AppendLine("\t{0}", Seller.Name);
-                if (Seller.Balance != null)
-                {
-                    b.AppendLine("\tBalance:");
-                    b.AppendLine("\t\tEUR: {0}", Seller.Balance.Eur);
-                    b.AppendLine("\t\tETH: {0}", Seller.Balance.Eth);
-                }
-                /*b.AppendLine("\tChunk");
-                b.AppendLine("\t\tMax euros to use: {0}", ChunkEur);
-                b.AppendLine("\t\tActual euros to use: {0}", eurToBuy);*/
-                b.AppendLine("\tBids (best)");
-                b.AppendLine("\t\t{0}", string.Join("\n\t\t", Seller.Bids.Bids.Take(1)));
-            }
-
-            b.AppendLine();
-            b.AppendLine("DIFFERENCE");
-            if (Difference == null)
-            {
-                b.AppendLine("\tNULL");
-            }
-            else
-            {
-                b.AppendLine("\t\tMax. negative spread: {0}€", Difference.MaxNegativeSpread);
-                b.AppendLine("\t\tMax. negative spread: {0} (of lowest ask)", (Difference.MaxNegativeSpreadPercentage * 100));
-            }
-
+            b.AppendLine("\tBest ask: {0}", OrderBook.Asks.FirstOrDefault());
+            b.AppendLine("\tBest bid: {0}", OrderBook.Bids.FirstOrDefault());
             return b.ToString();
         }
-
-        private void AddProfitCalculation(StringBuilder b, ProfitCalculation profitCalculation)
-        {
-            var calc = profitCalculation;
-
-            if (calc.FiatSpent <= 0m)
-            {
-                return;
-            }
-
-            b.AppendLine();
-
-            string moneySpentSummary = string.Format("{0:0.00}e", calc.FiatSpent);
-            if (!calc.AllFiatSpent)
-            {
-                moneySpentSummary += " (capped, no more bids at other exchange)";
-            }
-
-            b.AppendLine("\t\tCash limit:\t\t\t{0}", moneySpentSummary);
-            b.AppendLine("\t\tETH available to buy:\t\t{0:0.0000}", calc.EthBuyCount);
-            b.AppendLine("\t\tETH available to sell:\t\t{0:0.0000}", calc.EthSellCount);
-            b.AppendLine("\t\tETH value at other exchange:\t{0:0.00}e", calc.FiatEarned);
-            b.AppendLine("\t\tProfit:\t\t\t\t{0:0.00}e ({1})", calc.Profit, PercentageValue.FromRatio((calc.Profit / calc.FiatSpent).Value));
-            b.AppendLine("\t\tProfit after tax:\t\t{0:0.00}e ({1:0.00}%)", calc.ProfitAfterTax, PercentageValue.FromRatio((calc.ProfitAfterTax / calc.FiatSpent).Value));
-        }
-    }
-
-    public class BuyerStatus
-    {
-        public string Name { get; set; }
-        public BalanceResult Balance { get; set; }
-        public IAskOrderBook Asks { get; set; }
-
-        public PercentageValue TakerFee { get; set; }
-        public PercentageValue MakerFee { get; set; }
-    }
-
-    public class SellerStatus
-    {
-        public string Name { get; set; }
-        public BalanceResult Balance { get; set; }
-        public IBidOrderBook Bids { get; set; }
-
-        public PercentageValue TakerFee { get; set; }
-        public PercentageValue MakerFee { get; set; }
     }
 
     public class FeeInfo

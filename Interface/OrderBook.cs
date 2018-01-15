@@ -5,18 +5,14 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Interface
-{
-    public interface IBidOrderBook
+{   
+    public interface IOrderBook
     {
         List<OrderBookOrder> Bids { get; }
-    }
-
-    public interface IAskOrderBook
-    {
         List<OrderBookOrder> Asks { get; }
     }
 
-    public class OrderBook : IBidOrderBook, IAskOrderBook
+    public class OrderBook : IOrderBook
     {
         public List<OrderBookOrder> Asks { get; set; } = new List<OrderBookOrder>();
         public List<OrderBookOrder> Bids { get; set; } = new List<OrderBookOrder>();

@@ -37,13 +37,16 @@ namespace Tests
 
     public class TestArbitrager : Common.DefaultArbitrager
     {
-        public new Kraken.FakeBuyer Buyer => (Kraken.FakeBuyer)base.Buyer;
-        public new Gdax.FakeSeller Seller => (Gdax.FakeSeller)base.Seller;
+        public Kraken.FakeKrakenExchange Buyer => (Kraken.FakeKrakenExchange)Exchanges[0];
+        public Gdax.FakeGdaxExchange Seller => (Gdax.FakeGdaxExchange)Exchanges[1];
 
         public TestArbitrager(IDatabaseAccess dataAccess, ILogger logger) 
             : base(
-                  new Kraken.FakeBuyer(logger),
-                  new Gdax.FakeSeller(logger),
+                  new IExchange[]
+                  {
+                    new Kraken.FakeKrakenExchange(logger),
+                    new Gdax.FakeGdaxExchange(logger)
+                  },
                   new DefaultProfitCalculator(),
                   dataAccess, 
                   logger)

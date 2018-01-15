@@ -182,7 +182,7 @@ namespace Arbitrager
             ProfitCalculation profitCalculation = null;
             if (cashLimit.HasValue)
             {
-                profitCalculation = m_arbitrager.ProfitCalculator.CalculateProfit(status.Buyer, status.Seller, cashLimit.Value);
+                profitCalculation = m_arbitrager.ProfitCalculator.CalculateProfit(status.Exchanges[0], status.Exchanges[1], cashLimit.Value);
             }
 
             Console.WriteLine(status.ToString());

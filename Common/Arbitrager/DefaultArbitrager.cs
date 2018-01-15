@@ -10,30 +10,31 @@ namespace Common
 {
     public class DefaultArbitrager : IArbitrager
     {
-        IBuyer m_buyer;
-        ISeller m_seller;
         IProfitCalculator m_profitCalculator;
         ILogger m_logger;
         IDatabaseAccess m_dataAccess;
 
         public decimal ChunkEur { get; set; } = 2000m;
 
-        public IBuyer Buyer => m_buyer;
-        public ISeller Seller => m_seller;
+        public List<IExchange> Exchanges { get; set; } = new List<IExchange>();
+        IEnumerable<IExchange> IArbitrager.Exchanges => Exchanges;
+
         public IProfitCalculator ProfitCalculator => m_profitCalculator;
 
-        public int MaxBuyRetries => 10;
-        public TimeSpan MaxBuyTotalTime => TimeSpan.FromSeconds(30);
+        public static int MaxBuyRetries => 10;
+        public static TimeSpan MaxBuyTotalTime => TimeSpan.FromSeconds(30);
+
+        public static int MaxSellRetries => 10;
+        public static TimeSpan MaxSellTotalTime => TimeSpan.FromSeconds(30);
+
 
         public DefaultArbitrager(
-            IBuyer buyer,
-            ISeller seller,
+            IEnumerable<IExchange> exhanges,
             IProfitCalculator profitCalculator,
             IDatabaseAccess dataAccess,
             ILogger logger)
         {
-            m_buyer = buyer;
-            m_seller = seller;
+            Exchanges = exhanges.ToList();
             m_profitCalculator = profitCalculator;
             m_logger = logger.WithName(GetType().Name);
             m_dataAccess = dataAccess;
@@ -42,13 +43,26 @@ namespace Common
         public async Task<AccountsInfo> GetAccountsInfo()
         {
             m_logger.Debug("GetAccountsInfo()");
-            var buyer = await GetAccountInfo(m_buyer);
-            var seller = await GetAccountInfo(m_seller);
+
+            var result = await ForAllExchanges(exchange => GetAccountInfo(exchange));
 
             return new AccountsInfo()
             {
-                Accounts = new List<AccountInfo>() { buyer, seller }
+                Accounts = result
             };
+        }
+
+        private async Task<List<T>> ForAllExchanges<T>(Func<IExchange, Task<T>> action)
+        {
+            List<Task<T>> tasks = new List<Task<T>>();
+            foreach (var exchange in Exchanges)
+            {
+                tasks.Add(action(exchange));
+            }
+
+            await Task.WhenAll(tasks);
+
+            return tasks.Select(x => x.Result).ToList();
         }
 
         private async Task<AccountInfo> GetAccountInfo(IExchange exchange)
@@ -71,69 +85,32 @@ namespace Common
         public async Task<Status> GetStatus(bool includeBalance)
         {
             m_logger.Debug("GetStatus(includeBalance: {0})", includeBalance);
-            BalanceResult buyerBalance = null;
-            IAskOrderBook askOrderBook = null;
 
-            BalanceResult sellerBalance = null;
-            IBidOrderBook bidOrderBook = null;
-
-            Func<Task> buyerTaskFunc = async () =>
+            var result = await ForAllExchanges(async exchange =>
             {
+                BalanceResult balance = null;
                 if (includeBalance)
                 {
-                    m_logger.Debug("Calling GetCurrentBalance({0})", m_buyer.Name);
-                    buyerBalance = await m_buyer.GetCurrentBalance();
+                    m_logger.Debug("Calling GetCurrentBalance({0})", exchange.Name);
+                    balance = await exchange.GetCurrentBalance();
                 }
 
-                m_logger.Debug("Calling GetAsks({0})", m_buyer.Name);
-                askOrderBook = await m_buyer.GetAsks();
-            };
-
-            Func<Task> sellerTaskFunc = async () =>
-            {
-                if (includeBalance)
+                m_logger.Debug("Calling GetOrderBook({0})", exchange.Name);
+                var orderBook = await exchange.GetOrderBook();
+                return new ExchangeStatus()
                 {
-                    m_logger.Debug("Calling GetCurrentBalance({0})", m_seller.Name);
-                    sellerBalance = await m_seller.GetCurrentBalance();
-                }
-
-                m_logger.Debug("Calling GetBids({0})", m_seller.Name);
-                bidOrderBook = await m_seller.GetBids();
-            };
-
-            var buyerTask = buyerTaskFunc();
-            var sellerTask = sellerTaskFunc();
-
-            await buyerTask;
-            await sellerTask;
-
-            BuyerStatus buyerStatus = null;
-            if (askOrderBook != null)
-            {
-                buyerStatus = new BuyerStatus()
-                {
-                    Name = m_buyer.Name,
-                    Asks = askOrderBook,
-                    Balance = buyerBalance,
-                    MakerFee = m_buyer.MakerFeePercentage,
-                    TakerFee = m_buyer.TakerFeePercentage
+                    Balance = balance,
+                    Exchange = exchange,
+                    MakerFee = exchange.MakerFeePercentage,
+                    TakerFee = exchange.TakerFeePercentage,
+                    OrderBook = orderBook
                 };
-            }
+            });
 
-            SellerStatus sellerStatus = null;
-            if (bidOrderBook != null)
+            return new Status()
             {
-                sellerStatus = new SellerStatus()
-                {
-                    Name = m_seller.Name,
-                    Bids = bidOrderBook,
-                    Balance = sellerBalance,
-                    MakerFee = m_seller.MakerFeePercentage,
-                    TakerFee = m_seller.TakerFeePercentage
-                };
-            }
-
-            return new Status(buyerStatus, sellerStatus);
+                Exchanges = result
+            };
         }
 
         public async Task<ArbitrageContext> Arbitrage(ArbitrageContext ctx)
@@ -254,6 +231,8 @@ namespace Common
             ctx.Info = info;
             ctx.BuyOrder_LimitPriceToUse = ctx.Info.BuyLimitPricePerUnit;
             ctx.BuyOrder_EthAmountToBuy = ctx.Info.MaxEthAmountToArbitrage;
+            ctx.Buyer = info.Buyer.Exchange;
+            ctx.Seller = info.Seller.Exchange;
         }
 
         protected virtual async Task DoArbitrage_PlaceBuyOrder(ArbitrageContext ctx)
@@ -281,7 +260,7 @@ namespace Common
             var maxEthToBuy = ctx.BuyOrder_EthAmountToBuy.Value;
 
             logger.Debug("Placing buy order (limit: {0} EUR, volume: {1} ETH)", buyLimitPricePerUnit, maxEthToBuy);
-            var buyOrderId = await TryPlaceBuyOrder(buyLimitPricePerUnit, maxEthToBuy, logger);
+            var buyOrderId = await TryPlaceBuyOrder(ctx.Buyer, buyLimitPricePerUnit, maxEthToBuy, logger);
 
             // Handle result
             if (buyOrderId == null)
@@ -296,7 +275,7 @@ namespace Common
             }            
         }
 
-        protected async Task<OrderId?> TryPlaceBuyOrder(PriceValue buyLimitPricePerUnit, PriceValue maxEthToBuy, ILogger logger)
+        protected async Task<OrderId?> TryPlaceBuyOrder(IExchange buyer, PriceValue buyLimitPricePerUnit, PriceValue maxEthToBuy, ILogger logger)
         {
             var sw = new System.Diagnostics.Stopwatch();
             sw.Start();
@@ -306,8 +285,10 @@ namespace Common
             {
                 var startTime = TimeService.UtcNow;
                 try
-                {                    
-                    var buyOrder = await Buyer.PlaceImmediateBuyOrder(buyLimitPricePerUnit, maxEthToBuy);
+                {
+                    var priceLimit = buyLimitPricePerUnit.Round();
+                    var ethToBuy = maxEthToBuy.Round(decimalPlaces: 5);
+                    var buyOrder = await buyer.PlaceImmediateBuyOrder(priceLimit, ethToBuy);
                     return buyOrder.Id;
                 }
                 catch (Exception e)
@@ -317,17 +298,67 @@ namespace Common
                         throw;
                     }
 
-                    logger.Error("\tError! Reason: {0}", e.Message);
-                    logger.Error("\ttry to determine if order was placed or not... (wait for a while first)");
-                    await Task.Delay(5000);
-                    logger.Error("\t\tget closed orders...");
-                    var closedOrders = await Buyer.GetClosedOrders(new GetOrderArgs() { StartUtc = startTime });
-                    var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxEthToBuy) && x.OpenTime >= startTime).FirstOrDefault();
-                    if (order != null)
+                    if (buyer.CanGetClosedOrders)
                     {
-                        logger.Error("\t\tfound recently closed order with same volume! Volume: {0}, CreatedTime: {1}, State: {2}, Id: {3}", order.Volume, order.OpenTime, order.State, order.Id);
-                        // Buy order was successful
-                        return order.Id;
+                        logger.Error("\tError! Reason: {0}", e.Message);
+                        logger.Error("\ttry to determine if order was placed or not... (wait for a while first)");
+                        await Task.Delay(2000);
+                        logger.Error("\t\tget closed orders...");
+                        var closedOrders = await buyer.GetClosedOrders(new GetOrderArgs() { StartUtc = startTime });
+                        var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxEthToBuy) && x.OpenTime >= startTime).FirstOrDefault();
+                        if (order != null)
+                        {
+                            logger.Error("\t\tfound recently closed order with same volume! Volume: {0}, CreatedTime: {1}, State: {2}, Id: {3}", order.Volume, order.OpenTime, order.State, order.Id);
+                            // Buy order was successful
+                            return order.Id;
+                        }
+                    }
+                }
+
+                logger.Info("\tretrying...");
+            }
+
+            logger.Error("\tmaxretry count (retires: {0}) or max time (time: {1:N2}s) reached, aborting...", i, sw.Elapsed.TotalSeconds);
+            return null;
+        }
+
+        protected async Task<OrderId?> TryPlaceSellOrder(IExchange seller, PriceValue sellLimitPricePerUnit, PriceValue maxEthToBuy, ILogger logger)
+        {
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+
+            int i = 0;
+            for (; i < MaxSellRetries && sw.Elapsed < MaxSellTotalTime; ++i)
+            {
+                var startTime = TimeService.UtcNow;
+                try
+                {
+                    var priceLimit = sellLimitPricePerUnit.Round();
+                    var ethToBuy = maxEthToBuy.Round(decimalPlaces: 5);
+                    var sellOrder = await seller.PlaceImmediateSellOrder(priceLimit, ethToBuy);
+                    return sellOrder.Id;
+                }
+                catch (Exception e)
+                {
+                    if (e is ArgumentException)
+                    {
+                        throw;
+                    }
+
+                    if (seller.CanGetClosedOrders)
+                    {
+                        logger.Error("\tError! Reason: {0}", e.Message);
+                        logger.Error("\ttry to determine if order was placed or not... (wait for a while first)");
+                        await Task.Delay(2000);
+                        logger.Error("\t\tget closed orders...");
+                        var closedOrders = await seller.GetClosedOrders(new GetOrderArgs() { StartUtc = startTime });
+                        var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxEthToBuy) && x.OpenTime >= startTime).FirstOrDefault();
+                        if (order != null)
+                        {
+                            logger.Error("\t\tfound recently closed order with same volume! Volume: {0}, CreatedTime: {1}, State: {2}, Id: {3}", order.Volume, order.OpenTime, order.State, order.Id);
+                            // Buy order was successful
+                            return order.Id;
+                        }
                     }
                 }
 
@@ -353,7 +384,7 @@ namespace Common
             }
 
             logger.Debug("Getting buy order info (orderId: {0})", ctx.BuyOrderId);
-            var buyOrderInfo = await Buyer.GetOrderInfo(ctx.BuyOrderId.Value);
+            var buyOrderInfo = await ctx.Buyer.GetOrderInfo(ctx.BuyOrderId.Value);
             ctx.BuyOrder = buyOrderInfo;
             ctx.BuyEthAmount = buyOrderInfo.FilledVolume;
             logger.Debug("\tgot buy order info (filledVolume: {0}, cost: {1}, state: {2})", ctx.BuyEthAmount, buyOrderInfo.CostIncludingFee, buyOrderInfo.State);
@@ -386,10 +417,21 @@ namespace Common
             var sellLimitPrice = (ctx.Info.EstimatedAvgBuyUnitPrice * 0.9m).Round();
 
             logger.Debug("Placing sell order (volume: {0} ETH, sell limit price: {1} EUR)", ethToSell, sellLimitPrice);
-            var sellOrder = await Seller.PlaceImmediateSellOrder(sellLimitPrice, ethToSell);
-            logger.Debug("\tsell order placed (orderId: {0})", sellOrder.Id);
+            var sellOrderId = await TryPlaceSellOrder(ctx.Seller, sellLimitPrice, ethToSell, logger);
 
-            ctx.SellOrderId = sellOrder.Id;
+            // Handle result
+            if (sellOrderId == null)
+            {
+                logger.Error("\tsell order could not be placed. Aborting...");
+                ctx.Error = ArbitrageError.CouldNotPlaceSellOrder;
+            }
+            else
+            {
+                logger.Debug("\tsell order placed (orderId: {0})", sellOrderId);
+                ctx.BuyOrderId = sellOrderId;
+            }
+
+            ctx.SellOrderId = sellOrderId;
         }
 
         protected virtual async Task DoArbitrage_GetSellOrderInfo(ArbitrageContext ctx)
@@ -402,7 +444,7 @@ namespace Common
             }
 
             logger.Debug("Getting sell order info (orderId: {0})", ctx.SellOrderId);
-            var sellOrderInfo = await Seller.GetOrderInfo(ctx.SellOrderId.Value);
+            var sellOrderInfo = await ctx.Seller.GetOrderInfo(ctx.SellOrderId.Value);
             ctx.SellOrder = sellOrderInfo;
             logger.Debug("\tgot buy sell info (filledVolume: {0}, cost: {1}, state: {2})", sellOrderInfo.FilledVolume, sellOrderInfo.CostIncludingFee, sellOrderInfo.State);
 
@@ -421,8 +463,8 @@ namespace Common
                 throw new InvalidOperationException("DoArbitrage_CalculateFinalResult: BuyOrder has not been set!");
             }
 
-            var buyerBalanceTask = m_buyer.GetCurrentBalance();
-            var sellerBalanceTask = m_seller.GetCurrentBalance();
+            var buyerBalanceTask = ctx.Buyer.GetCurrentBalance();
+            var sellerBalanceTask = ctx.Seller.GetCurrentBalance();
 
             await buyerBalanceTask;
             await sellerBalanceTask;
@@ -464,22 +506,31 @@ namespace Common
             // Get current prices, balances etc
             var status = await GetStatus(true);
 
+            var r1 = GetInfoForArbitrage(status.Exchanges[0], status.Exchanges[1], maxFiatToSpend, fiatOptions, maxEthToSpend, ethOptions);
+            var r2 = GetInfoForArbitrage(status.Exchanges[1], status.Exchanges[0], maxFiatToSpend, fiatOptions, maxEthToSpend, ethOptions);
+
+            return r1.MaxProfitPercentage > r2.MaxProfitPercentage ? r1 : r2;
+        }
+
+        public ArbitrageInfo GetInfoForArbitrage(ExchangeStatus buyer, ExchangeStatus seller, PriceValue maxFiatToSpend, BalanceOption fiatOptions, PriceValue maxEthToSpend, BalanceOption ethOptions)
+        {
             if (fiatOptions == BalanceOption.CapToBalance)
             {
-                maxFiatToSpend = PriceValue.Min(maxFiatToSpend, status.Buyer.Balance.Eur);
+                maxFiatToSpend = PriceValue.Min(maxFiatToSpend, buyer.Balance.Eur);
             }
 
             if (ethOptions == BalanceOption.CapToBalance)
             {
-                maxEthToSpend = PriceValue.Min(maxEthToSpend, status.Seller.Balance.Eth);
+                maxEthToSpend = PriceValue.Min(maxEthToSpend, seller.Balance.Eth);
             }
 
             // Calculate estimated profit based on prices/balances/etc
-            var calc = m_profitCalculator.CalculateProfit(status.Buyer, status.Seller, maxFiatToSpend, maxEthToSpend);
+            var calc = m_profitCalculator.CalculateProfit(buyer, seller, maxFiatToSpend, maxEthToSpend);
 
             ArbitrageInfo info = new ArbitrageInfo()
             {
-                Status = status,
+                Buyer = buyer,
+                Seller = seller,
                 ProfitCalculation = calc,
                 IsProfitable = calc.ProfitPercentage >= PercentageValue.FromPercentage(2) // 2% threshold
             };

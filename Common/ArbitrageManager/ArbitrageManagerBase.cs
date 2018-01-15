@@ -99,7 +99,7 @@ namespace Common.ArbitrageManager
         protected virtual async Task<bool> Tick(TContext ctx)
         {
             var timeSinceLastAction = ctx.GetTimeSinceLastAction();
-            if (timeSinceLastAction > TimeSpan.FromMinutes(1))
+            if (timeSinceLastAction > TimeSpan.FromSeconds(20))
             {
                 m_logger.Info("Tick: Time since last action is {0}. Checking arbitrage status...", timeSinceLastAction);
                 await CheckStatusAndDoArbitrage(ctx);
@@ -169,7 +169,7 @@ namespace Common.ArbitrageManager
                 {
                     m_logger.Info("\tarbitrage finished!");
                     string finalResult =
-                        string.Format("\tProfit {0}, {1:0.##} EUR | (Buy) {2:0.##} EUR -> {3:0.####} ETH  | (Sell) {4:0.####} ETH -> {5:0.##} EUR | (BuyerBalance) {6:0.##} EUR, {7:0.####} ETH | (SellerBalance) {8:0.##} EUR, {9:0.####} ETH",
+                        string.Format("\tARBITRAGE RESULT {12} -> {13}\n\t\t\t(Profit       ) {0}, {1:0.##} EUR\n\t\t\t(Buy          ) {2:0.##} EUR -> {3:0.####} ETH\n\t\t\t(Sell         ) {4:0.####} ETH -> {5:0.##} EUR\n\t\t\t(BuyerBalance ) {6:0.##} EUR, {7:0.####} ETH\n\t\t\t(SellerBalance) {8:0.##} EUR, {9:0.####} ETH\n\t\t\t(TotalBalance ) {10:0.##} EUR, {11:0.####} ETH",
                         arbitrageCtx.FinishedResult.ProfitPercentage,
                         arbitrageCtx.FinishedResult.FiatDelta,
                         arbitrageCtx.FinishedResult.FiatSpent,
@@ -179,7 +179,11 @@ namespace Common.ArbitrageManager
                         arbitrageCtx.FinishedResult.BuyerBalance.Eur,
                         arbitrageCtx.FinishedResult.BuyerBalance.Eth,
                         arbitrageCtx.FinishedResult.SellerBalance.Eur,
-                        arbitrageCtx.FinishedResult.SellerBalance.Eth);
+                        arbitrageCtx.FinishedResult.SellerBalance.Eth,
+                        arbitrageCtx.FinishedResult.BuyerBalance.Eur + arbitrageCtx.FinishedResult.SellerBalance.Eur,
+                        arbitrageCtx.FinishedResult.BuyerBalance.Eth + arbitrageCtx.FinishedResult.SellerBalance.Eth,
+                        arbitrageCtx.Buyer.Name,
+                        arbitrageCtx.Seller.Name);
 
                     m_logger.Info(finalResult);
                 }                
@@ -191,20 +195,29 @@ namespace Common.ArbitrageManager
             await Task.Delay(0);
 
             var percentage = info.ProfitCalculation.ProfitPercentage;
-            if (percentage > PercentageValue.FromPercentage(2m))
+            if (percentage < PercentageValue.FromPercentage(0.6m))
             {
                 return new ShouldDoArbitrageResult()
                 {
-                    DoArbitrage = true,
-                    Reason = string.Format("Profit {0} > 2%", percentage),
-                    ArbitrageInfo = info
+                    DoArbitrage = false,
+                    Reason = string.Format("Profit {0} is too small (< 0.6%)", percentage)
+                };
+            }
+
+            if (info.MaxEthAmountToArbitrage < 0.05m)
+            {
+                return new ShouldDoArbitrageResult()
+                {
+                    DoArbitrage = false,
+                    Reason = string.Format("ETH amount {0} is too small (< 0.05)", info.MaxEthAmountToArbitrage)
                 };
             }
 
             return new ShouldDoArbitrageResult()
             {
-                DoArbitrage = false,
-                Reason = string.Format("Profit {0} is too small", percentage)
+                DoArbitrage = true,
+                Reason = string.Format("Profit {0} > 0.6% and ETH amount > 0.05", percentage),
+                ArbitrageInfo = info
             };
         }
 

@@ -17,32 +17,32 @@ namespace Tests
 
         protected IExchange GetKraken()
         {
-            return new Kraken.KrakenBuyer(Kraken.KrakenConfiguration.FromAppConfig(), Logger);
+            return new Kraken.KrakenExchange(Kraken.KrakenConfiguration.FromAppConfig(), Logger);
         }
 
         protected IExchange GetGdax()
         {
-            return new Gdax.GdaxSeller(Gdax.GdaxConfiguration.FromAppConfig(), Logger, isSandbox: false);
+            return new Gdax.GdaxExchange(Gdax.GdaxConfiguration.FromAppConfig(), Logger, isSandbox: false);
         }
 
         protected IArbitrager GetKrakenGdaxArbitrager()
         {
-            return new Common.DefaultArbitrager((IBuyer)GetKraken(), (ISeller)GetGdax(), new DefaultProfitCalculator(), DataAccess, Logger);
+            return new Common.DefaultArbitrager(new[] { GetKraken(), GetGdax() }, new DefaultProfitCalculator(), DataAccess, Logger);
         }
 
         protected IExchange GetFakeBuyer()
         {
-            return new Kraken.FakeBuyer(Logger);
+            return new Kraken.FakeKrakenExchange(Logger);
         }
 
         protected IExchange GetFakeSeller()
         {
-            return new Gdax.FakeSeller(Logger);
+            return new Gdax.FakeGdaxExchange(Logger);
         }
 
         protected IArbitrager GetFakeArbitrager()
         {
-            return new Common.DefaultArbitrager((IBuyer)GetFakeBuyer(), (ISeller)GetFakeSeller(), new DefaultProfitCalculator(), DataAccess, Logger);
+            return new Common.DefaultArbitrager(new[] { GetFakeBuyer(), GetFakeSeller() }, new DefaultProfitCalculator(), DataAccess, Logger);
         }
 
         protected string GetDebugString(object obj)
