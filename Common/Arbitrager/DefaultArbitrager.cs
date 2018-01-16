@@ -28,6 +28,8 @@ namespace Common
         public static TimeSpan MaxSellTotalTime => TimeSpan.FromSeconds(30);
 
 
+        public event EventHandler<ArbitrageContext> StateChanged;
+
         public DefaultArbitrager(
             IEnumerable<IExchange> exhanges,
             IProfitCalculator profitCalculator,
@@ -192,6 +194,7 @@ namespace Common
             }
 
             logger.Debug("\tfinished!");
+            await OnStateEnd(ctx);
             return ctx;
         }
 
@@ -492,12 +495,13 @@ namespace Common
         }
 
         protected virtual Task OnStateBegin(ArbitrageContext ctx)
-        {
+        {            
             return Task.CompletedTask;
         }
 
         protected virtual Task OnStateEnd(ArbitrageContext ctx)
         {
+            OnStateChanged(ctx);
             return Task.CompletedTask;
         }
 
@@ -536,6 +540,11 @@ namespace Common
             };
 
             return info;
+        }
+
+        protected virtual void OnStateChanged(ArbitrageContext ctx)
+        {
+            StateChanged?.Invoke(this, ctx);
         }
     }
 }

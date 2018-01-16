@@ -4,6 +4,8 @@ import { routerReducer, routerMiddleware } from 'react-router-redux';
 import * as StoreModule from './store';
 import { ApplicationState, reducers } from './store';
 import { History } from 'history';
+import { connect } from 'react-redux';
+import * as SignalR from './signalr';
 
 export default function configureStore(history: History, initialState?: ApplicationState) {
     // Build middleware. These are functions that can process the actions before they reach the store.
@@ -11,13 +13,17 @@ export default function configureStore(history: History, initialState?: Applicat
     // If devTools is installed, connect to it
     const devToolsExtension = windowIfDefined && windowIfDefined.__REDUX_DEVTOOLS_EXTENSION__ as () => GenericStoreEnhancer;
     const createStoreWithMiddleware = compose(
-        applyMiddleware(thunk, routerMiddleware(history)),
+        applyMiddleware(thunk, routerMiddleware(history), SignalR.middleware),
         devToolsExtension ? devToolsExtension() : <S>(next: StoreEnhancerStoreCreator<S>) => next
     )(createStore);
 
     // Combine all reducers and instantiate the app-wide store instance
     const allReducers = buildRootReducer(reducers);
     const store = createStoreWithMiddleware(allReducers, initialState) as Store<ApplicationState>;
+
+    // Setup SignalR
+    SignalR.registerHandlers(store);
+    SignalR.init();
 
     // Enable Webpack hot module replacement for reducers
     if (module.hot) {

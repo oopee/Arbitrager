@@ -6,10 +6,11 @@ import { AppThunkAction } from './';
 // STATE - This defines the type of data maintained in the Redux store.
 
 export interface ArbitrageState {
-    readonly isLoading: boolean,
-    readonly eurAmount: number,
-    readonly infoData: ArbitrageInfoResponse,
-    readonly executeData: any,
+    readonly isLoading: boolean;
+    readonly eurAmount: number;
+    readonly infoData: ArbitrageInfoResponse;
+    readonly executeData: any;
+    readonly states: ArbitrageContext[];
 }
 
 // -----------------
@@ -41,6 +42,57 @@ interface SetEurAmountAction {
     eurAmount: number;
 }
 
+export interface ChangeArbitragerStateAction {
+    type: 'CHANGE_ARBITRAGER_STATE';
+    data: ArbitrageContext;
+}
+
+export interface ArbitrageContext {
+    state: number;
+    stateName: string;
+    buyOrder_LimitPriceToUse : number;
+    buyOrder_EthAmountToBuy: number;
+    error: string;
+    buyEthAmount: number;
+    buyOrderId: string;
+    sellOrderId: string;
+    buyOrder: Order;
+    sellOrder: Order;
+    buyerName: string;
+    sellerName: string;
+    finishedResult: ArbitrageContextFinishedResult;
+    info: ArbitrageInfoResponse;
+}
+
+interface ArbitrageContextFinishedResult {
+    ethBought: number;
+    ethSold: number;
+    fiatSpent: number;
+    fiatEarned: number;
+    fiatDelta: number;
+    ethDelta: number;
+    profitPercentage: number;
+    buyerBalance: Balance;
+    sellerBalance: Balance;
+}
+
+interface Order {
+    id: string;
+    side: string;
+    state: string;
+    type: string;
+    volume: number;
+    filledVolume: number;
+    limitPrice: number;
+    fee: number;
+    costExcludingFee: number;
+    costIncludingFee: number;
+    openTime: Date;
+    closeTime: Date;
+    expireTime: Date;
+    averageUnitPrice: number;
+}
+
 interface ArbitrageInfoResponse {
     maxNegativeSpreadEur: number;
     maxNegativeSpreadPercentage: number;
@@ -59,7 +111,8 @@ interface ArbitrageInfoResponse {
     isProfitable: boolean;
 
     profitCalculation: ProfitCalculation;
-    status: Status;
+    buyer: ExchangeStatus;
+    seller: ExchangeStatus;
 }
 
 interface ProfitCalculation {
@@ -76,13 +129,12 @@ interface ProfitCalculation {
     allFiatSpent: boolean;
 }
 
-interface Status {
-    buyer: {
-        balance: Balance;
-    },
-    seller: {
-        balance: Balance;
-    }
+interface ExchangeStatus
+{
+    name: string;
+    balance: Balance;
+    takerFee: number;
+    makerFee: number;
 }
 
 interface Balance {
@@ -97,7 +149,8 @@ type KnownAction = RequestArbitrageInfoAction
     | ReceiveArbitrageInfoAction
     | RequestArbitrageExecuteAction
     | ReceiveArbitrageExecuteAction
-    | SetEurAmountAction;
+    | SetEurAmountAction
+    | ChangeArbitragerStateAction;
 
 // ----------------
 // ACTION CREATORS - These are functions exposed to UI components that will trigger a state transition.
@@ -140,19 +193,18 @@ export const actionCreators = {
 
 const defaultState: ArbitrageState = {
     isLoading: false,
-    eurAmount: 1000,
+    eurAmount: 100,
     infoData: <ArbitrageInfoResponse>{
         profitCalculation: <ProfitCalculation>{},
-        status: <Status>{
-            buyer: {
-                balance: <Balance>{},
-            },
-            seller: {
-                balance: <Balance>{},
-            }
+        buyer: <ExchangeStatus>{
+            balance: <Balance>{},
         },
+        seller: {
+            balance: <Balance>{},
+        }
     },
-    executeData: {}
+    executeData: {},
+    states: [],
 };
 
 export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incomingAction: Action) => {
@@ -185,6 +237,18 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 ...state,
                 eurAmount: action.eurAmount,
             };
+        case 'CHANGE_ARBITRAGER_STATE':
+            let newState = {
+                ...state,
+                states: [action.data, ...state.states],
+            };
+
+            // Update info too as it is received from websocket
+            if (action.data.stateName == "CalculateFinalResult") {
+                newState.infoData = action.data.info;
+            }
+
+            return newState;
         default:
             // The following line guarantees that every action in the KnownAction union has been covered by a case above
             const exhaustiveCheck: never = action;

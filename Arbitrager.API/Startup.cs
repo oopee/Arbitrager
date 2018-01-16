@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Arbitrager.API.Hubs;
 using Common;
 using Gdax;
 using Interface;
@@ -27,6 +28,7 @@ namespace Arbitrager.API
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+            services.AddSignalR();
 
             var logger = new ConsoleLogger();
             Logger.StaticLogger = logger;
@@ -77,7 +79,7 @@ namespace Arbitrager.API
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IArbitrager arbitrager)
         {
             if (env.IsDevelopment())
             {
@@ -94,6 +96,7 @@ namespace Arbitrager.API
             }
 
             app.UseStaticFiles();
+            app.UseSignalR(conf => conf.MapHub<ArbitragerHub>("signalr.arbitrager"));
 
             app.UseMvc(routes =>
             {
@@ -105,6 +108,9 @@ namespace Arbitrager.API
                     name: "spa-fallback",
                     defaults: new { controller = "Home", action = "Index" });
             });
+
+            // Setup event handlers
+            arbitrager.StateChanged += Controllers.ArbitrageController.ArbitragerStateChanged;
         }
     }
 }

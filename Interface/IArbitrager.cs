@@ -14,6 +14,8 @@ namespace Interface
         IProfitCalculator ProfitCalculator { get; }
         Task<ArbitrageContext> Arbitrage(ArbitrageContext ctx);
         Task<ArbitrageInfo> GetInfoForArbitrage(PriceValue maxFiatToSpend, BalanceOption fiatOptions, PriceValue maxEthToSpend, BalanceOption ethOptions);
+
+        event EventHandler<ArbitrageContext> StateChanged;
     }
 
     public enum BalanceOption
