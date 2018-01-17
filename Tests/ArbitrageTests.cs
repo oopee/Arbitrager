@@ -17,7 +17,7 @@ namespace Tests
         public async Task Arbitrage_TestFull()
         {
             var arbitrager = GetTestArbitrager(2000, 3);
-            var ctx = await arbitrager.Arbitrage(ArbitrageContext.Start(PriceValue.FromEUR(1000)));
+            var ctx = await arbitrager.Arbitrage(ArbitrageContext.Start(AssetPair.EthEur, 1000m));
 
             // TODO: Assert values after rounding has been implemented
             var buy = ctx.BuyOrder;
@@ -29,8 +29,8 @@ namespace Tests
         TestArbitrager GetTestArbitrager(decimal eurBalance, decimal ethBalance)
         {
             var arbitrager = new TestArbitrager(DataAccess, Logger);
-            arbitrager.Buyer.BalanceEur = PriceValue.FromEUR(eurBalance);
-            arbitrager.Seller.BalanceEth = PriceValue.FromETH(ethBalance);
+            arbitrager.Buyer.BalanceQuote = PriceValue.FromEUR(eurBalance);
+            arbitrager.Seller.BalanceBase = PriceValue.FromETH(ethBalance);
             return arbitrager;
         }
     }
@@ -42,6 +42,7 @@ namespace Tests
 
         public TestArbitrager(IDatabaseAccess dataAccess, ILogger logger) 
             : base(
+                  AssetPair.EthEur,
                   new IExchange[]
                   {
                     new Kraken.FakeKrakenExchange(logger),

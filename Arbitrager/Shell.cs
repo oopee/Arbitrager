@@ -17,12 +17,14 @@ namespace Arbitrager
         IArbitrager m_arbitrager;
         ILogger m_logger;
         IDatabaseAccess m_dataAccess;
+        AssetPair m_assetPair;
 
-        public Shell(IArbitrager arbitrager, IDatabaseAccess dataAccess, ILogger logger)
+        public Shell(AssetPair assetPair, IArbitrager arbitrager, IDatabaseAccess dataAccess, ILogger logger)
         {
             m_arbitrager = arbitrager;
             m_logger = logger;
             m_dataAccess = dataAccess;
+            m_assetPair = assetPair;
         }
 
         public async Task Run()
@@ -61,7 +63,7 @@ namespace Arbitrager
                             cashLimit = parsedCashLimit;
                         }
 
-                        await ShowStatus(PriceValue.FromEUR(cashLimit));
+                        await ShowStatus(cashLimit == null ? null : (PriceValue?)new PriceValue(cashLimit.Value, m_assetPair.Quote));
 
                         break;
                     case "accounts":
@@ -103,17 +105,17 @@ namespace Arbitrager
             }
         }
 
-        private async Task DoArbitrage(string verb, decimal? eur)
+        private async Task DoArbitrage(string verb, decimal? quoteCurrency)
         {
             if (verb == "info")
             {
-                BalanceOption fiatOption = eur == null ? BalanceOption.CapToBalance : BalanceOption.IgnoreBalance;
-                var info = await m_arbitrager.GetInfoForArbitrage(PriceValue.FromEUR(eur ?? decimal.MaxValue), fiatOption, PriceValue.FromETH(decimal.MaxValue), BalanceOption.IgnoreBalance);
+                BalanceOption baseCurrencyOption = quoteCurrency == null ? BalanceOption.CapToBalance : BalanceOption.IgnoreBalance;
+                var info = await m_arbitrager.GetInfoForArbitrage(new PriceValue(quoteCurrency ?? decimal.MaxValue, m_assetPair.Quote), baseCurrencyOption, new PriceValue(decimal.MaxValue, m_assetPair.Base), BalanceOption.IgnoreBalance);
                 Console.WriteLine(info.ToString());
             }
             else if (verb == "do")
             {
-                await m_arbitrager.Arbitrage(ArbitrageContext.Start(PriceValue.FromEUR(eur)));
+                await m_arbitrager.Arbitrage(ArbitrageContext.Start(m_assetPair, quoteCurrency));
             }
         }
 
@@ -203,12 +205,10 @@ namespace Arbitrager
         private void ShowHelp()
         {
             Console.WriteLine("COMMANDS");
-            Console.WriteLine("\tstatus [cash limit]");
+            Console.WriteLine("\tstatus [quoteCurrency limit]");
             Console.WriteLine("\taccounts");
-            // Console.WriteLine("\tbuy market (eur amount)");
-            // Console.WriteLine("\tsell market (eth amount)");
-            Console.WriteLine("\tarbitrage info [eur amount]");
-            Console.WriteLine("\tarbitrage do (eur amount OR \"max\")");
+            Console.WriteLine("\tarbitrage info [quoteCurrency amount]");
+            Console.WriteLine("\tarbitrage do (quoteCurrency amount OR \"max\")");
             Console.WriteLine("\texit");
         }
     }    

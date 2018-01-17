@@ -47,7 +47,7 @@ namespace Arbitrager.API.Controllers
         [Route("execute")]
         public async Task<Models.ArbitrageContext> GetExecute(decimal? amount = null)
         {
-            var ctx = await m_arbitrager.Arbitrage(ArbitrageContext.Start(PriceValue.FromEUR(amount)));
+            var ctx = await m_arbitrager.Arbitrage(ArbitrageContext.Start(new AssetPair(Asset.ETH, Asset.EUR), amount));
             return Models.ArbitrageContext.From(ctx);
         }
 

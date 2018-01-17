@@ -14,7 +14,7 @@ namespace Common
         ILogger m_logger;
         IDatabaseAccess m_dataAccess;
 
-        public decimal ChunkEur { get; set; } = 2000m;
+        public decimal ChunkQuoteCurrency { get; set; } = 2000m;
 
         public List<IExchange> Exchanges { get; set; } = new List<IExchange>();
         IEnumerable<IExchange> IArbitrager.Exchanges => Exchanges;
@@ -27,15 +27,18 @@ namespace Common
         public static int MaxSellRetries => 10;
         public static TimeSpan MaxSellTotalTime => TimeSpan.FromSeconds(30);
 
+        public AssetPair AssetPairToUse { get; private set; }
 
         public event EventHandler<ArbitrageContext> StateChanged;
 
         public DefaultArbitrager(
+            AssetPair assetPair,
             IEnumerable<IExchange> exhanges,
             IProfitCalculator profitCalculator,
             IDatabaseAccess dataAccess,
             ILogger logger)
         {
+            AssetPairToUse = assetPair;
             Exchanges = exhanges.ToList();
             m_profitCalculator = profitCalculator;
             m_logger = logger.WithName(GetType().Name);
@@ -71,7 +74,7 @@ namespace Common
         {
             m_logger.Debug("GetAccountInfo()");
             m_logger.Debug("Calling GetCurrentBalance({0})", exchange?.Name);
-            var balance = await exchange.GetCurrentBalance();
+            var balance = await exchange.GetCurrentBalance(AssetPairToUse);
 
             m_logger.Debug("Calling GetPaymentMethods({0})", exchange?.Name);
             var methods = await exchange.GetPaymentMethods();
@@ -94,11 +97,11 @@ namespace Common
                 if (includeBalance)
                 {
                     m_logger.Debug("Calling GetCurrentBalance({0})", exchange.Name);
-                    balance = await exchange.GetCurrentBalance();
+                    balance = await exchange.GetCurrentBalance(AssetPairToUse);
                 }
 
                 m_logger.Debug("Calling GetOrderBook({0})", exchange.Name);
-                var orderBook = await exchange.GetOrderBook();
+                var orderBook = await exchange.GetOrderBook(AssetPairToUse);
                 return new ExchangeStatus()
                 {
                     Balance = balance,
@@ -204,36 +207,36 @@ namespace Common
 
             // Calculate arbitrage info
             var info = await GetInfoForArbitrage(
-                maxFiatToSpend: ctx.SpendWholeBalance ? PriceValue.FromEUR(decimal.MaxValue) : ctx.UserFiatToSpend,
-                fiatOptions: BalanceOption.CapToBalance,
-                maxEthToSpend: PriceValue.FromETH(decimal.MaxValue),
-                ethOptions: BalanceOption.CapToBalance);
+                maxQuoteCurrencyToSpend: ctx.SpendWholeBalance ? new PriceValue(decimal.MaxValue, ctx.AssetPair.Quote) : ctx.UserDefinedQuoteCurrencyToSpend,
+                quoteCurrencyOptions: BalanceOption.CapToBalance,
+                maxBaseCurrencyToSpend: new PriceValue(decimal.MaxValue, ctx.AssetPair.Base),
+                baseCurrencyOptions: BalanceOption.CapToBalance);
 
-            if (!ctx.SpendWholeBalance && ctx.UserFiatToSpend > info.EurBalance)
+            if (!ctx.SpendWholeBalance && ctx.UserDefinedQuoteCurrencyToSpend > info.BaseCurrencyBalance)
             {
-                // Explicit EUR amount was specified but it is more than we have at exchange B -> abort
-                if (ctx.AbortIfFiatToSpendIsMoreThanBalance)
+                // Explicit quote currency amount was specified but it is more than we have at exchange B -> abort
+                if (ctx.AbortIfQuoteCurrencyToSpendIsMoreThanBalance)
                 {
-                    // NOTE: we could simply ignore this check and go on. In that case if user specified too large EUR amount his whole balance would be used.
+                    // NOTE: we could simply ignore this check and go on. In that case if user specified too large quote currency amount his whole balance would be used.
                     //       As we don't want to guess if the user did this on purpose or if it was a typo, it is better to abort and let the user try again
                     ctx.Error = ArbitrageError.InvalidBalance;
                     return;
                 }
                 else
                 {
-                    ctx.UserFiatToSpend = info.EurBalance;
+                    ctx.UserDefinedQuoteCurrencyToSpend = info.BaseCurrencyBalance;
                 }
             }
 
-            if (!info.IsEurBalanceSufficient || !info.IsEthBalanceSufficient)
+            if (!info.IsBaseCurrencyBalanceSufficient || !info.IsQuoteCurrencyBalanceSufficient)
             {
-                // We don't have enough EUR or ETH
+                // We don't have enough QUOTE or BASE
                 ctx.Error = ArbitrageError.InvalidBalance;
             }
 
             ctx.Info = info;
-            ctx.BuyOrder_LimitPriceToUse = ctx.Info.BuyLimitPricePerUnit;
-            ctx.BuyOrder_EthAmountToBuy = ctx.Info.MaxEthAmountToArbitrage;
+            ctx.BuyOrder_QuoteCurrencyLimitPriceToUse = ctx.Info.BuyLimitPricePerUnit;
+            ctx.BuyOrder_BaseCurrencyAmountToBuy = ctx.Info.MaxBaseCurrencyAmountToArbitrage;
             ctx.Buyer = info.Buyer.Exchange;
             ctx.Seller = info.Seller.Exchange;
         }
@@ -248,22 +251,22 @@ namespace Common
                 throw new InvalidOperationException(string.Format("DoArbitrage_PlaceBuyOrder: BuyOrderId already set! ({0})", ctx.BuyOrderId));
             }
 
-            if (ctx.BuyOrder_LimitPriceToUse == null)
+            if (ctx.BuyOrder_QuoteCurrencyLimitPriceToUse == null)
             {
-                throw new InvalidOperationException("DoArbitrage_PlaceBuyOrder: BuyOrder_LimitPriceToUse is null");
+                throw new InvalidOperationException("DoArbitrage_PlaceBuyOrder: BuyOrder_QuoteCurrencyLimitPriceToUse is null");
             }
 
-            if (ctx.BuyOrder_EthAmountToBuy == null)
+            if (ctx.BuyOrder_BaseCurrencyAmountToBuy == null)
             {
-                throw new InvalidOperationException("DoArbitrage_PlaceBuyOrder: BuyOrder_EthAmountToBuy is null");
+                throw new InvalidOperationException("DoArbitrage_PlaceBuyOrder: BuyOrder_BaseCurrencyAmountToBuy is null");
             }
 
             // Place order
-            var buyLimitPricePerUnit = ctx.BuyOrder_LimitPriceToUse.Value;
-            var maxEthToBuy = ctx.BuyOrder_EthAmountToBuy.Value;
+            var buyQuoteCurrencyLimitPricePerUnit = ctx.BuyOrder_QuoteCurrencyLimitPriceToUse.Value;
+            var maxBaseCurrencyToBuy = ctx.BuyOrder_BaseCurrencyAmountToBuy.Value;
 
-            logger.Debug("Placing buy order (limit: {0} EUR, volume: {1} ETH)", buyLimitPricePerUnit, maxEthToBuy);
-            var buyOrderId = await TryPlaceBuyOrder(ctx.Buyer, buyLimitPricePerUnit, maxEthToBuy, logger);
+            logger.Debug("Placing buy order (limit: {0}, volume: {1})", buyQuoteCurrencyLimitPricePerUnit.ToStringWithAsset(), maxBaseCurrencyToBuy.ToStringWithAsset());
+            var buyOrderId = await TryPlaceBuyOrder(ctx.Buyer, buyQuoteCurrencyLimitPricePerUnit, maxBaseCurrencyToBuy, logger);
 
             // Handle result
             if (buyOrderId == null)
@@ -278,7 +281,7 @@ namespace Common
             }            
         }
 
-        protected async Task<OrderId?> TryPlaceBuyOrder(IExchange buyer, PriceValue buyLimitPricePerUnit, PriceValue maxEthToBuy, ILogger logger)
+        protected async Task<OrderId?> TryPlaceBuyOrder(IExchange buyer, PriceValue buyQuoteCurrencyLimitPricePerUnit, PriceValue maxBaseCurrencyToBuy, ILogger logger)
         {
             var sw = new System.Diagnostics.Stopwatch();
             sw.Start();
@@ -289,9 +292,9 @@ namespace Common
                 var startTime = TimeService.UtcNow;
                 try
                 {
-                    var priceLimit = buyLimitPricePerUnit.Round(RoundingStrategy.AlwaysRoundUp); // TODO: is rounding up dangerous? Is there a situation where we are paying too much and we end up losing money?
-                    var ethToBuy = maxEthToBuy.Round(decimalPlaces: 5);
-                    var buyOrder = await buyer.PlaceImmediateBuyOrder(priceLimit, ethToBuy);
+                    var priceLimit = buyQuoteCurrencyLimitPricePerUnit.Round(RoundingStrategy.AlwaysRoundUp); // TODO: is rounding up dangerous? Is there a situation where we are paying too much and we end up losing money?
+                    var baseCurrencyToBuy = maxBaseCurrencyToBuy.Round(decimalPlaces: 5);
+                    var buyOrder = await buyer.PlaceImmediateBuyOrder(AssetPairToUse, priceLimit, baseCurrencyToBuy);
                     return buyOrder.Id;
                 }
                 catch (Exception e)
@@ -308,7 +311,7 @@ namespace Common
                         await Task.Delay(2000);
                         logger.Error("\t\tget closed orders...");
                         var closedOrders = await buyer.GetClosedOrders(new GetOrderArgs() { StartUtc = startTime });
-                        var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxEthToBuy) && x.OpenTime >= startTime).FirstOrDefault();
+                        var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxBaseCurrencyToBuy) && x.OpenTime >= startTime).FirstOrDefault();
                         if (order != null)
                         {
                             logger.Error("\t\tfound recently closed order with same volume! Volume: {0}, CreatedTime: {1}, State: {2}, Id: {3}", order.Volume, order.OpenTime, order.State, order.Id);
@@ -325,7 +328,7 @@ namespace Common
             return null;
         }
 
-        protected async Task<OrderId?> TryPlaceSellOrder(IExchange seller, PriceValue sellLimitPricePerUnit, PriceValue maxEthToBuy, ILogger logger)
+        protected async Task<OrderId?> TryPlaceSellOrder(IExchange seller, PriceValue sellQuoteLimitPricePerUnit, PriceValue maxBaseCurrencyToBuy, ILogger logger)
         {
             var sw = new System.Diagnostics.Stopwatch();
             sw.Start();
@@ -336,9 +339,9 @@ namespace Common
                 var startTime = TimeService.UtcNow;
                 try
                 {
-                    var priceLimit = sellLimitPricePerUnit.Round();
-                    var ethToBuy = maxEthToBuy.Round(decimalPlaces: 5);
-                    var sellOrder = await seller.PlaceImmediateSellOrder(priceLimit, ethToBuy);
+                    var priceLimit = sellQuoteLimitPricePerUnit.Round();
+                    var baseCurrencyToBuy = maxBaseCurrencyToBuy.Round(decimalPlaces: 5);
+                    var sellOrder = await seller.PlaceImmediateSellOrder(AssetPairToUse, priceLimit, baseCurrencyToBuy);
                     return sellOrder.Id;
                 }
                 catch (Exception e)
@@ -355,7 +358,7 @@ namespace Common
                         await Task.Delay(2000);
                         logger.Error("\t\tget closed orders...");
                         var closedOrders = await seller.GetClosedOrders(new GetOrderArgs() { StartUtc = startTime });
-                        var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxEthToBuy) && x.OpenTime >= startTime).FirstOrDefault();
+                        var order = closedOrders.Where(x => FuzzyCompare(x.Volume, maxBaseCurrencyToBuy) && x.OpenTime >= startTime).FirstOrDefault();
                         if (order != null)
                         {
                             logger.Error("\t\tfound recently closed order with same volume! Volume: {0}, CreatedTime: {1}, State: {2}, Id: {3}", order.Volume, order.OpenTime, order.State, order.Id);
@@ -389,8 +392,8 @@ namespace Common
             logger.Debug("Getting buy order info (orderId: {0})", ctx.BuyOrderId);
             var buyOrderInfo = await ctx.Buyer.GetOrderInfo(ctx.BuyOrderId.Value);
             ctx.BuyOrder = buyOrderInfo;
-            ctx.BuyEthAmount = buyOrderInfo.FilledVolume;
-            logger.Debug("\tgot buy order info (filledVolume: {0}, cost: {1}, state: {2})", ctx.BuyEthAmount, buyOrderInfo.CostIncludingFee, buyOrderInfo.State);
+            ctx.BuyBaseCurrencyAmount = buyOrderInfo.FilledVolume;
+            logger.Debug("\tgot buy order info (filledVolume: {0}, cost: {1}, state: {2})", ctx.BuyBaseCurrencyAmount, buyOrderInfo.CostIncludingFee, buyOrderInfo.State);
 
             if (buyOrderInfo.State == OrderState.Open)
             {
@@ -398,10 +401,10 @@ namespace Common
                 logger.Error("\tbuy order is still OPEN!");
             }
 
-            if (ctx.BuyEthAmount <= 0m)
+            if (ctx.BuyBaseCurrencyAmount <= 0m)
             {
-                // we couldn't by any eth -> abort
-                ctx.Error = ArbitrageError.ZeroEthBought;
+                // we couldn't by any base currency -> abort
+                ctx.Error = ArbitrageError.ZeroBaseCurrencyBought;
             }
 
             await m_dataAccess.StoreTransaction(buyOrderInfo);
@@ -411,16 +414,16 @@ namespace Common
         {
             var logger = ctx.Logger.WithName(GetType().Name, "DoArbitrage_PlaceSellOrder");
 
-            if (ctx.BuyEthAmount == null || ctx.BuyEthAmount <= 0m)
+            if (ctx.BuyBaseCurrencyAmount == null || ctx.BuyBaseCurrencyAmount <= 0m)
             {
-                throw new InvalidOperationException("DoArbitrage_PlaceSellOrder: BuyEthAmount has not been set!");
+                throw new InvalidOperationException("DoArbitrage_PlaceSellOrder: BuyBaseCurrencyAmount has not been set!");
             }
 
-            var ethToSell = ctx.BuyEthAmount.Value.Round(decimalPlaces: 5);
+            var baseCurrencyToSell = ctx.BuyBaseCurrencyAmount.Value.Round(decimalPlaces: 5);
             var sellLimitPrice = (ctx.Info.EstimatedAvgBuyUnitPrice * 0.9m).Round();
 
-            logger.Debug("Placing sell order (volume: {0} ETH, sell limit price: {1} EUR)", ethToSell, sellLimitPrice);
-            var sellOrderId = await TryPlaceSellOrder(ctx.Seller, sellLimitPrice, ethToSell, logger);
+            logger.Debug("Placing sell order (volume: {0}, sell limit price: {1})", baseCurrencyToSell.ToStringWithAsset(), sellLimitPrice.ToStringWithAsset());
+            var sellOrderId = await TryPlaceSellOrder(ctx.Seller, sellLimitPrice, baseCurrencyToSell, logger);
 
             // Handle result
             if (sellOrderId == null)
@@ -466,39 +469,39 @@ namespace Common
                 throw new InvalidOperationException("DoArbitrage_CalculateFinalResult: BuyOrder has not been set!");
             }
 
-            var buyerBalanceTask = ctx.Buyer.GetCurrentBalance();
-            var sellerBalanceTask = ctx.Seller.GetCurrentBalance();
+            var buyerBalanceTask = ctx.Buyer.GetCurrentBalance(AssetPairToUse);
+            var sellerBalanceTask = ctx.Seller.GetCurrentBalance(AssetPairToUse);
 
             await buyerBalanceTask;
             await sellerBalanceTask;
 
             ctx.FinishedResult = new ArbitrageContext.FinishedResultData()
             {
-                EthBought = ctx.BuyOrder.FilledVolume,
-                EthSold = ctx.SellOrder.FilledVolume,
-                FiatSpent = ctx.BuyOrder.CostIncludingFee,
-                FiatEarned = ctx.SellOrder.CostIncludingFee,
+                BaseCurrencyBought = ctx.BuyOrder.FilledVolume,
+                BaseCurrencySold = ctx.SellOrder.FilledVolume,
+                QuoteCurrencySpent = ctx.BuyOrder.CostIncludingFee,
+                QuoteCurrencyEarned = ctx.SellOrder.CostIncludingFee,
                 BuyerBalance = buyerBalanceTask.Result,
                 SellerBalance = sellerBalanceTask.Result
             };
 
             // Calculate arbitrage info with updated balances etc
             var info = await GetInfoForArbitrage(
-                maxFiatToSpend: ctx.SpendWholeBalance ? PriceValue.FromEUR(decimal.MaxValue) : ctx.UserFiatToSpend,
-                fiatOptions: BalanceOption.CapToBalance,
-                maxEthToSpend: PriceValue.FromETH(decimal.MaxValue),
-                ethOptions: BalanceOption.CapToBalance);
+                maxQuoteCurrencyToSpend: ctx.SpendWholeBalance ? new PriceValue(decimal.MaxValue, ctx.AssetPair.Quote) : ctx.UserDefinedQuoteCurrencyToSpend,
+                quoteCurrencyOptions: BalanceOption.CapToBalance,
+                maxBaseCurrencyToSpend: new PriceValue(decimal.MaxValue, ctx.AssetPair.Base),
+                baseCurrencyOptions: BalanceOption.CapToBalance);
             ctx.Info = info;
 
             m_logger.Debug("\tfinal result: {0}", ctx.FinishedResult);
-            if (ctx.FinishedResult.EthDelta != 0)
+            if (ctx.FinishedResult.BaseCurrencyDelta != 0)
             {
-                m_logger.Debug("\tWARNING! All ETH could not be sold! Remaining eth: {0} ETH", ctx.FinishedResult.EthDelta);
+                m_logger.Debug("\tWARNING! All {0} could not be sold! Remaining: {1}", ctx.FinishedResult.BaseCurrencyDelta.Asset, ctx.FinishedResult.BaseCurrencyDelta.ToStringWithAsset());
             }
 
-            if (ctx.FinishedResult.FiatDelta < 0)
+            if (ctx.FinishedResult.QuoteCurrencyDelta < 0)
             {
-                m_logger.Debug("\tWARNING! Negative profit: {0} EUR", ctx.FinishedResult.FiatDelta);
+                m_logger.Debug("\tWARNING! Negative profit: {0}", ctx.FinishedResult.QuoteCurrencyDelta.ToStringWithAsset());
             }
         }
 
@@ -513,34 +516,40 @@ namespace Common
             return Task.CompletedTask;
         }
 
-        public async Task<ArbitrageInfo> GetInfoForArbitrage(PriceValue maxFiatToSpend, BalanceOption fiatOptions, PriceValue maxEthToSpend, BalanceOption ethOptions)
+        public async Task<ArbitrageInfo> GetInfoForArbitrage(PriceValue maxQuoteCurrencyToSpend, BalanceOption quoteCurrencyOptions, PriceValue maxBaseCurrencyToSpend, BalanceOption baseCurrencyOptions)
         {
             // Get current prices, balances etc
             var status = await GetStatus(true);
 
-            var r1 = GetInfoForArbitrage(status.Exchanges[0], status.Exchanges[1], maxFiatToSpend, fiatOptions, maxEthToSpend, ethOptions);
-            var r2 = GetInfoForArbitrage(status.Exchanges[1], status.Exchanges[0], maxFiatToSpend, fiatOptions, maxEthToSpend, ethOptions);
+            var r1 = GetInfoForArbitrage(status.Exchanges[0], status.Exchanges[1], maxQuoteCurrencyToSpend, quoteCurrencyOptions, maxBaseCurrencyToSpend, baseCurrencyOptions);
+            var r2 = GetInfoForArbitrage(status.Exchanges[1], status.Exchanges[0], maxQuoteCurrencyToSpend, quoteCurrencyOptions, maxBaseCurrencyToSpend, baseCurrencyOptions);
 
             return r1.MaxProfitPercentage > r2.MaxProfitPercentage ? r1 : r2;
         }
 
-        public ArbitrageInfo GetInfoForArbitrage(ExchangeStatus buyer, ExchangeStatus seller, PriceValue maxFiatToSpend, BalanceOption fiatOptions, PriceValue maxEthToSpend, BalanceOption ethOptions)
+        public ArbitrageInfo GetInfoForArbitrage(ExchangeStatus buyer, ExchangeStatus seller, PriceValue maxQuoteCurrencyToSpend, BalanceOption quoteCurrencyOptions, PriceValue maxBaseCurrencyToSpend, BalanceOption baseCurrencyOptions)
         {
-            if (fiatOptions == BalanceOption.CapToBalance)
+            if (buyer.OrderBook.AssetPair != seller.OrderBook.AssetPair)
             {
-                maxFiatToSpend = PriceValue.Min(maxFiatToSpend, buyer.Balance.Eur);
+                throw new InvalidOperationException(string.Format("AssetPair mismatch in OrderBooks ({0}, {1})", buyer.OrderBook.AssetPair, seller.OrderBook.AssetPair));
             }
 
-            if (ethOptions == BalanceOption.CapToBalance)
+            if (quoteCurrencyOptions == BalanceOption.CapToBalance)
             {
-                maxEthToSpend = PriceValue.Min(maxEthToSpend, seller.Balance.Eth);
+                maxQuoteCurrencyToSpend = PriceValue.Min(maxQuoteCurrencyToSpend, buyer.Balance.QuoteCurrency);
+            }
+
+            if (baseCurrencyOptions == BalanceOption.CapToBalance)
+            {
+                maxBaseCurrencyToSpend = PriceValue.Min(maxBaseCurrencyToSpend, seller.Balance.BaseCurrency);
             }
 
             // Calculate estimated profit based on prices/balances/etc
-            var calc = m_profitCalculator.CalculateProfit(buyer, seller, maxFiatToSpend, maxEthToSpend);
+            var calc = m_profitCalculator.CalculateProfit(buyer, seller, maxQuoteCurrencyToSpend, maxBaseCurrencyToSpend);
 
             ArbitrageInfo info = new ArbitrageInfo()
             {
+                AssetPair = buyer.OrderBook.AssetPair,
                 Buyer = buyer,
                 Seller = seller,
                 ProfitCalculation = calc,

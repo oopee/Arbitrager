@@ -8,9 +8,10 @@ namespace Interface
 {
     public class BalanceResult
     {
+        public AssetPair AssetPair { get; set; }
         public Dictionary<string, decimal> All { get; set; }
-        public PriceValue Eth { get; set; }
-        public PriceValue Eur { get; set; }
+        public PriceValue BaseCurrency { get; set; }
+        public PriceValue QuoteCurrency { get; set; }
     }
 
     public class MinimalOrder
@@ -50,6 +51,16 @@ namespace Interface
     public class FullOrder
     {
         /// <summary>
+        /// Base asset/currency. The base currency represents how much of the quote currency is needed for you to get one unit of the base currency.
+        /// </summary>
+        public Asset BaseAsset { get; set; }
+
+        /// <summary>
+        /// Quote asset/currency. See base currency.
+        /// </summary>
+        public Asset QuoteAsset { get; set; }
+
+        /// <summary>
         /// Unique identifier
         /// </summary>
         public OrderId Id { get; set; }
@@ -81,7 +92,7 @@ namespace Interface
         public PriceValue FilledVolume { get; set; }
 
         /// <summary>
-        /// The limit price used in this order. This is applicable only if order type is 'Limit'.
+        /// The limit price (in QUOTE currency) used in this order. This is applicable only if order type is 'Limit'.
         /// </summary>
         public PriceValue? LimitPrice { get; set; }
 
@@ -130,9 +141,9 @@ namespace Interface
                 case OrderType.Unknown:
                 case OrderType.Market:
                 case OrderType.Other:
-                    return string.Format("{0} {1} ({2}), {6} {3}€ for {4} ETH (avg. unit price {5}€).", State, Side, Id, CostIncludingFee, FilledVolume, AverageUnitPrice, Type.ToString().ToUpper());
+                    return string.Format("{0} {1} ({2}), {6} {3} for {4} (avg. unit price {5}).", State, Side, Id, CostIncludingFee.ToStringWithAsset(), FilledVolume.ToStringWithAsset(), AverageUnitPrice.ToStringWithAsset(), Type.ToString().ToUpper());
                 case OrderType.Limit:
-                    return string.Format("{0} {1} ({2}), LIMIT {3}€ x {4} (= {5}€). Filled: {6}€ for {7} ETH (avg. unit price {8}€)", State, Side, Id, LimitPrice, Volume, LimitPrice * Volume.Value, CostIncludingFee, FilledVolume, AverageUnitPrice);
+                    return string.Format("{0} {1} ({2}), LIMIT {3} x {4} (= {5}). Filled: {6} for {7} (avg. unit price {8})", State, Side, Id, LimitPrice?.ToStringWithAsset(), Volume, (LimitPrice * Volume.Value)?.ToStringWithAsset(), CostIncludingFee.ToStringWithAsset(), FilledVolume.ToStringWithAsset(), AverageUnitPrice.ToStringWithAsset());
             }            
         }
     }

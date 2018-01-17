@@ -14,8 +14,8 @@ namespace Arbitrager
 {
     public class ConsoleArbitrager : Common.DefaultArbitrager
     {
-        public ConsoleArbitrager(IExchange buyer, IExchange seller, IProfitCalculator profitCalculator, IDatabaseAccess dataAccess, ILogger logger)
-            : base(new[] { buyer, seller }, profitCalculator, dataAccess, logger)
+        public ConsoleArbitrager(AssetPair assetPair, IExchange buyer, IExchange seller, IProfitCalculator profitCalculator, IDatabaseAccess dataAccess, ILogger logger)
+            : base(assetPair, new[] { buyer, seller }, profitCalculator, dataAccess, logger)
         {
         }
 

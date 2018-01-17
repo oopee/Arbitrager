@@ -8,42 +8,45 @@ namespace Common
 {
     public class DefaultProfitCalculator : Interface.IProfitCalculator
     {
-        public ProfitCalculation CalculateProfit(ExchangeStatus buyer, ExchangeStatus seller, PriceValue fiatLimit, PriceValue? ethLimit = null)
+        public ProfitCalculation CalculateProfit(ExchangeStatus buyer, ExchangeStatus seller, PriceValue quoteCurrencyLimit, PriceValue? baseCurrencyLimit = null)
         {
+            var baseAsset = seller.OrderBook.AssetPair.Base;
+            var quoteAsset = seller.OrderBook.AssetPair.Quote;
+
             // First check how much ETH can we buy for the cash limit.
             // We have to calculate this first in case the bids we have (top 1 or top 50)
             // do not cover the whole amount we are willing to buy from other exchange
-            PriceValue ethTotalBids = seller.OrderBook.Bids.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum().ToETH(); // TODO pricevalue
+            PriceValue baseCurrencyTotalBids = new PriceValue(seller.OrderBook.Bids.Select(x => x.VolumeUnits.Value).DefaultIfEmpty().Sum(), seller.OrderBook.AssetPair.Base);
 
             // Cap max amount of ETH to buy (if requested)
-            if (ethLimit != null)
+            if (baseCurrencyLimit != null)
             {                
-                ethTotalBids = PriceValue.Min(ethLimit.Value, ethTotalBids);
+                baseCurrencyTotalBids = PriceValue.Min(baseCurrencyLimit.Value, baseCurrencyTotalBids);
             }
 
             // Use all money until cash limit or available eth count is reached,
             // starting from the best ask
-            PriceValue ethCount = PriceValue.FromETH(0);
-            PriceValue fiatSpent = PriceValue.FromEUR(0);
-            PriceValue buyLimitPrice = default(PriceValue);
-            PriceValue buyFee = PriceValue.FromEUR(0);
+            PriceValue baseCurrencyCount = new PriceValue(0, baseAsset);
+            PriceValue quoteCurrencySpent = new PriceValue(0, quoteAsset);
+            PriceValue buyLimitPrice = new PriceValue(0, quoteAsset);
+            PriceValue buyFee = new PriceValue(0, quoteAsset);
             int askNro = 0;
-            while (fiatSpent < fiatLimit && ethCount < ethTotalBids && buyer.OrderBook.Asks.Count > askNro)
+            while (quoteCurrencySpent < quoteCurrencyLimit && baseCurrencyCount < baseCurrencyTotalBids && buyer.OrderBook.Asks.Count > askNro)
             {
                 var orders = buyer.OrderBook.Asks[askNro];
 
-                var maxVolume = Math.Min((ethTotalBids - ethCount).Value, orders.VolumeUnits); // TODO pricevalue
-                var pricePerUnit = orders.PricePerUnit.ToEUR();
+                var maxVolume = PriceValue.Min(baseCurrencyTotalBids - baseCurrencyCount, orders.VolumeUnits);
+                var pricePerUnit = orders.PricePerUnit;
                 var buyPricePerUnitWithFee = pricePerUnit.AddPercentage(buyer.TakerFee);
-                var maxEursToUseAtThisPrice = buyPricePerUnitWithFee * maxVolume;
+                var maxQuoteCurrencyToUseAtThisPrice = buyPricePerUnitWithFee * maxVolume.Value;
 
-                var eursToUse = Math.Min(fiatLimit.Value - fiatSpent.Value, maxEursToUseAtThisPrice.Value).ToEUR();
+                var quoteCurrencyToUse = PriceValue.Min(quoteCurrencyLimit - quoteCurrencySpent, maxQuoteCurrencyToUseAtThisPrice);
 
-                var buyAmount = (eursToUse / buyPricePerUnitWithFee).Value;
-                var fee = (buyPricePerUnitWithFee - pricePerUnit) * buyAmount;
+                var buyAmount = new PriceValue((quoteCurrencyToUse / buyPricePerUnitWithFee).Value, baseAsset);
+                var fee = (buyPricePerUnitWithFee - pricePerUnit) * buyAmount.Value;
 
-                fiatSpent += eursToUse;
-                ethCount += buyAmount;
+                quoteCurrencySpent += quoteCurrencyToUse;
+                baseCurrencyCount += buyAmount;
                 buyLimitPrice = pricePerUnit; // we want to use last price as limit price
                 buyFee += fee;
 
@@ -51,82 +54,85 @@ namespace Common
             }
 
             // How much can this ETH be sold for at other exchange
-            PriceValue ethLeftToSell = ethCount;
-            PriceValue ethSold = PriceValue.FromETH(0m);
+            PriceValue baseCurrencyLeftToSell = baseCurrencyCount;
+            PriceValue baseCurrencySold = new PriceValue(0m, baseAsset);
             int bidNro = 0;
-            PriceValue moneyEarned = PriceValue.FromEUR(0);
-            PriceValue sellFee = PriceValue.FromEUR(0);
-            while (ethLeftToSell > 0 && seller.OrderBook.Bids.Count > bidNro)
+            PriceValue moneyEarned = new PriceValue(0m, quoteAsset);
+            PriceValue sellFee = new PriceValue(0m, quoteAsset);
+            while (baseCurrencyLeftToSell > 0 && seller.OrderBook.Bids.Count > bidNro)
             {
                 var orders = seller.OrderBook.Bids[bidNro];
-                var maxEthToSellAtThisPrice = orders.VolumeUnits.ToETH();
-                var ethToSell = Math.Min(ethLeftToSell.Value, maxEthToSellAtThisPrice.Value);
-                var pricePerUnit = orders.PricePerUnit.ToEUR();
+                var maxBaseCurrencyToSellAtThisPrice = orders.VolumeUnits;
+                var baseCurrencyToSell = PriceValue.Min(baseCurrencyLeftToSell, maxBaseCurrencyToSellAtThisPrice);
+                var pricePerUnit = orders.PricePerUnit;
                 var sellPricePerUnitWithFee = pricePerUnit.SubtractPercentage(seller.TakerFee);
-                var fee = (pricePerUnit - sellPricePerUnitWithFee) * ethToSell;
+                var fee = (pricePerUnit - sellPricePerUnitWithFee) * baseCurrencyToSell.Value;
 
-                moneyEarned += sellPricePerUnitWithFee * ethToSell;
-                ethLeftToSell -= ethToSell.ToETH();
-                ethSold += ethToSell.ToETH();
+                moneyEarned += sellPricePerUnitWithFee * baseCurrencyToSell.Value;
+                baseCurrencyLeftToSell -= baseCurrencyToSell;
+                baseCurrencySold += baseCurrencyToSell;
                 sellFee += fee;
 
                 ++bidNro;
             }
 
-            PriceValue profit = moneyEarned - fiatSpent;
+            PriceValue profit = moneyEarned - quoteCurrencySpent;
             PriceValue profitAfterTax = profit.SubtractPercentage(PercentageValue.FromPercentage(30));
 
             return new ProfitCalculation()
             {
-                FiatSpent = fiatSpent,
-                FiatEarned = moneyEarned,
-                EthBuyCount = ethCount,
-                EthSellCount = ethSold,
+                QuoteCurrencySpent = quoteCurrencySpent,
+                QuoteCurrencyEarned = moneyEarned,
+                BaseCurrencyBuyCount = baseCurrencyCount,
+                BaseCurrencySellCount = baseCurrencySold,
                 Profit = profit,
                 ProfitAfterTax = profitAfterTax,
-                AllFiatSpent = fiatSpent >= fiatLimit,
+                AllQuoteCurrencySpent = quoteCurrencySpent >= quoteCurrencyLimit,
                 BuyFee = buyFee,
                 SellFee = sellFee,
                 BuyLimitPricePerUnit = buyLimitPrice
             };
         }
 
-        public static IEnumerable<OrderBookOrder> GetFromOrderBook(IEnumerable<OrderBookOrder> orders, decimal? fiatLimit, decimal? ethLimit, decimal feePercentage = 0m)
+        public static IEnumerable<OrderBookOrder> GetFromOrderBook(AssetPair assetPair, IEnumerable<OrderBookOrder> orders, PriceValue? quoteCurrencyLimit, PriceValue? baseCurrencyLimit, decimal feePercentage = 0m)
         {
-            decimal ethCount = 0;
-            decimal fiatSpent = 0;
+            var baseAsset = assetPair.Base;
+            var quoteAsset = assetPair.Quote;
+
+            PriceValue baseCurrencyCount = new PriceValue(0, baseAsset);
+            PriceValue quoteCurrencySpent = new PriceValue(0, quoteAsset);
 
             foreach (var order in orders)
             {
-                if (fiatLimit != null && fiatSpent >= fiatLimit)
+                if (quoteCurrencyLimit != null && quoteCurrencySpent >= quoteCurrencyLimit)
                 {
                     yield break;
                 }
 
-                if (ethLimit != null && ethCount >= ethLimit)
+                if (baseCurrencyLimit != null && baseCurrencyCount >= baseCurrencyLimit)
                 {
                     yield break;
                 }
 
-                decimal maxVolume = ethLimit != null ? Math.Min(ethLimit.Value - ethCount, order.VolumeUnits) : order.VolumeUnits;
+                PriceValue maxVolume = baseCurrencyLimit != null ? PriceValue.Min(baseCurrencyLimit.Value - baseCurrencyCount, order.VolumeUnits) : order.VolumeUnits;
                 var buyPricePerUnitWithFee = order.PricePerUnit * (1m + feePercentage);
-                var maxEursToUseAtThisPrice = buyPricePerUnitWithFee * maxVolume;
+                var maxQuoteCurrencyToUseAtThisPrice = buyPricePerUnitWithFee * maxVolume.Value;
 
-                var eursToUse = fiatLimit != null ? Math.Min(fiatLimit.Value - fiatSpent, maxEursToUseAtThisPrice) : maxEursToUseAtThisPrice;
+                var quoteCurrencyToUse = quoteCurrencyLimit != null ? PriceValue.Min(quoteCurrencyLimit.Value - quoteCurrencySpent, maxQuoteCurrencyToUseAtThisPrice) : maxQuoteCurrencyToUseAtThisPrice;
 
-                decimal volume;
-                if (eursToUse == maxEursToUseAtThisPrice)
+                PriceValue volume;
+                if (quoteCurrencyToUse == maxQuoteCurrencyToUseAtThisPrice)
                 {
                     volume = maxVolume;
                 }
                 else
                 {
-                    volume = eursToUse / buyPricePerUnitWithFee;
+                    volume = new PriceValue((quoteCurrencyToUse / buyPricePerUnitWithFee).Value, baseAsset);
                 }
 
                 if (order.VolumeUnits != volume)
                 {
-                    ethCount += volume;
+                    baseCurrencyCount += volume;
                     yield return new OrderBookOrder()
                     {
                         PricePerUnit = order.PricePerUnit,
@@ -136,7 +142,7 @@ namespace Common
                 }
                 else
                 {
-                    ethCount += order.VolumeUnits;
+                    baseCurrencyCount += order.VolumeUnits;
                     yield return order;
                 }                
             }

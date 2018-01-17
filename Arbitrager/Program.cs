@@ -18,7 +18,8 @@ namespace Arbitrager
         {
             //
             var now = DateTime.Now;
-            var logger = new Common.ConsoleAndFileLogger(string.Format("arbitrager_{0}_{1}_{2}_{3}_{4}_{5}.log", now.Year, now.Month, now.Day, now.Hour, now.Minute, now.Second));
+            // var logger = new Common.ConsoleAndFileLogger(string.Format("arbitrager_{0}_{1}_{2}_{3}_{4}_{5}.log", now.Year, now.Month, now.Day, now.Hour, now.Minute, now.Second));
+            var logger = new Common.ConsoleLogger();
             Interface.Logger.StaticLogger = logger;
             //
 
@@ -30,15 +31,18 @@ namespace Arbitrager
             IExchange buyer;
             IExchange seller;
 
+            AssetPair assetPair = new AssetPair(Asset.ETH, Asset.EUR);
+            // AssetPair assetPair = new AssetPair(Asset.NEO, Asset.USDT);
+
             switch (configuration)
             {
                 case "fake":
-                    buyer = new FakeKrakenExchange(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(5m), BalanceEur = PriceValue.FromEUR(2000m) };
-                    seller = new FakeGdaxExchange(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(5m), BalanceEur = PriceValue.FromEUR(1000m) };
+                    buyer = new FakeKrakenExchange(Logger.StaticLogger) { BalanceBase = new PriceValue(5m, assetPair.Base), BalanceQuote = new PriceValue(2000m, assetPair.Quote) };
+                    seller = new FakeGdaxExchange(Logger.StaticLogger) { BalanceBase = new PriceValue(5m, assetPair.Base), BalanceQuote = new PriceValue(1000m, assetPair.Quote) };
                     break;
                 case "simulated":
-                    buyer = new SimulatedKrakenExchange(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(5m), BalanceEur = PriceValue.FromEUR(5000m) };
-                    seller = new SimulatedGdaxExchange(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = PriceValue.FromETH(5m), BalanceEur = PriceValue.FromEUR(5000m) };
+                    buyer = new SimulatedKrakenExchange(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceBase = new PriceValue(5m, assetPair.Base), BalanceQuote = new PriceValue(5000m, assetPair.Quote) };
+                    seller = new SimulatedGdaxExchange(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceBase = new PriceValue(5m, assetPair.Base), BalanceQuote = new PriceValue(5000m, assetPair.Quote) };
                     break;
                 case "real":
                     buyer = new KrakenExchange(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger);
@@ -57,7 +61,8 @@ namespace Arbitrager
             if (appType == "manual")
             {
                 var shell = new Shell(
-                    new ConsoleArbitrager(buyer, seller, new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),
+                    assetPair,
+                    new ConsoleArbitrager(assetPair, buyer, seller, new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),
                     dataAccess,
                     Logger.StaticLogger);
 
@@ -74,7 +79,10 @@ namespace Arbitrager
             else if (appType == "auto")
             {
                 var manager = new Common.ArbitrageManager.DefaultArbitrageManager(
-                    new DefaultArbitrager(new[] { buyer, seller }, new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),
+                    new DefaultArbitrager(
+                        assetPair, 
+                        new[] { buyer, seller }, 
+                        new Common.DefaultProfitCalculator(), dataAccess, Logger.StaticLogger),                    
                     Logger.StaticLogger,
                     TimeService.Clock);
 

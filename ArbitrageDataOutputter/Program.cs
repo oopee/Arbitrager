@@ -151,7 +151,7 @@ namespace ArbitrageDataOutputter
 
         static IArbitrager GetKrakenGdaxArbitrager()
         {
-            return new Common.DefaultArbitrager(new[] { GetKraken(), GetGdax() }, new DefaultProfitCalculator(), null, new DummyLogger());
+            return new Common.DefaultArbitrager(AssetPair.EthEur, new[] { GetKraken(), GetGdax() }, new DefaultProfitCalculator(), null, new DummyLogger());
         }
 
         static IExchange GetKraken()

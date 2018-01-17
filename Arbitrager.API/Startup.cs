@@ -43,12 +43,12 @@ namespace Arbitrager.API
             switch (configuration)
             {
                 case "fake":
-                    buyer = new FakeKrakenExchange(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(0m), BalanceEur = PriceValue.FromEUR(2000m) };
-                    seller = new FakeGdaxExchange(Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(1m), BalanceEur = PriceValue.FromEUR(0m) };
+                    buyer = new FakeKrakenExchange(Logger.StaticLogger) { BalanceBase = PriceValue.FromETH(0m), BalanceQuote = PriceValue.FromEUR(2000m) };
+                    seller = new FakeGdaxExchange(Logger.StaticLogger) { BalanceBase = PriceValue.FromETH(1m), BalanceQuote = PriceValue.FromEUR(0m) };
                     break;
                 case "simulated":
-                    buyer = new SimulatedKrakenExchange(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceEth = PriceValue.FromETH(0m), BalanceEur = PriceValue.FromEUR(2000m) };
-                    seller = new SimulatedGdaxExchange(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceEth = PriceValue.FromETH(1m), BalanceEur = PriceValue.FromEUR(0m) };
+                    buyer = new SimulatedKrakenExchange(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger) { BalanceBase = PriceValue.FromETH(0m), BalanceQuote = PriceValue.FromEUR(2000m) };
+                    seller = new SimulatedGdaxExchange(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false) { BalanceBase = PriceValue.FromETH(1m), BalanceQuote = PriceValue.FromEUR(0m) };
                     break;
                 case "real":
                     buyer = new KrakenExchange(GetKrakenConfiguration(), Logger.StaticLogger);

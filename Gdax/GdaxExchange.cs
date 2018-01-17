@@ -30,17 +30,25 @@ namespace Gdax
             m_client = new GDAXClient.GDAXClient(m_authenticator, sandBox: isSandbox);
         }
 
-        public async Task<IOrderBook> GetOrderBook()
+        public async Task<IOrderBook> GetOrderBook(AssetPair assetPair)
         {
-            var result = await m_client.ProductsService.GetProductOrderBookAsync(GDAXClient.Services.Orders.ProductType.EthEur, GDAXClient.Products.ProductsService.OrderBookLevel.Top50);
+            var gdaxProductType = GetGdaxProductTypeFromAssetPair(assetPair);
 
-            var orderBook = new OrderBook();
+            var result = await m_client.ProductsService.GetProductOrderBookAsync(
+                gdaxProductType, 
+                GDAXClient.Products.ProductsService.OrderBookLevel.Top50);
+
+            var orderBook = new OrderBook()
+            {
+                AssetPair = assetPair
+            };
+
             if (result.Asks.Any())
             {
                 orderBook.Asks.AddRange(result.Asks.Select(x => new OrderBookOrder()
                 {
-                    PricePerUnit = x.First(),
-                    VolumeUnits = x.Skip(1).First(),
+                    PricePerUnit = new PriceValue(x.First(), assetPair.Quote),
+                    VolumeUnits = new PriceValue(x.Skip(1).First(), assetPair.Base),
                     Timestamp = TimeService.UtcNow
                 }));
             }
@@ -49,8 +57,8 @@ namespace Gdax
             {
                 orderBook.Bids.AddRange(result.Bids.Select(x => new OrderBookOrder()
                 {
-                    PricePerUnit = x.First(),
-                    VolumeUnits = x.Skip(1).First(),
+                    PricePerUnit = new PriceValue(x.First(), assetPair.Quote),
+                    VolumeUnits = new PriceValue(x.Skip(1).First(), assetPair.Base),
                     Timestamp = TimeService.UtcNow
                 }));
             }
@@ -58,32 +66,48 @@ namespace Gdax
             return orderBook;
         }
 
-        public async Task<BalanceResult> GetCurrentBalance()
+        private static GDAXClient.Services.Orders.ProductType GetGdaxProductTypeFromAssetPair(AssetPair assetPair)
+        {
+            if (Enum.TryParse<GDAXClient.Services.Orders.ProductType>(assetPair.ShortName, true, out GDAXClient.Services.Orders.ProductType type))
+            {
+                return type;
+            }
+
+            throw new NotSupportedException(assetPair.ToString());
+        }
+
+        public async Task<BalanceResult> GetCurrentBalance(AssetPair assetPair)
         {
             var accounts = await m_client.AccountsService.GetAllAccountsAsync();
 
             var all = accounts.ToDictionary(x => x.Currency, x => x.Balance);
 
+            var gdaxQuote = assetPair.Quote.ToString();
+            var gdaxBase = assetPair.Base.ToString();
+
             return new BalanceResult()
             {
+                AssetPair = assetPair,
                 All = all,
-                Eth = PriceValue.FromETH(all.Where(x => x.Key == "ETH").FirstOrDefault().Value),
-                Eur = PriceValue.FromEUR(all.Where(x => x.Key == "EUR").FirstOrDefault().Value)
+                QuoteCurrency = new PriceValue(all.Where(x => x.Key == gdaxQuote).FirstOrDefault().Value, assetPair.Quote),
+                BaseCurrency = new PriceValue(all.Where(x => x.Key == gdaxBase).FirstOrDefault().Value, assetPair.Base),
             };
         }
 
-        public Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPricePerUnit, PriceValue maxVolume)
+        public Task<MinimalOrder> PlaceImmediateBuyOrder(AssetPair assetPair, PriceValue limitPricePerUnit, PriceValue maxVolume)
         {
-            return PlaceImmediateOrder(limitPricePerUnit, maxVolume, OrderSide.Buy);
+            return PlaceImmediateOrder(assetPair, limitPricePerUnit, maxVolume, OrderSide.Buy);
         }
 
-        public Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume)
+        public Task<MinimalOrder> PlaceImmediateSellOrder(AssetPair assetPair, PriceValue minLimitPrice, PriceValue volume)
         {
-            return PlaceImmediateOrder(minLimitPrice, volume, OrderSide.Sell);
+            return PlaceImmediateOrder(assetPair, minLimitPrice, volume, OrderSide.Sell);
         }
 
-        private async Task<MinimalOrder> PlaceImmediateOrder(PriceValue limitPrice, PriceValue volume, OrderSide side)
+        private async Task<MinimalOrder> PlaceImmediateOrder(AssetPair assetPair, PriceValue limitPrice, PriceValue volume, OrderSide side)
         {
+            AssetPair.CheckPriceAndVolumeAssets(assetPair, limitPrice, volume);
+
             GDAXClient.Services.Orders.OrderSide gdaxSide;
             if (side == OrderSide.Buy)
             {
@@ -98,9 +122,11 @@ namespace Gdax
                 throw new ArgumentException("side");
             }
 
+            var gdaxAssetPair = GetGdaxProductTypeFromAssetPair(assetPair);
+
             var order = await m_client.OrdersService.PlaceLimitOrderAsync(
-                gdaxSide, 
-                GDAXClient.Services.Orders.ProductType.EthEur, 
+                gdaxSide,
+                gdaxAssetPair, 
                 volume.Value, 
                 limitPrice.Value, 
                 GDAXClient.Services.Orders.TimeInForce.IOC);
@@ -111,7 +137,7 @@ namespace Gdax
                 Side = OrderSide.Sell
             };
 
-            m_logger.Info("GdaxExchange: placed {0} order {1}", side.ToString().ToLower(), orderResult);
+            m_logger.Info("GdaxExchange: placed {0} order for {1} -> {2}", side.ToString().ToLower(), gdaxAssetPair, orderResult);
 
             // NOTE: GDAX may purge some (meaningless) orders. This means that if our order did not get filled (event partially),
             // it is possible that we cannot get the order from GDAX anymore. That is why we are storing all order results so that
@@ -219,21 +245,33 @@ namespace Gdax
         {
             var side = ParseSide(order.Side);
 
+            ParseProductId(order.Product_id, out Asset baseAsset, out Asset quoteAsset);
+
             return new FullOrder()
             {
                 Id = new OrderId(order.Id.ToString()),
-                Fee = PriceValue.FromEUR(order.Fill_fees),
+                BaseAsset = baseAsset,
+                QuoteAsset = quoteAsset,
+                Fee = new PriceValue(order.Fill_fees, quoteAsset),
                 OpenTime = order.Created_at,
                 CloseTime = order.Done_at == default(DateTime) ? null : (DateTime?)order.Done_at,
                 ExpireTime = null,
-                FilledVolume = PriceValue.FromETH(order.Filled_size),
-                Volume = PriceValue.FromETH(order.Size),
-                LimitPrice = PriceValue.FromEUR(order.Price),
+                FilledVolume = new PriceValue(order.Filled_size, baseAsset),
+                Volume = new PriceValue(order.Size, baseAsset),
+                LimitPrice = new PriceValue(order.Price, quoteAsset),
                 Side = side,
                 Type = ParseOrderType(order.Type),
                 State = ParseState(order.Status),
-                CostExcludingFee = PriceValue.FromEUR(order.Executed_value)
+                CostExcludingFee = new PriceValue(order.Executed_value, quoteAsset)
             };
+        }
+
+        private void ParseProductId(string productId, out Asset baseAsset, out Asset quoteAsset)
+        {
+            string baseCurrency = productId.Substring(0, 3).ToUpper();
+            string quoteCurrency = productId.Substring(3, 3).ToUpper();
+            baseAsset = Asset.Get(baseCurrency);
+            quoteAsset = Asset.Get(quoteCurrency);
         }
 
         private OrderSide ParseSide(string side)

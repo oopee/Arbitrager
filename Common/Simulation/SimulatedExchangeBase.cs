@@ -16,8 +16,8 @@ namespace Common.Simulation
         public PercentageValue TakerFeePercentage { get; set; }
         public PercentageValue MakerFeePercentage { get; set; }
 
-        public PriceValue BalanceEur { get; set; }
-        public PriceValue BalanceEth { get; set; }
+        public PriceValue BalanceQuote { get; set; }
+        public PriceValue BalanceBase { get; set; }
 
         public bool CanGetClosedOrders => true;
 
@@ -38,19 +38,20 @@ namespace Common.Simulation
             return m_orderStorage.GetClosedOrders(args);
         }
 
-        public async Task<BalanceResult> GetCurrentBalance()
+        public async Task<BalanceResult> GetCurrentBalance(AssetPair assetPair)
         {
             await Task.Yield();
 
             return new BalanceResult()
             {
+                AssetPair = assetPair,
                 All = new Dictionary<string, decimal>()
                 {
-                    { "ETH", BalanceEth.Value },
-                    { "EUR", BalanceEur.Value }
+                    { assetPair.Base.ToString(), BalanceBase.Value },
+                    { assetPair.Quote.ToString(), BalanceQuote.Value }
                 },
-                Eth = BalanceEth,
-                Eur = BalanceEur
+                BaseCurrency = BalanceBase,
+                QuoteCurrency = BalanceQuote
             };
         }
 
@@ -81,27 +82,29 @@ namespace Common.Simulation
             throw new NotImplementedException();
         }
 
-        public async Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue price, PriceValue volume)
+        public async Task<MinimalOrder> PlaceImmediateBuyOrder(AssetPair assetPair, PriceValue price, PriceValue volume)
         {
-            var orderBook = await GetOrderBook();
+            AssetPair.CheckPriceAndVolumeAssets(assetPair, price, volume);
+
+            var orderBook = await GetOrderBook(assetPair);
 
             // Limit order with Immediate or Cancel -> only take orders with unit price is less than 'price' argument
-            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(orderBook.Asks.Where(x => x.PricePerUnit <= price), null, volume.Value).ToList();
+            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(assetPair, orderBook.Asks.Where(x => x.PricePerUnit <= price), null, volume).ToList();
 
-            var sum = new PriceValue(orders.Select(x => x.PricePerUnit * x.VolumeUnits).DefaultIfEmpty().Sum(), price.Asset);
+            var sum = new PriceValue(orders.Select(x => x.PricePerUnit.Value * x.VolumeUnits.Value).DefaultIfEmpty().Sum(), assetPair.Quote);
             var fee = sum * TakerFeePercentage;
-            var filledVolume = new PriceValue(orders.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum(), volume.Asset);
+            var filledVolume = new PriceValue(orders.Select(x => x.VolumeUnits.Value).DefaultIfEmpty().Sum(), assetPair.Base);
             var pricePerUnitWithoutFee = filledVolume == 0 ? sum.AsZero() : sum / filledVolume.Value;
             var pricePerUnitWithFee = filledVolume == 0 ? sum.AsZero() : (sum + fee) / filledVolume.Value;
             var totalCost = sum + fee;
 
-            if (totalCost > BalanceEur)
+            if (totalCost > BalanceQuote)
             {
-                throw new Exception("Invalid EUR balance");
+                throw new Exception(string.Format("Invalid QUOTE ({0}) balance", BalanceQuote.Asset));
             }
 
-            BalanceEur -= totalCost;
-            BalanceEth += filledVolume;
+            BalanceQuote -= totalCost;
+            BalanceBase += filledVolume;
 
             var createTime = TimeService.UtcNow;
             await Task.Delay(10);
@@ -132,21 +135,23 @@ namespace Common.Simulation
             };
         }
 
-        public async Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume)
+        public async Task<MinimalOrder> PlaceImmediateSellOrder(AssetPair assetPair, PriceValue minLimitPrice, PriceValue volume)
         {
-            if (volume > BalanceEth)
+            AssetPair.CheckPriceAndVolumeAssets(assetPair, minLimitPrice, volume);
+
+            if (volume > BalanceBase)
             {
-                throw new Exception("Invalid ETH balance");
+                throw new Exception(string.Format("Invalid BASE ({0}) balance", assetPair.Base));
             }
 
-            var orderBook = await GetOrderBook();
+            var orderBook = await GetOrderBook(assetPair);
 
             // Limit order with Immediate or Cancel -> only take orders with unit price more than 'price' argument
-            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(orderBook.Bids.Where(x => x.PricePerUnit >= minLimitPrice), null, volume.Value).ToList();
+            var orders = Common.DefaultProfitCalculator.GetFromOrderBook(assetPair, orderBook.Bids.Where(x => x.PricePerUnit >= minLimitPrice), null, volume).ToList();
 
-            var sum = new PriceValue(orders.Select(x => x.PricePerUnit * x.VolumeUnits).DefaultIfEmpty().Sum(), minLimitPrice.Asset);
+            var sum = new PriceValue(orders.Select(x => x.PricePerUnit.Value * x.VolumeUnits.Value).DefaultIfEmpty().Sum(), assetPair.Quote);
             var fee = sum * TakerFeePercentage;
-            var filledVolume = new PriceValue(orders.Select(x => x.VolumeUnits).DefaultIfEmpty().Sum(), volume.Asset);
+            var filledVolume = new PriceValue(orders.Select(x => x.VolumeUnits.Value).DefaultIfEmpty().Sum(), assetPair.Base);
             var pricePerUnitWithoutFee = filledVolume == 0 ? sum.AsZero() : sum / filledVolume.Value;
             var pricePerUnitWithFee = filledVolume == 0 ? sum.AsZero() : (sum - fee) / filledVolume.Value;
             var totalCost = sum - fee;
@@ -173,8 +178,8 @@ namespace Common.Simulation
 
             m_orderStorage.Orders.Add(newOrder);
 
-            BalanceEur += totalCost;
-            BalanceEth -= filledVolume;
+            BalanceQuote += totalCost;
+            BalanceBase -= filledVolume;
 
             return new MinimalOrder()
             {
@@ -183,7 +188,43 @@ namespace Common.Simulation
             };
         }
 
-        public abstract Task<IOrderBook> GetOrderBook();
+        public abstract Task<IOrderBook> GetOrderBook(AssetPair assetPair);
+
+        public class SimpleOrderBook
+        {
+            public List<SimpleOrderBookOrder> Asks { get; set; }
+            public List<SimpleOrderBookOrder> Bids { get; set; }
+
+            public class SimpleOrderBookOrder
+            {
+                public decimal PricePerUnit { get; set; }
+                public decimal VolumeUnits { get; set; }
+                public DateTime Timestamp { get; set; }
+            }
+
+            public static OrderBook GetOrderBookFromJson(string json, AssetPair assetPair)
+            {
+                var simple = Newtonsoft.Json.JsonConvert.DeserializeObject<SimpleOrderBook>(json.Replace("'", "\""));
+                OrderBook book = new OrderBook()
+                {
+                    AssetPair = assetPair,
+                    Asks = simple.Asks.Select(x => new OrderBookOrder()
+                    {
+                        PricePerUnit = new PriceValue(x.PricePerUnit, assetPair.Quote),
+                        VolumeUnits = new PriceValue(x.VolumeUnits, assetPair.Base),
+                        Timestamp = x.Timestamp
+                    }).ToList(),
+                    Bids = simple.Bids.Select(x => new OrderBookOrder()
+                    {
+                        PricePerUnit = new PriceValue(x.PricePerUnit, assetPair.Quote),
+                        VolumeUnits = new PriceValue(x.VolumeUnits, assetPair.Base),
+                        Timestamp = x.Timestamp
+                    }).ToList()
+                };
+
+                return book;
+            }
+        }
     }
 
     public class InMemoryOrderStorage

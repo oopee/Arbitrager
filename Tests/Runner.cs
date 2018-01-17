@@ -15,6 +15,8 @@ namespace Tests
     [TestFixture]
     public class Runner : TestBase
     {
+        public static AssetPair EthEur = new AssetPair(Asset.ETH, Asset.EUR);
+
         [Explicit]
         [Test]
         public async Task Kraken_GetOpenOrders()
@@ -204,7 +206,7 @@ namespace Tests
         {
             var exchange = GetGdax();
 
-            var order = await exchange.PlaceImmediateSellOrder(PriceValue.FromEUR(99999m), PriceValue.FromETH(0.001m));
+            var order = await exchange.PlaceImmediateSellOrder(EthEur, PriceValue.FromEUR(99999m), PriceValue.FromETH(0.001m));
             var info = await exchange.GetOrderInfo(order.Id);
             Logger.Info(GetDebugString(info));
         }
@@ -215,7 +217,7 @@ namespace Tests
         {
             var exchange = GetKraken();
 
-            var order = await exchange.PlaceImmediateBuyOrder(PriceValue.FromEUR(0.01m), PriceValue.FromETH(0.2m));
+            var order = await exchange.PlaceImmediateBuyOrder(EthEur, PriceValue.FromEUR(0.01m), PriceValue.FromETH(0.2m));
             var info = await exchange.GetOrderInfo(order.Id);
             Logger.Info(GetDebugString(info));
         }
@@ -226,7 +228,7 @@ namespace Tests
         {
             var exchange = GetKraken();
 
-            var order = await exchange.PlaceImmediateSellOrder(PriceValue.FromEUR(99999m), PriceValue.FromETH(0.2m));
+            var order = await exchange.PlaceImmediateSellOrder(EthEur, PriceValue.FromEUR(99999m), PriceValue.FromETH(0.2m));
             var info = await exchange.GetOrderInfo(order.Id);
             Logger.Info(GetDebugString(info));
         }

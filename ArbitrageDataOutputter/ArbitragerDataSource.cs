@@ -30,11 +30,11 @@ namespace ArbitrageDataOutputter
                 TimeStamp = DateTime.Now,
                 BestBid = info.BestSellPrice.Value,
                 BestAsk = info.BestBuyPrice.Value,
-                MaxNegativeSpreadEur = info.MaxNegativeSpreadEur.Value,
+                MaxNegativeSpreadEur = info.MaxNegativeSpread.Value,
                 MaxNegativeSpreadPercentage = info.MaxNegativeSpreadPercentage.Ratio,
                 FiatLimit = FiatLimit,
                 MaxProfitPercentage = info.MaxProfitPercentage.Ratio,
-                MaxProfitEur = info.MaxEurProfit.Value
+                MaxProfitEur = info.MaxQuoteCurrencyProfit.Value
             };
 
             return dataPoint;
@@ -52,6 +52,7 @@ namespace ArbitrageDataOutputter
 
             ArbitrageInfo info = new ArbitrageInfo()
             {
+                AssetPair = AssetPair.EthEur,
                 Buyer = buyer,
                 Seller = seller,
                 ProfitCalculation = calc,

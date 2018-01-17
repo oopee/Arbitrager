@@ -14,7 +14,7 @@ namespace Interface
         PercentageValue TakerFeePercentage { get; }
         PercentageValue MakerFeePercentage { get; }
 
-        Task<BalanceResult> GetCurrentBalance();
+        Task<BalanceResult> GetCurrentBalance(AssetPair assetPair);
 
         Task<List<FullOrder>> GetOpenOrders();
         Task<List<FullOrder>> GetClosedOrders(GetOrderArgs args = null);
@@ -39,9 +39,9 @@ namespace Interface
         Task<PaymentMethodResult> GetPaymentMethods();
         Task<FullOrder> GetOrderInfo(OrderId id);
 
-        Task<IOrderBook> GetOrderBook();
-        Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPricePerUnit, PriceValue maxVolume);
-        Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume);
+        Task<IOrderBook> GetOrderBook(AssetPair assetPair);
+        Task<MinimalOrder> PlaceImmediateBuyOrder(AssetPair assetPair, PriceValue limitPricePerUnit, PriceValue maxVolume);
+        Task<MinimalOrder> PlaceImmediateSellOrder(AssetPair assetPair, PriceValue minLimitPrice, PriceValue volume);
     }
 
     public class GetOrderArgs

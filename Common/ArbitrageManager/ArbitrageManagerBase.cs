@@ -43,6 +43,8 @@ namespace Common.ArbitrageManager
 
         protected Func<TContext> ContextFactory { get; set; }
 
+        public AssetPair AssetPairToUse => m_arbitrager.AssetPairToUse;
+
         public ArbitrageManagerBase(IArbitrager arbitrager, ILogger logger, IClock clock = null, Func<TContext> contextFactory = null)
         {
             m_arbitrager = arbitrager;
@@ -112,23 +114,23 @@ namespace Common.ArbitrageManager
         protected virtual async Task CheckStatusAndDoArbitrage(TContext ctx)
         {
             // Start arbitrating by asking info (Arbitrage() is a state machine and we ask it to break before placing any orders)
-            PriceValue chunkEur = PriceValue.FromEUR(100);
-            var arbitrageCtx = ArbitrageContext.GetInfo(chunkEur);
-            arbitrageCtx.AbortIfFiatToSpendIsMoreThanBalance = false;
+            decimal quoteCurrencyChunk = 100m; // TODO
+            var arbitrageCtx = ArbitrageContext.GetInfo(AssetPairToUse, quoteCurrencyChunk);
+            arbitrageCtx.AbortIfQuoteCurrencyToSpendIsMoreThanBalance = false;
             await m_arbitrager.Arbitrage(arbitrageCtx);
 
-            string msg = string.Format("\tArbitrageInfo: Profit {0}, {1:0.##} EUR | (Bid) {2:0.##} EUR - (Ask) {3:0.##} EUR = (Spread) {4:0.##} EUR | (Orders) {5:0.##} EUR -> {6:0.####} ETH -> {7:0.##} EUR | (Balance) {8:0.##} EUR, {9:0.####} ETH | (Chunk) {10:0.##} EUR",
+            string msg = string.Format("\tArbitrageInfo: Profit {0}, {1} | (Bid) {2} - (Ask) {3} = (Spread) {4} | (Orders) {5} -> {6} -> {7} | (Balance) {8}, {9} | (Chunk) {10}",
                 arbitrageCtx.Info.MaxProfitPercentage,
-                arbitrageCtx.Info.MaxEurProfit,
-                arbitrageCtx.Info.BestSellPrice,
-                arbitrageCtx.Info.BestBuyPrice,
-                arbitrageCtx.Info.MaxNegativeSpreadEur,
-                arbitrageCtx.Info.MaxEursToSpend,
-                arbitrageCtx.Info.MaxEthAmountToArbitrage,
-                arbitrageCtx.Info.MaxEursToEarn,
-                arbitrageCtx.Info.EurBalance,
-                arbitrageCtx.Info.EthBalance,
-                chunkEur);
+                arbitrageCtx.Info.MaxQuoteCurrencyProfit.ToStringWithAsset(),
+                arbitrageCtx.Info.BestSellPrice.ToStringWithAsset(),
+                arbitrageCtx.Info.BestBuyPrice.ToStringWithAsset(),
+                arbitrageCtx.Info.MaxNegativeSpread.ToStringWithAsset(),
+                arbitrageCtx.Info.MaxQuoteCurrencyAmountToSpend.ToStringWithAsset(),
+                arbitrageCtx.Info.MaxBaseCurrencyAmountToArbitrage.ToStringWithAsset(),
+                arbitrageCtx.Info.MaxQuoteCurrencyToEarn.ToStringWithAsset(),
+                arbitrageCtx.Info.BaseCurrencyBalance.ToStringWithAsset(),
+                arbitrageCtx.Info.QuoteCurrencyBalance.ToStringWithAsset(),
+                new PriceValue(quoteCurrencyChunk, AssetPairToUse.Quote).ToStringWithAsset());
 
             m_logger.Info(msg);
 
@@ -145,16 +147,16 @@ namespace Common.ArbitrageManager
             if (result.DoArbitrage)
             {
                 // YES! GO ON!
-                if (result.EthToBuy != null)
+                if (result.BuyBaseCurrencyVolume != null)
                 {
-                    arbitrageCtx.BuyOrder_EthAmountToBuy = result.EthToBuy;
-                    m_logger.Info("\toverride EthAmountToBuy = {0:0.####} ETH", arbitrageCtx.BuyOrder_EthAmountToBuy);
+                    arbitrageCtx.BuyOrder_BaseCurrencyAmountToBuy = result.BuyBaseCurrencyVolume;
+                    m_logger.Info("\toverride BaseCurrencyAmountToBuy = {0}", arbitrageCtx.BuyOrder_BaseCurrencyAmountToBuy?.ToStringWithAsset());
                 }
 
-                if (result.BuyLimitPrice != null)
+                if (result.BuyQuoteCurrencyLimitPrice != null)
                 {
-                    arbitrageCtx.BuyOrder_LimitPriceToUse = result.BuyLimitPrice;
-                    m_logger.Info("\toverride BuyLimitPrice = {0:0.##} EUR", arbitrageCtx.BuyOrder_LimitPriceToUse);
+                    arbitrageCtx.BuyOrder_QuoteCurrencyLimitPriceToUse = result.BuyQuoteCurrencyLimitPrice;
+                    m_logger.Info("\toverride QuoteCurrencyLimitPriceToUse = {0}", arbitrageCtx.BuyOrder_QuoteCurrencyLimitPriceToUse?.ToStringWithAsset());
                 }
 
                 m_logger.Info("\tarbitrating...");
@@ -169,19 +171,19 @@ namespace Common.ArbitrageManager
                 {
                     m_logger.Info("\tarbitrage finished!");
                     string finalResult =
-                        string.Format("\tARBITRAGE RESULT {12} -> {13}\n\t\t\t(Profit       ) {0}, {1:0.##} EUR\n\t\t\t(Buy          ) {2:0.##} EUR -> {3:0.####} ETH\n\t\t\t(Sell         ) {4:0.####} ETH -> {5:0.##} EUR\n\t\t\t(BuyerBalance ) {6:0.##} EUR, {7:0.####} ETH\n\t\t\t(SellerBalance) {8:0.##} EUR, {9:0.####} ETH\n\t\t\t(TotalBalance ) {10:0.##} EUR, {11:0.####} ETH",
+                        string.Format("\tARBITRAGE RESULT {12} -> {13}\n\t\t\t(Profit       ) {0}, {1}\n\t\t\t(Buy          ) {2} -> {3}\n\t\t\t(Sell         ) {4} -> {5}\n\t\t\t(BuyerBalance ) {6}, {7}\n\t\t\t(SellerBalance) {8}, {9}\n\t\t\t(TotalBalance ) {10}, {11}",
                         arbitrageCtx.FinishedResult.ProfitPercentage,
-                        arbitrageCtx.FinishedResult.FiatDelta,
-                        arbitrageCtx.FinishedResult.FiatSpent,
-                        arbitrageCtx.FinishedResult.EthBought,
-                        arbitrageCtx.FinishedResult.EthSold,
-                        arbitrageCtx.FinishedResult.FiatEarned,
-                        arbitrageCtx.FinishedResult.BuyerBalance.Eur,
-                        arbitrageCtx.FinishedResult.BuyerBalance.Eth,
-                        arbitrageCtx.FinishedResult.SellerBalance.Eur,
-                        arbitrageCtx.FinishedResult.SellerBalance.Eth,
-                        arbitrageCtx.FinishedResult.BuyerBalance.Eur + arbitrageCtx.FinishedResult.SellerBalance.Eur,
-                        arbitrageCtx.FinishedResult.BuyerBalance.Eth + arbitrageCtx.FinishedResult.SellerBalance.Eth,
+                        arbitrageCtx.FinishedResult.QuoteCurrencyDelta.ToStringWithAsset(),
+                        arbitrageCtx.FinishedResult.QuoteCurrencySpent.ToStringWithAsset(),
+                        arbitrageCtx.FinishedResult.BaseCurrencyBought.ToStringWithAsset(),
+                        arbitrageCtx.FinishedResult.BaseCurrencySold.ToStringWithAsset(),
+                        arbitrageCtx.FinishedResult.QuoteCurrencyEarned.ToStringWithAsset(),
+                        arbitrageCtx.FinishedResult.BuyerBalance.QuoteCurrency.ToStringWithAsset(),
+                        arbitrageCtx.FinishedResult.BuyerBalance.BaseCurrency.ToStringWithAsset(),
+                        arbitrageCtx.FinishedResult.SellerBalance.QuoteCurrency.ToStringWithAsset(),
+                        arbitrageCtx.FinishedResult.SellerBalance.BaseCurrency.ToStringWithAsset(),
+                        (arbitrageCtx.FinishedResult.BuyerBalance.QuoteCurrency + arbitrageCtx.FinishedResult.SellerBalance.QuoteCurrency).ToStringWithAsset(),
+                        (arbitrageCtx.FinishedResult.BuyerBalance.BaseCurrency + arbitrageCtx.FinishedResult.SellerBalance.BaseCurrency).ToStringWithAsset(),
                         arbitrageCtx.Buyer.Name,
                         arbitrageCtx.Seller.Name);
 
@@ -204,19 +206,19 @@ namespace Common.ArbitrageManager
                 };
             }
 
-            if (info.MaxEthAmountToArbitrage < 0.05m)
+            if (info.MaxBaseCurrencyAmountToArbitrage < 0.05m)
             {
                 return new ShouldDoArbitrageResult()
                 {
                     DoArbitrage = false,
-                    Reason = string.Format("ETH amount {0} is too small (< 0.05)", info.MaxEthAmountToArbitrage)
+                    Reason = string.Format("{0} amount {1} is too small (< 0.05)", info.AssetPair.Base, info.MaxBaseCurrencyAmountToArbitrage)
                 };
             }
 
             return new ShouldDoArbitrageResult()
             {
                 DoArbitrage = true,
-                Reason = string.Format("Profit {0} > 0.6% and ETH amount > 0.05", percentage),
+                Reason = string.Format("Profit {0} > 0.6% and {1} amount > 0.05", percentage, info.AssetPair.Base),
                 ArbitrageInfo = info
             };
         }
@@ -227,8 +229,8 @@ namespace Common.ArbitrageManager
             public bool DoArbitrage { get; set; }
             public string Reason { get; set; }
 
-            public PriceValue? BuyLimitPrice { get; set; }
-            public PriceValue? EthToBuy { get; set; }
+            public PriceValue? BuyQuoteCurrencyLimitPrice { get; set; }
+            public PriceValue? BuyBaseCurrencyVolume { get; set; }
         }
     }
 

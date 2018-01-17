@@ -14,7 +14,13 @@ namespace Interface
     public enum AssetType
     {
         EUR,
-        ETH
+        ETH,
+        BTC,
+        LTC,
+        BCH,
+        USDT,
+        USD,
+        NEO
     }
 
     public class AssetSettings
@@ -22,28 +28,53 @@ namespace Interface
         public static Dictionary<AssetType, AssetSettings> DefaultSettings = new Dictionary<AssetType, AssetSettings>()
         {
             { AssetType.EUR, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2 } },
-            { AssetType.ETH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } }
+            { AssetType.USD, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2 } },
+            { AssetType.ETH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
+            { AssetType.BTC, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
+            { AssetType.LTC, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
+            { AssetType.BCH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
+            { AssetType.USDT, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2  } },
+            { AssetType.NEO, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 0  } },
         };
 
         public RoundingStrategy DefaultRoundingStrategy { get; set; }
         public int DecimalPlaces { get; set; }
     }
 
-
     public struct Asset
     {
         // 1 ETH = 1000000000000000000 wei (normalized: 100000000000000000000)
         public static readonly Asset ETH = new Asset(AssetType.ETH);
+
         // 1 EUR = 100 cents  (normalized: 10000)
         public static readonly Asset EUR = new Asset(AssetType.EUR);
-        
+
+        public static readonly Asset USD = new Asset(AssetType.USD);
+        public static readonly Asset BTC = new Asset(AssetType.BTC);
+        public static readonly Asset LTC = new Asset(AssetType.LTC);
+        public static readonly Asset BCH = new Asset(AssetType.BCH);
+        public static readonly Asset USDT = new Asset(AssetType.USDT);
+        public static readonly Asset NEO = new Asset(AssetType.NEO);
+
         public AssetType Type { get; set; }
-        public string Name => Enum.GetName(typeof(AssetType), Type);
+        public string Name { get; set; }
         public RoundingStrategy RoundingStrategy { get; private set; }
         public int DecimalPlaces { get; private set; }
 
+        public static Asset Get(string name)
+        {
+            var val = (AssetType)Enum.Parse(typeof(AssetType), name);
+            if (Enum.IsDefined(typeof(AssetType), val))
+            {
+                return new Asset(val);
+            }
+
+            throw new NotSupportedException(string.Format("Invalid currency/asset: {0}", name));
+        }
+
         public Asset(AssetType type, RoundingStrategy? rounding = null, int? decimalPlaces = null)
         {
+            Name = type.ToString().ToUpper();
             Type = type;
             RoundingStrategy = rounding ?? AssetSettings.DefaultSettings[type].DefaultRoundingStrategy;
             DecimalPlaces = decimalPlaces ?? AssetSettings.DefaultSettings[type].DecimalPlaces;
@@ -103,6 +134,82 @@ namespace Interface
         public override string ToString()
         {
             return Name;
+        }
+    }
+
+    /// <summary>
+    /// A currency/asset pair is the quotation and pricing structure of the currencies traded in the forex market; 
+    /// the value of a currency is a rate and is determined by its comparison to another currency. 
+    /// The first listed currency of a currency pair is called the base currency, and the second currency is 
+    /// called the quote currency. The currency pair indicates how much of the quote currency is needed to 
+    /// purchase one unit of the base currency.
+    /// </summary>
+    public class AssetPair
+    {
+        public static readonly AssetPair EthEur = new AssetPair(Asset.ETH, Asset.EUR);
+        public static readonly AssetPair NeoUsdt = new AssetPair(Asset.NEO, Asset.USDT);
+
+        /// <summary>
+        /// Base asset/currency. The base currency represents how much of the quote currency is needed for you to get one unit of the base currency.
+        /// </summary>
+        public Asset Base { get; private set; }
+
+        /// <summary>
+        /// Quote asset/currency. See base currency.
+        /// </summary>
+        public Asset Quote { get; private set; }
+
+        public string ShortName => string.Format("{0}{1}", Base, Quote);
+        public string DisplayName => string.Format("{0}/{1}", Base, Quote);
+
+        public AssetPair(Asset baseAsset, Asset quoteAsset)
+        {
+            Base = baseAsset;
+            Quote = quoteAsset;
+        }
+
+        public override int GetHashCode()
+        {
+            return Base.GetHashCode() * 13 + Quote.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return DisplayName;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || obj.GetType() != typeof(AssetPair))
+            {
+                return false;
+            }
+
+            var o = (AssetPair)obj;
+            return o.Base == Base && o.Quote == Quote;
+        }
+
+        public static bool operator==(AssetPair a, AssetPair b)
+        {
+            return object.Equals(a, b);
+        }
+
+        public static bool operator!=(AssetPair a, AssetPair b)
+        {
+            return !(a == b);
+        }
+
+        public static void CheckPriceAndVolumeAssets(Interface.AssetPair assetPair, Interface.PriceValue price, Interface.PriceValue volume)
+        {
+            if (volume.Asset != assetPair.Base)
+            {
+                throw new ArgumentException(string.Format("Volume must be in base currency. Current pair: {0}, Volume: {1}", assetPair, volume.Asset));
+            }
+
+            if (price.Asset != assetPair.Quote)
+            {
+                throw new ArgumentException(string.Format("Price must be in quote currency. Current pair: {0}, Price: {1}", assetPair, price.Asset));
+            }
         }
     }
 

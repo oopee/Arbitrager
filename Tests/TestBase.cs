@@ -27,7 +27,7 @@ namespace Tests
 
         protected IArbitrager GetKrakenGdaxArbitrager()
         {
-            return new Common.DefaultArbitrager(new[] { GetKraken(), GetGdax() }, new DefaultProfitCalculator(), DataAccess, Logger);
+            return new Common.DefaultArbitrager(AssetPair.EthEur, new[] { GetKraken(), GetGdax() }, new DefaultProfitCalculator(), DataAccess, Logger);
         }
 
         protected IExchange GetFakeBuyer()
@@ -42,7 +42,7 @@ namespace Tests
 
         protected IArbitrager GetFakeArbitrager()
         {
-            return new Common.DefaultArbitrager(new[] { GetFakeBuyer(), GetFakeSeller() }, new DefaultProfitCalculator(), DataAccess, Logger);
+            return new Common.DefaultArbitrager(AssetPair.EthEur, new[] { GetFakeBuyer(), GetFakeSeller() }, new DefaultProfitCalculator(), DataAccess, Logger);
         }
 
         protected string GetDebugString(object obj)

@@ -32,24 +32,31 @@ namespace Kraken
                 3000);
         }
 
-        public Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPrice, PriceValue volume)
+        public Task<MinimalOrder> PlaceImmediateBuyOrder(AssetPair assetPair, PriceValue limitPrice, PriceValue volume)
         {
-            return PlaceImmediateOrder(limitPrice, volume, OrderSide.Buy);
+            return PlaceImmediateOrder(assetPair, limitPrice, volume, OrderSide.Buy);
         }
 
-        public Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue limitPrice, PriceValue volume)
+        public Task<MinimalOrder> PlaceImmediateSellOrder(AssetPair assetPair, PriceValue limitPrice, PriceValue volume)
         {
-            return PlaceImmediateOrder(limitPrice, volume, OrderSide.Sell);
+            return PlaceImmediateOrder(assetPair, limitPrice, volume, OrderSide.Sell);
         }
 
-        private async Task<MinimalOrder> PlaceImmediateOrder(PriceValue limitPrice, PriceValue volume, OrderSide side)
-        { 
+        private async Task<MinimalOrder> PlaceImmediateOrder(AssetPair assetPair, PriceValue limitPrice, PriceValue volume, OrderSide side)
+        {
+            AssetPair.CheckPriceAndVolumeAssets(assetPair, limitPrice, volume);
+
             MinimalOrder myOrder = null;
 
-            if (volume < 0.02m)
+            if (volume < 0)
             {
-                // Min order size of ETH is 0.02: https://support.kraken.com/hc/en-us/articles/205893708-What-is-the-minimum-order-size-
-                throw new ArgumentException("Volume must be >= 0.02 ETH");
+                throw new ArgumentException("volume must be non-negative");
+            }
+
+            var minimumOrderSize = GetMinimumOrderSizeForBaseCurrency(assetPair.Base);
+            if (volume < minimumOrderSize)
+            {
+                throw new ArgumentException(string.Format("Volume must be >= {0}", minimumOrderSize));
             }
 
             string krakenSide;
@@ -66,11 +73,13 @@ namespace Kraken
                 throw new ArgumentException("side");
             }
 
+            string krakenAssetPair = GetKrakenAssetPair(assetPair);
+
             await Task.Run(() =>
             {
                 var order = new KrakenApi.KrakenOrder()
                 { 
-                    Pair = "XETHZEUR",
+                    Pair = krakenAssetPair,
                     Type = krakenSide,
                     OrderType = "limit",
                     Price = limitPrice.Value,
@@ -79,7 +88,7 @@ namespace Kraken
                 };                
 
                 var result = m_client.AddOrder(order);
-                m_logger.Info("KrakenExchange: Placed order {0} ({1})", result?.Descr.Order, result?.Descr.Close);
+                m_logger.Info("KrakenExchange: Placed {0} order for {1} -> {2} ({3})", krakenSide.ToUpper(), krakenAssetPair, result?.Descr.Order, result?.Descr.Close);
 
                 myOrder = new MinimalOrder()
                 {
@@ -109,20 +118,24 @@ namespace Kraken
             return myOrder;
         }
 
-        public async Task<IOrderBook> GetOrderBook()
+        public async Task<IOrderBook> GetOrderBook(AssetPair assetPair)
         {
-            OrderBook book = new OrderBook();
+            OrderBook book = new OrderBook()
+            {
+                AssetPair = assetPair
+            };
 
             await Task.Run(() =>
             {
-                Dictionary<string, KrakenApi.OrderBook> orderbookResult = m_client.GetOrderBook("XETHZEUR", 15);
-                var orderbook = orderbookResult["XETHZEUR"];
+                var krakenAssetPair = GetKrakenAssetPair(assetPair);
+                Dictionary<string, KrakenApi.OrderBook> orderbookResult = m_client.GetOrderBook(krakenAssetPair, 15);
+                var orderbook = orderbookResult[krakenAssetPair];
 
                 var askOrders = orderbook.Asks
                     .Select(x => new OrderBookOrder()
                     {
-                        PricePerUnit = x[0],
-                        VolumeUnits = x[1],
+                        PricePerUnit = new PriceValue(x[0], assetPair.Quote),
+                        VolumeUnits = new PriceValue(x[1], assetPair.Base),
                         Timestamp = Common.Utils.UnixTimeToDateTime((double)x[2])
                     })
                     .OrderBy(x => x.PricePerUnit);
@@ -131,8 +144,8 @@ namespace Kraken
                 var bidOrders = orderbook.Bids
                     .Select(x => new OrderBookOrder()
                     {
-                        PricePerUnit = x[0],
-                        VolumeUnits = x[1],
+                        PricePerUnit = new PriceValue(x[0], assetPair.Quote),
+                        VolumeUnits = new PriceValue(x[1], assetPair.Base),
                         Timestamp = Common.Utils.UnixTimeToDateTime((double)x[2])
                     })
                     .OrderBy(x => x.PricePerUnit);
@@ -142,17 +155,21 @@ namespace Kraken
             return book;
         }
 
-        public async Task<BalanceResult> GetCurrentBalance()
+        public async Task<BalanceResult> GetCurrentBalance(AssetPair assetPair)
         {
             var result = await Task.Run(() =>
             {
                 var balance = m_client.GetAccountBalance();
-               
+
+                var krakenQuote = GetKrakenAsset(assetPair.Quote);
+                var krakenBase = GetKrakenAsset(assetPair.Base);
+
                 return new BalanceResult()
                 {
+                    AssetPair = assetPair,
                     All = balance,
-                    Eur = PriceValue.FromEUR(balance.FirstOrDefault(x => x.Key == "ZEUR").Value),
-                    Eth = PriceValue.FromETH(balance.FirstOrDefault(x => x.Key == "XETH").Value)
+                    QuoteCurrency = new PriceValue(balance.FirstOrDefault(x => x.Key == krakenQuote).Value, assetPair.Quote),
+                    BaseCurrency = new PriceValue(balance.FirstOrDefault(x => x.Key == krakenBase).Value, assetPair.Base),
                 };
             });
 
@@ -298,14 +315,18 @@ namespace Kraken
                }
                */
 
+            ParseProductId(value.Descr.Pair, out Asset baseAsset, out Asset quoteAsset);
+
             var order = new FullOrder()
             {
                 Id = new OrderId(id),
+                BaseAsset = baseAsset,
+                QuoteAsset = quoteAsset,
                 LimitPrice = null,
-                Volume = PriceValue.FromETH(value.Volume),
-                FilledVolume = PriceValue.FromETH(value.VolumeExecuted),
-                Fee = PriceValue.FromEUR(value.Fee),
-                CostExcludingFee = PriceValue.FromEUR(value.Cost),
+                Volume = new PriceValue(value.Volume, baseAsset),
+                FilledVolume = new PriceValue(value.VolumeExecuted, baseAsset),
+                Fee = new PriceValue(value.Fee, quoteAsset),
+                CostExcludingFee = new PriceValue(value.Cost, quoteAsset),
 
                 OpenTime = Common.Utils.UnixTimeToDateTime(value.OpenTm),
                 ExpireTime = Common.Utils.UnixTimeToDateTimeNullable(value.ExpireTm),
@@ -318,6 +339,14 @@ namespace Kraken
             };
 
             return order;
+        }
+
+        private void ParseProductId(string productId, out Asset baseAsset, out Asset quoteAsset)
+        {
+            string baseCurrency = productId.Substring(0, 3).ToUpper();
+            string quoteCurrency = productId.Substring(3, 3).ToUpper();
+            baseAsset = Asset.Get(baseCurrency);
+            quoteAsset = Asset.Get(quoteCurrency);
         }
 
         private OrderState ParseState(string value)
@@ -355,6 +384,57 @@ namespace Kraken
                     m_logger.Error("KrakernBuyer.ParseOrderType: unknown value '{0}'", value);
                     return OrderType.Unknown;
             }
-        }        
+        }
+
+        private static string GetKrakenAssetPair(AssetPair pair)
+        {
+            return string.Format("{0}{1}", GetKrakenAsset(pair.Base), GetKrakenAsset(pair.Quote));
+        }
+
+        private static string GetKrakenAsset(Asset asset)
+        {
+            var b = asset.ToString().ToUpper();
+
+            if (b == "BTC")
+            {
+                b = "XBT";
+            }
+
+            string prefixB = (b == "EUR" || b == "USD" || b == "GBP" || b == "JPY" || b == "CAD") ? "Z" : "X";
+
+            return string.Format("{0}{1}", prefixB, b);
+        }
+
+        // https://support.kraken.com/hc/en-us/articles/205893708-What-is-the-minimum-order-size-
+        private static Dictionary<Asset, decimal> s_minimumOrderSizes = new Dictionary<Asset, decimal>()
+        {
+            // { Asset.REP, 0.3m }, // Augur
+            { Asset.BTC, 0.002m }, // Bitcoin
+            { Asset.BCH, 0.002m }, // Bitcoin Cash
+            // { Asset.DASH, 0.03m }, // Dash
+            // { Asset.DOGE, 3000m }, // Dogecoin
+            // { Asset.EOS, 3m }, // EOS
+            { Asset.ETH, 0.02m }, // Ethereum
+            // { Asset.ETC, 0.3m }, // Ethereum Classic
+            // { Asset.GNO, 0.03m }, // Gnosis
+            // { Asset.ICN, 2m }, // Iconomi
+            { Asset.LTC, 0.1m }, // Litecoin
+            // { Asset.MLN, 0.1m }, // Melon
+            // { Asset.XMR, 0.1m }, // Monero
+            // { Asset.XRP, 30m }, // Ripple
+            // { Asset.XLM, 300m }, // Stellar Lumens
+            // { Asset.ZEC, 0.03m }, // Zcash
+            { Asset.USDT, 5m }, // Tether
+        };
+
+        static PriceValue GetMinimumOrderSizeForBaseCurrency(Asset baseAsset)
+        {
+            if (s_minimumOrderSizes.TryGetValue(baseAsset, out decimal value))
+            {
+                return new PriceValue(value, baseAsset);
+            }
+
+            return new PriceValue(0m, baseAsset);
+        }
     }
 }
