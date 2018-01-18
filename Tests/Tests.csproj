@@ -14,6 +14,7 @@
     <ProjectReference Include="..\3rdParty\GDAXClient\GDAXClient.csproj" />
     <ProjectReference Include="..\3rdParty\KrakenApi\KrakenApi.csproj" />
     <ProjectReference Include="..\Arbitrager\Arbitrager.csproj" />
+    <ProjectReference Include="..\Binance\Binance.csproj" />
     <ProjectReference Include="..\Common\Common.csproj" />
     <ProjectReference Include="..\Gdax\Gdax.csproj" />
     <ProjectReference Include="..\Interface\Interface.csproj" />

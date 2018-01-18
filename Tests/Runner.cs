@@ -9,6 +9,7 @@ using Interface;
 using Common;
 using System.Numerics;
 using System.Globalization;
+using Newtonsoft.Json;
 
 namespace Tests
 {
@@ -16,6 +17,21 @@ namespace Tests
     public class Runner : TestBase
     {
         public static AssetPair EthEur = new AssetPair(Asset.ETH, Asset.EUR);
+
+        [Explicit]
+        [Test]
+        public async Task Binance_Misc()
+        {
+            var conf = Binance.BinanceConfiguration.FromAppConfig();
+
+            // TODO mikko logger 
+            var apiClient = new Binance.API.Csharp.Client.ApiClient(conf.Key, conf.Secret);
+            var binanceClient = new Binance.API.Csharp.Client.BinanceClient(apiClient);
+
+            var book = await binanceClient.GetOrderBook("ethbtc");
+            var serialized = JsonConvert.SerializeObject(book);
+            Logger.Info(serialized);
+        }
 
         [Explicit]
         [Test]

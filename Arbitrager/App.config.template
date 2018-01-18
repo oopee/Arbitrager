@@ -3,7 +3,10 @@
   <appSettings>
     <add key="configuration" value="simulated" /> <!-- fake, simulated, real -->
     <add key="consoleArbitragerAppType" value="manual" /> <!-- manual, auto -->
-    
+
+    <add key="BinanceSecret" value="" />
+    <add key="BinanceKey" value="" />
+
     <add key="KrakenSecret" value="" />
     <add key="KrakenKey" value="" />
 
