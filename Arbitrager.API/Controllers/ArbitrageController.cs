@@ -12,11 +12,13 @@ namespace Arbitrager.API.Controllers
     public class ArbitrageController : Controller
     {
         IArbitrager m_arbitrager;
+        IArbitrageManager m_manager;
         static IHubContext<Hubs.ArbitragerHub> s_hubContext;
 
-        public ArbitrageController(IArbitrager arbitrager, IHubContext<Hubs.ArbitragerHub> hubContext)
+        public ArbitrageController(IArbitrager arbitrager, IArbitrageManager arbitrageManager, IHubContext<Hubs.ArbitragerHub> hubContext)
         {
             m_arbitrager = arbitrager;
+            m_manager = arbitrageManager;
             s_hubContext = hubContext;
         }
 
@@ -47,6 +49,25 @@ namespace Arbitrager.API.Controllers
         {
             var ctx = await m_arbitrager.Arbitrage(ArbitrageContext.Start(PriceValue.FromEUR(amount)));
             return Models.ArbitrageContext.From(ctx);
+        }
+
+        [Route("auto")]
+        public async Task<bool> GetAuto(bool run)
+        {
+            if (run)
+            {
+                try
+                {
+                    m_manager.Run();
+                }
+                catch (InvalidOperationException e)
+                {
+                    // already running, which is ok
+                }
+            }
+
+            m_manager.IsPaused = !run;
+            return !m_manager.IsPaused;
         }
     }
 }

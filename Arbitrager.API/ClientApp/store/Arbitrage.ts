@@ -11,6 +11,7 @@ export interface ArbitrageState {
     readonly infoData: ArbitrageInfoResponse;
     readonly executeData: any;
     readonly states: ArbitrageContext[];
+    readonly automaticArbitragerRunning: boolean;
 }
 
 // -----------------
@@ -40,6 +41,16 @@ interface ReceiveArbitrageExecuteAction {
 interface SetEurAmountAction {
     type: 'SET_EUR_AMOUNT';
     eurAmount: number;
+}
+
+interface RequestAutomaticArbitragerAction {
+    type: 'REQUEST_AUTOMATIC_ARBITRAGER';
+    run: boolean;
+}
+
+interface ReceiveAutomaticArbitragerAction {
+    type: 'RECEIVE_AUTOMATIC_ARBITRAGER';
+    isRunning: boolean;
 }
 
 export interface ChangeArbitragerStateAction {
@@ -150,7 +161,9 @@ type KnownAction = RequestArbitrageInfoAction
     | RequestArbitrageExecuteAction
     | ReceiveArbitrageExecuteAction
     | SetEurAmountAction
-    | ChangeArbitragerStateAction;
+    | ChangeArbitragerStateAction
+    | RequestAutomaticArbitragerAction
+    | ReceiveAutomaticArbitragerAction;
 
 // ----------------
 // ACTION CREATORS - These are functions exposed to UI components that will trigger a state transition.
@@ -183,6 +196,19 @@ export const actionCreators = {
         addTask(fetchTask); // Ensure server-side prerendering waits for this to complete
         dispatch({ type: 'REQUEST_ARBITRAGE_EXECUTE', eurAmount });
     },
+    requestAutomaticArbitrage: (run: boolean): AppThunkAction<KnownAction> => (dispatch, getState) => {
+        let fetchTask = fetch(`api/arbitrage/auto?run=${ run }`)
+            .then(response => response.json() as boolean)
+            .then(data => {
+                dispatch({
+                    type: 'RECEIVE_AUTOMATIC_ARBITRAGER',
+                    isRunning: data,
+                });
+            });
+
+        addTask(fetchTask); // Ensure server-side prerendering waits for this to complete
+        dispatch({ type: 'REQUEST_AUTOMATIC_ARBITRAGER', run });
+    },
     setEurAmount: (eurAmount: number): AppThunkAction<KnownAction> => (dispatch, getState) => {
         dispatch({ type: 'SET_EUR_AMOUNT', eurAmount });
     }
@@ -205,6 +231,7 @@ const defaultState: ArbitrageState = {
     },
     executeData: {},
     states: [],
+    automaticArbitragerRunning: false,
 };
 
 export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incomingAction: Action) => {
@@ -237,18 +264,21 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 ...state,
                 eurAmount: action.eurAmount,
             };
+        case 'REQUEST_AUTOMATIC_ARBITRAGER':
+            return {
+                ...state,
+            };
+        case 'RECEIVE_AUTOMATIC_ARBITRAGER':
+            return {
+                ...state,
+                automaticArbitragerRunning: action.isRunning,
+            };
         case 'CHANGE_ARBITRAGER_STATE':
-            let newState = {
+            return {
                 ...state,
                 states: [action.data, ...state.states],
+                infoData: action.data.info ? action.data.info : state.infoData, // update info if it was received
             };
-
-            // Update info too as it is received from websocket
-            if (action.data.stateName == "CalculateFinalResult") {
-                newState.infoData = action.data.info;
-            }
-
-            return newState;
         default:
             // The following line guarantees that every action in the KnownAction union has been covered by a case above
             const exhaustiveCheck: never = action;

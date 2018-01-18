@@ -482,6 +482,14 @@ namespace Common
                 SellerBalance = sellerBalanceTask.Result
             };
 
+            // Calculate arbitrage info with updated balances etc
+            var info = await GetInfoForArbitrage(
+                maxFiatToSpend: ctx.SpendWholeBalance ? PriceValue.FromEUR(decimal.MaxValue) : ctx.UserFiatToSpend,
+                fiatOptions: BalanceOption.CapToBalance,
+                maxEthToSpend: PriceValue.FromETH(decimal.MaxValue),
+                ethOptions: BalanceOption.CapToBalance);
+            ctx.Info = info;
+
             m_logger.Debug("\tfinal result: {0}", ctx.FinishedResult);
             if (ctx.FinishedResult.EthDelta != 0)
             {

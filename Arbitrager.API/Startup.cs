@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Arbitrager.API.Hubs;
 using Common;
+using Common.ArbitrageManager;
 using Gdax;
 using Interface;
 using Kraken;
@@ -62,6 +63,8 @@ namespace Arbitrager.API
             services.AddSingleton<IProfitCalculator, DefaultProfitCalculator>();
             services.AddSingleton<IDatabaseAccess>(new DatabaseAccess.DatabaseAccess(configuration));
             services.AddSingleton<IArbitrager, DefaultArbitrager>();
+            services.AddSingleton(TimeService.Clock);
+            services.AddSingleton<IArbitrageManager, DefaultArbitrageManager>();
         }
 
         private KrakenConfiguration GetKrakenConfiguration()

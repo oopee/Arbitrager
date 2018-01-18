@@ -20,8 +20,13 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
     }
 
     executeArbitrage() {
-        this.props.requestArbitrageInfo(this.props.eurAmount); // to update data visible to match command
+        //this.props.requestArbitrageInfo(this.props.eurAmount); // to update data visible to match command
         this.props.requestExecuteArbitrage(this.props.eurAmount);
+    }
+    
+    toggleAutomaticArbitrager() {
+        let run = !this.props.automaticArbitragerRunning;
+        this.props.requestAutomaticArbitrage(run);
     }
 
     public render() {
@@ -32,12 +37,12 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
             <span>€</span>
             <button onClick={ () => { this.getArbitrageInfo() } }>Get info</button>
             <button onClick={ () => { this.executeArbitrage() } }>Execute</button>
+            <button onClick={ () => { this.toggleAutomaticArbitrager() } }>{ this.props.automaticArbitragerRunning ? "Stop" : "Start" } automatic arbitrager</button>
+            { this.props.isLoading ? <span>Loading...</span> : [] }
             
             <div className='container-fluid'>
                 <div className='row'>
                     <div className='col-sm-5'>
-                        { this.props.isLoading ? <span>Loading...</span> : [] }
-
                         <p className='title'>Basic information</p>
                         <table className='table'>
                             <tbody>
@@ -47,7 +52,7 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
                                 </tr>
                                 <tr>
                                     <td>Max negative spread (%)</td>
-                                    <td>{ (this.props.infoData.maxNegativeSpreadPercentage * 100).toFixed(2) } %</td>
+                                    <td>{ this.props.infoData.maxNegativeSpreadPercentage } %</td>
                                 </tr>
                                 <tr>
                                     <td>Buyer implementation</td>
@@ -71,7 +76,7 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
                                 </tr>
                                 <tr>
                                     <td>Estimated negative spread (%)</td>
-                                    <td>{ (this.props.infoData.estimatedAvgNegativeSpreadPercentage * 100).toFixed(2) } %</td>
+                                    <td>{ this.props.infoData.estimatedAvgNegativeSpreadPercentage } %</td>
                                 </tr>
                                 <tr>
                                     <td>ETH balance sufficient</td>
@@ -108,7 +113,7 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
                                 </tr>
                                 <tr>
                                     <td>Profit (%)</td>
-                                    <td>{ (this.props.infoData.profitCalculation.profitPercentage * 100).toFixed(2) } %</td>
+                                    <td>{ this.props.infoData.profitCalculation.profitPercentage } %</td>
                                 </tr>
                                 <tr>
                                     <td>Profit after tax (€)</td>
