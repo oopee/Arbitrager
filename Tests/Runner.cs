@@ -85,7 +85,7 @@ namespace Tests
             var order = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("160d8288-08ca-477c-b19f-c2753e2f5070").ToString()));
             var order2 = await ((ISeller)GetGdax()).GetOrderInfo(new OrderId(new Guid("d76171c3-abe7-43fd-bfe1-ec75396d9848").ToString()));
             */
-            var order3 = await (GetGdax()).GetOrderInfo(new OrderId(new Guid("9e84e4c6-a1b5-4107-9235-c49e99b03c1d").ToString()));
+            var order3 = await (GetGdax()).GetOrderInfo(new OrderId(new Guid("99e7a555-7dee-4997-acb1-878abf912f7c").ToString()));
             
             /*var exchange = GetGdax();
 

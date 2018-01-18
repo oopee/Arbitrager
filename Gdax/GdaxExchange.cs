@@ -269,7 +269,7 @@ namespace Gdax
         private void ParseProductId(string productId, out Asset baseAsset, out Asset quoteAsset)
         {
             string baseCurrency = productId.Substring(0, 3).ToUpper();
-            string quoteCurrency = productId.Substring(3, 3).ToUpper();
+            string quoteCurrency = productId.Substring(4, 3).ToUpper();
             baseAsset = Asset.Get(baseCurrency);
             quoteAsset = Asset.Get(quoteCurrency);
         }
