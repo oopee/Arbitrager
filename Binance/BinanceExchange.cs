@@ -9,7 +9,6 @@ namespace Binance
 {
     public class BinanceExchange : Interface.IExchange
     {
-        // TODO mikko namespacet..
         Binance.API.Csharp.Client.BinanceClient m_client;
         ILogger m_logger;
 
@@ -28,6 +27,57 @@ namespace Binance
             var apiClient = new Binance.API.Csharp.Client.ApiClient(configuration.Key, configuration.Secret);
             m_client = new Binance.API.Csharp.Client.BinanceClient(apiClient);
         }
+
+        public async Task<BalanceResult> GetCurrentBalance(AssetPair assetPair)
+        {
+            var accountInfo = await m_client.GetAccountInfo(10000);
+
+            // TODO mikko onko ok ottaa vain free, miten locked?
+            var all = accountInfo.Balances.ToDictionary(x => x.Asset, x => x.Free);
+
+            var binanceQuote = assetPair.Quote.ToString();
+            var binanceBase = assetPair.Base.ToString();
+
+            return new BalanceResult()
+            {
+                AssetPair = assetPair,
+                All = all,
+                QuoteCurrency = new PriceValue(all.Where(x => x.Key == binanceQuote).FirstOrDefault().Value, assetPair.Quote),
+                BaseCurrency = new PriceValue(all.Where(x => x.Key == binanceBase).FirstOrDefault().Value, assetPair.Base),
+            };
+        }
+
+        public async Task<IOrderBook> GetOrderBook(AssetPair assetPair)
+        {
+            var result = await m_client.GetOrderBook(assetPair.ShortName);
+
+            var orderBook = new OrderBook()
+            {
+                AssetPair = assetPair
+            };
+
+            if (result.Asks.Any())
+            {
+                orderBook.Asks.AddRange(result.Asks.Select(x => new OrderBookOrder()
+                {
+                    PricePerUnit = new PriceValue(x.Price, assetPair.Quote),
+                    VolumeUnits = new PriceValue(x.Quantity, assetPair.Base),
+                    Timestamp = TimeService.UtcNow
+                }));
+            }
+
+            if (result.Bids.Any())
+            {
+                orderBook.Bids.AddRange(result.Bids.Select(x => new OrderBookOrder()
+                {
+                    PricePerUnit = new PriceValue(x.Price, assetPair.Quote),
+                    VolumeUnits = new PriceValue(x.Quantity, assetPair.Base),
+                    Timestamp = TimeService.UtcNow
+                }));
+            }
+
+            return orderBook;
+        }
         
         public Task<CancelOrderResult> CancelOrder(OrderId id)
         {
@@ -38,18 +88,8 @@ namespace Binance
         {
             throw new NotImplementedException();
         }
-
-        public Task<BalanceResult> GetCurrentBalance()
-        {
-            throw new NotImplementedException();
-        }
-
+        
         public Task<List<FullOrder>> GetOpenOrders()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IOrderBook> GetOrderBook()
         {
             throw new NotImplementedException();
         }
@@ -61,15 +101,15 @@ namespace Binance
 
         public Task<PaymentMethodResult> GetPaymentMethods()
         {
-            throw new NotImplementedException();
+            return Task.FromResult(new PaymentMethodResult());
         }
 
-        public Task<MinimalOrder> PlaceImmediateBuyOrder(PriceValue limitPricePerUnit, PriceValue maxVolume)
+        public Task<MinimalOrder> PlaceImmediateBuyOrder(AssetPair assetPair, PriceValue limitPricePerUnit, PriceValue maxVolume)
         {
             throw new NotImplementedException();
         }
 
-        public Task<MinimalOrder> PlaceImmediateSellOrder(PriceValue minLimitPrice, PriceValue volume)
+        public Task<MinimalOrder> PlaceImmediateSellOrder(AssetPair assetPair, PriceValue minLimitPrice, PriceValue volume)
         {
             throw new NotImplementedException();
         }

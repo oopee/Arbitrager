@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Binance\Binance.csproj" />
     <ProjectReference Include="..\Common\Common.csproj" />
     <ProjectReference Include="..\Gdax\Gdax.csproj" />
     <ProjectReference Include="..\Interface\Interface.csproj" />

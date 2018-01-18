@@ -42,7 +42,11 @@ namespace Binance.API.Csharp.Client
             if (isSigned)
             {
                 // Joining provided parameters
-                parameters += (!string.IsNullOrWhiteSpace(parameters) ? "&timestamp=" : "timestamp=") + Utilities.GenerateTimeStamp(DateTime.Now.ToUniversalTime());
+
+                // var time = Utilities.GenerateTimeStamp(DateTime.Now.ToUniversalTime());
+                // REMINDER: substract 1.1 seconds so that server side timestamp < serverTime check would not fail..
+                var time = Utilities.GenerateTimeStamp(TimeService.UtcNow.AddSeconds(-1.1).ToUniversalTime());
+                parameters += (!string.IsNullOrWhiteSpace(parameters) ? "&timestamp=" : "timestamp=") + time;
 
                 // Creating request signature
                 var signature = Utilities.GenerateSignature(_apiSecret, parameters);

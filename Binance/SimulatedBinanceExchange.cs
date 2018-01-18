@@ -23,7 +23,7 @@ namespace Binance
             m_orderBook = Newtonsoft.Json.JsonConvert.DeserializeObject<OrderBook>((orderBookJson ?? DefaultOrderBookJson).Replace("'", "\""));
         }
 
-        public override async Task<IOrderBook> GetOrderBook()
+        public override async Task<IOrderBook> GetOrderBook(AssetPair assetPair)
         {
             await Task.Yield();
             return m_orderBook;
@@ -37,15 +37,15 @@ namespace Binance
         public SimulatedBinanceExchange(BinanceConfiguration configuration, ILogger logger)
             : base("SimulatedBinance")
         {
-            //TODO mikko m_realBinance = new BinanceExchange(configuration, logger);
+            m_realBinance = new BinanceExchange(configuration, logger);
 
             TakerFeePercentage = m_realBinance.TakerFeePercentage;
             MakerFeePercentage = m_realBinance.MakerFeePercentage;
         }
 
-        public override Task<IOrderBook> GetOrderBook()
+        public override Task<IOrderBook> GetOrderBook(AssetPair assetPair)
         {
-            return m_realBinance.GetOrderBook();
+            return m_realBinance.GetOrderBook(assetPair);
         }
     } 
 }

@@ -89,7 +89,7 @@ namespace Interface
             b.AppendLine("\t\tBASE available to sell:\t\t{0}", BaseCurrencySellCount.ToStringWithAsset());
             b.AppendLine("\t\tBASE value at other exchange:\t{0}", QuoteCurrencyEarned.ToStringWithAsset());
             b.AppendLine("\t\tProfit:\t\t\t\t{0} ({1})", Profit.ToStringWithAsset(), PercentageValue.FromRatio((Profit / QuoteCurrencySpent).Value));
-            b.AppendLine("\t\tProfit after tax:\t\t{}e ({1})", ProfitAfterTax.ToStringWithAsset(), PercentageValue.FromRatio((ProfitAfterTax / QuoteCurrencySpent).Value));
+            b.AppendLine("\t\tProfit after tax:\t\t{0}e ({1})", ProfitAfterTax.ToStringWithAsset(), PercentageValue.FromRatio((ProfitAfterTax / QuoteCurrencySpent).Value));
 
             return b.ToString();
         }

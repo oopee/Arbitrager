@@ -22,14 +22,30 @@ namespace Tests
         [Test]
         public async Task Binance_Misc()
         {
+            /* TODO testitärpit:
+             * - free vs locked balance varmistaa ero
+            */
+
             var conf = Binance.BinanceConfiguration.FromAppConfig();
 
-            // TODO mikko logger 
-            var apiClient = new Binance.API.Csharp.Client.ApiClient(conf.Key, conf.Secret);
-            var binanceClient = new Binance.API.Csharp.Client.BinanceClient(apiClient);
+            // AssetPair assetPair = new AssetPair(Asset.ETH, Asset.BTC);
+            // AssetPair assetPair = new AssetPair(Asset.BTC, Asset.ETH);
+            AssetPair assetPair = new AssetPair(Asset.NEO, Asset.USDT);
 
-            var book = await binanceClient.GetOrderBook("ethbtc");
-            var serialized = JsonConvert.SerializeObject(book);
+            //var result = await GetBinance().GetCurrentBalance(assetPair);
+
+            var result = await GetBinance().GetOrderBook(assetPair);
+            
+            await Task.Delay(1000);
+            
+            var result2 = await GetBinance().GetCurrentBalance(assetPair);
+            
+            await Task.Delay(5000);
+
+            var result3 = await GetBinance().GetOrderBook(assetPair);
+
+            // var book = await binanceClient.GetOrderBook("ethbtc");
+            var serialized = JsonConvert.SerializeObject(result);
             Logger.Info(serialized);
         }
 

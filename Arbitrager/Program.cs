@@ -9,6 +9,7 @@ using Kraken;
 using Gdax;
 using System.Configuration;
 using Common;
+using Binance;
 
 namespace Arbitrager
 {
@@ -33,6 +34,7 @@ namespace Arbitrager
 
             AssetPair assetPair = new AssetPair(Asset.ETH, Asset.EUR);
             // AssetPair assetPair = new AssetPair(Asset.NEO, Asset.USDT);
+            // AssetPair assetPair = new AssetPair(Asset.ETH, Asset.BTC);
 
             switch (configuration)
             {
@@ -47,6 +49,8 @@ namespace Arbitrager
                 case "real":
                     buyer = new KrakenExchange(KrakenConfiguration.FromAppConfig(), Logger.StaticLogger);
                     seller = new GdaxExchange(GdaxConfiguration.FromAppConfig(), Logger.StaticLogger, isSandbox: false);
+                    // buyer = new BinanceExchange(BinanceConfiguration.FromAppConfig(), Logger.StaticLogger);
+                    // seller = new BinanceExchange(BinanceConfiguration.FromAppConfig(), Logger.StaticLogger);                    
                     break;
                 default:
                     throw new ArgumentException("Invalid configuration (see App.config). Valid values are: simulated, real");
