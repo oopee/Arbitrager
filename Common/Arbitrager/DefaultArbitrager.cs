@@ -289,7 +289,7 @@ namespace Common
                 var startTime = TimeService.UtcNow;
                 try
                 {
-                    var priceLimit = buyLimitPricePerUnit.Round();
+                    var priceLimit = buyLimitPricePerUnit.Round(RoundingStrategy.AlwaysRoundUp); // TODO: is rounding up dangerous? Is there a situation where we are paying too much and we end up losing money?
                     var ethToBuy = maxEthToBuy.Round(decimalPlaces: 5);
                     var buyOrder = await buyer.PlaceImmediateBuyOrder(priceLimit, ethToBuy);
                     return buyOrder.Id;
