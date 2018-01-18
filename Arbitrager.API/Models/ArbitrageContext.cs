@@ -7,21 +7,24 @@ namespace Arbitrager.API.Models
 {
     public class ArbitrageContext
     {
+        public string BaseAsset { get; set; }
+        public string QuoteAsset { get; set; }
+
         public string BuyerName { get; set; }
         public string SellerName { get; set; }
 
         public int State { get; set; }
         public string StateName { get; set; }
         
-        public decimal UserFiatToSpend { get; set; }
-        public decimal? BuyOrder_LimitPriceToUse { get; set; }
-        public decimal? BuyOrder_EthAmountToBuy { get; set; }
+        public decimal UserDefinedQuoteCurrencyToSpend { get; set; }
+        public decimal? BuyOrder_QuoteCurrencyLimitPriceToUse { get; set; }
+        public decimal? BuyOrder_BaseCurrencyAmountToBuy { get; set; }
 
         public string Error { get; set; }
         public ArbitrageInfo Info { get; set; }
 
         public string BuyOrderId { get; set; }
-        public decimal? BuyEthAmount { get; set; }
+        public decimal? BuyBaseCurrencyAmount { get; set; }
         public string SellOrderId { get; set; }
 
         public Order BuyOrder { get; set; }
@@ -33,17 +36,19 @@ namespace Arbitrager.API.Models
         {
             return new ArbitrageContext()
             {
+                BaseAsset = ctx.AssetPair.Base.Name,
+                QuoteAsset = ctx.AssetPair.Quote.Name,
                 BuyerName = ctx.Buyer?.Name,
                 SellerName = ctx.Seller?.Name,
                 State = (int)ctx.State,
                 StateName = ctx.State.ToString(),
-                UserFiatToSpend = ctx.UserDefinedQuoteCurrencyToSpend.Value,
-                BuyOrder_LimitPriceToUse = ctx.BuyOrder_QuoteCurrencyLimitPriceToUse?.Value,
-                BuyOrder_EthAmountToBuy = ctx.BuyOrder_BaseCurrencyAmountToBuy?.Value,
+                UserDefinedQuoteCurrencyToSpend = ctx.UserDefinedQuoteCurrencyToSpend.Value,
+                BuyOrder_QuoteCurrencyLimitPriceToUse = ctx.BuyOrder_QuoteCurrencyLimitPriceToUse?.Value,
+                BuyOrder_BaseCurrencyAmountToBuy = ctx.BuyOrder_BaseCurrencyAmountToBuy?.Value,
                 Error = ctx.Error?.ToString(),
                 Info = ctx.Info != null ? ArbitrageInfo.From(ctx.Info) : null,
                 BuyOrderId = ctx.BuyOrderId?.Id,
-                BuyEthAmount = ctx.BuyBaseCurrencyAmount?.Value,
+                BuyBaseCurrencyAmount = ctx.BuyBaseCurrencyAmount?.Value,
                 SellOrderId = ctx.SellOrderId?.Id,
                 BuyOrder = Order.From(ctx.BuyOrder),
                 SellOrder = Order.From(ctx.SellOrder),
@@ -156,16 +161,16 @@ namespace Arbitrager.API.Models
 
     public class FinishedResultData
     {
-        public decimal EthBought { get; set; }
-        public decimal EthSold { get; set; }
-        public decimal FiatSpent { get; set; }
-        public decimal FiatEarned { get; set; }
+        public decimal BaseCurrencyBought { get; set; }
+        public decimal BaseCurrencySold { get; set; }
+        public decimal QuoteCurrencySpent { get; set; }
+        public decimal QuoteCurrencyEarned { get; set; }
 
         public Balance BuyerBalance { get; set; }
         public Balance SellerBalance { get; set; }
 
-        public decimal FiatDelta { get; set; }
-        public decimal EthDelta { get; set; }
+        public decimal QuoteCurrencyDelta { get; set; }
+        public decimal BaseCurrencyDelta { get; set; }
         public decimal ProfitPercentage { get; set; }
 
         public static FinishedResultData From(Interface.ArbitrageContext.FinishedResultData data)
@@ -179,12 +184,12 @@ namespace Arbitrager.API.Models
             {
                 BuyerBalance = Balance.From(data.BuyerBalance),
                 SellerBalance = Balance.From(data.SellerBalance),
-                EthBought = data.BaseCurrencyBought.Value,
-                EthSold = data.BaseCurrencySold.Value,
-                FiatSpent = data.QuoteCurrencySpent.Value,
-                FiatEarned = data.QuoteCurrencyEarned.Value,
-                EthDelta = data.BaseCurrencyDelta.Value,
-                FiatDelta = data.QuoteCurrencyDelta.Value,
+                BaseCurrencyBought = data.BaseCurrencyBought.Value,
+                BaseCurrencySold = data.BaseCurrencySold.Value,
+                QuoteCurrencySpent = data.QuoteCurrencySpent.Value,
+                QuoteCurrencyEarned = data.QuoteCurrencyEarned.Value,
+                BaseCurrencyDelta = data.BaseCurrencyDelta.Value,
+                QuoteCurrencyDelta = data.QuoteCurrencyDelta.Value,
                 ProfitPercentage = data.ProfitPercentage.Percentage,
             };
         }

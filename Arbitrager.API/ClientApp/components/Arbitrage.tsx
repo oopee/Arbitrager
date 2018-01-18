@@ -30,6 +30,9 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
     }
 
     public render() {
+        let baseAsset = this.props.infoData.baseAsset;
+        let quoteAsset = this.props.infoData.quoteAsset;
+
         return <div>
             <h1>Arbitrage</h1>
             
@@ -39,7 +42,7 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
             <button onClick={ () => { this.executeArbitrage() } }>Execute</button>
             <button onClick={ () => { this.toggleAutomaticArbitrager() } }>{ this.props.automaticArbitragerRunning ? "Stop" : "Start" } automatic arbitrager</button>
             { this.props.isLoading ? <span>Loading...</span> : [] }
-            
+
             <div className='container-fluid'>
                 <div className='row'>
                     <div className='col-sm-5'>
@@ -47,8 +50,8 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
                         <table className='table'>
                             <tbody>
                                 <tr>
-                                    <td>Max negative spread (€)</td>
-                                    <td>{ this.props.infoData.maxNegativeSpreadEur } €</td>
+                                    <td>Max negative spread ({ quoteAsset })</td>
+                                    <td>{ this.props.infoData.maxNegativeSpread }</td>
                                 </tr>
                                 <tr>
                                     <td>Max negative spread (%)</td>
@@ -63,28 +66,28 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
                                     <td>{ this.props.infoData.sellerName }</td>
                                 </tr>
                                 <tr>
-                                    <td>Estimated average buy unit price</td>
-                                    <td>{ this.props.infoData.estimatedAvgBuyUnitPrice } €</td>
+                                    <td>Estimated average buy unit price ({ quoteAsset })</td>
+                                    <td>{ this.props.infoData.estimatedAvgBuyUnitPrice }</td>
                                 </tr>
                                 <tr>
-                                    <td>Estimated average sell unit price</td>
-                                    <td>{ this.props.infoData.estimatedAvgSellUnitPrice } €</td>
+                                    <td>Estimated average sell unit price ({ quoteAsset })</td>
+                                    <td>{ this.props.infoData.estimatedAvgSellUnitPrice }</td>
                                 </tr>
                                 <tr>
-                                    <td>Estimated negative spread (€)</td>
-                                    <td>{ this.props.infoData.estimatedAvgNegativeSpread } €</td>
+                                    <td>Estimated negative spread ({ quoteAsset })</td>
+                                    <td>{ this.props.infoData.estimatedAvgNegativeSpread }</td>
                                 </tr>
                                 <tr>
                                     <td>Estimated negative spread (%)</td>
                                     <td>{ this.props.infoData.estimatedAvgNegativeSpreadPercentage } %</td>
                                 </tr>
                                 <tr>
-                                    <td>ETH balance sufficient</td>
-                                    <td>{ this.props.infoData.isEthBalanceSufficient ? 'true' : 'false' }</td>
+                                    <td>{ baseAsset } balance sufficient</td>
+                                    <td>{ this.props.infoData.isBaseBalanceSufficient ? 'true' : 'false' }</td>
                                 </tr>
                                 <tr>
-                                    <td>EUR balance sufficient</td>
-                                    <td>{ this.props.infoData.isEurBalanceSufficient ? 'true' : 'false' }</td>
+                                    <td>{ quoteAsset } balance sufficient</td>
+                                    <td>{ this.props.infoData.isQuoteBalanceSufficient ? 'true' : 'false' }</td>
                                 </tr>
                                 <tr>
                                     <td>Profitable</td>
@@ -100,39 +103,39 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
                         <table className='table'>
                             <tbody>
                                 <tr>
-                                    <td>Fiat spent (€)</td>
-                                    <td>{ this.props.infoData.profitCalculation.fiatSpent } €</td>
+                                    <td>{ quoteAsset } spent</td>
+                                    <td>{ this.props.infoData.profitCalculation.quoteCurrencySpent }</td>
                                 </tr>
                                 <tr>
-                                    <td>Fiat earned</td>
-                                    <td>{ this.props.infoData.profitCalculation.fiatEarned  } €</td>
+                                    <td>{ quoteAsset } earned</td>
+                                    <td>{ this.props.infoData.profitCalculation.quoteCurrencyEarned  }</td>
                                 </tr>
                                 <tr>
-                                    <td>Profit (€)</td>
-                                    <td>{ this.props.infoData.profitCalculation.profit } €</td>
+                                    <td>Profit ({ quoteAsset })</td>
+                                    <td>{ this.props.infoData.profitCalculation.profit }</td>
                                 </tr>
                                 <tr>
                                     <td>Profit (%)</td>
                                     <td>{ this.props.infoData.profitCalculation.profitPercentage } %</td>
                                 </tr>
                                 <tr>
-                                    <td>Profit after tax (€)</td>
-                                    <td>{ this.props.infoData.profitCalculation.profitAfterTax } €</td>
+                                    <td>Profit after tax ({ quoteAsset })</td>
+                                    <td>{ this.props.infoData.profitCalculation.profitAfterTax }</td>
                                 </tr>
                                 <tr>
-                                    <td>ETH buy count</td>
-                                    <td>{ this.props.infoData.profitCalculation.ethBuyCount }</td>
+                                    <td>{ baseAsset } buy count</td>
+                                    <td>{ this.props.infoData.profitCalculation.baseCurrencyBuyCount }</td>
                                 </tr>
                                 <tr>
-                                    <td>ETH sell count</td>
-                                    <td>{ this.props.infoData.profitCalculation.ethSellCount }</td>
+                                    <td>{ baseAsset } sell count</td>
+                                    <td>{ this.props.infoData.profitCalculation.baseCurrencySellCount }</td>
                                 </tr>
                                 <tr>
-                                    <td>Buy fee (€)</td>
+                                    <td>Buy fee ({ quoteAsset })</td>
                                     <td>{ this.props.infoData.profitCalculation.buyFee }</td>
                                 </tr>
                                 <tr>
-                                    <td>Sell fee (€)</td>
+                                    <td>Sell fee ({ quoteAsset })</td>
                                     <td>{ this.props.infoData.profitCalculation.sellFee }</td>
                                 </tr>
                             </tbody>
@@ -145,20 +148,20 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
                         <table className='table'>
                             <tbody>
                                 <tr>
-                                    <td>Buyer balance EUR</td>
-                                    <td>{ this.props.infoData.buyer.balance.eur } €</td>
+                                    <td>Buyer balance { quoteAsset }</td>
+                                    <td>{ this.props.infoData.buyer.balance.quote }</td>
                                 </tr>
                                 <tr>
-                                    <td>Buyer balance ETH</td>
-                                    <td>{ this.props.infoData.buyer.balance.eth } ETH</td>
+                                    <td>Buyer balance { baseAsset }</td>
+                                    <td>{ this.props.infoData.buyer.balance.base }</td>
                                 </tr>
                                 <tr>
-                                    <td>Seller balance EUR</td>
-                                    <td>{ this.props.infoData.seller.balance.eur } €</td>
+                                    <td>Seller balance { quoteAsset }</td>
+                                    <td>{ this.props.infoData.seller.balance.quote }</td>
                                 </tr>
                                 <tr>
-                                    <td>Seller balance EUR</td>
-                                    <td>{ this.props.infoData.seller.balance.eth } ETH</td>
+                                    <td>Seller balance { baseAsset }</td>
+                                    <td>{ this.props.infoData.seller.balance.base }</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -191,8 +194,8 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
         let properties = [] as KVP[];
 
         if (state.stateName == "CheckStatus") {            
-            properties.push({ key: "EthAmountToBuy", value: state.buyOrder_EthAmountToBuy.toString() });
-            properties.push({ key: "LimitPriceToUse", value: state.buyOrder_LimitPriceToUse.toString() });
+            properties.push({ key: state.baseAsset + " amount to buy", value: state.buyOrder_BaseCurrencyAmountToBuy.toString() });
+            properties.push({ key: state.quoteAsset + " limit price", value: state.buyOrder_QuoteCurrencyLimitPriceToUse.toString() });
         }
         else if (state.stateName == "PlaceBuyOrder") {
             properties.push({ key: "BuyOrderId", value: state.buyOrderId });
@@ -221,12 +224,12 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
             properties.push({ key: "Exchange", value: state.sellerName });
         }
         else if (state.stateName == "CalculateFinalResult") {
-            properties.push({ key: "ETH bought", value: state.finishedResult.ethBought.toString() });
-            properties.push({ key: "ETH sold", value: state.finishedResult.ethSold.toString() });
-            properties.push({ key: "ETH delta", value: state.finishedResult.ethDelta.toString() });
-            properties.push({ key: "Fiat spent", value: state.finishedResult.fiatSpent.toString() });
-            properties.push({ key: "Fiat earned", value: state.finishedResult.fiatEarned.toString() });
-            properties.push({ key: "Fiat delta", value: state.finishedResult.fiatDelta.toString() });
+            properties.push({ key: state.baseAsset + " bought", value: state.finishedResult.baseCurrencyBought.toString() });
+            properties.push({ key: state.baseAsset + " sold", value: state.finishedResult.baseCurrencySold.toString() });
+            properties.push({ key: state.baseAsset + " delta", value: state.finishedResult.baseCurrencyDelta.toString() });
+            properties.push({ key: state.quoteAsset + " spent", value: state.finishedResult.quoteCurrencySpent.toString() });
+            properties.push({ key: state.quoteAsset + " earned", value: state.finishedResult.quoteCurrencyEarned.toString() });
+            properties.push({ key: state.quoteAsset + " delta", value: state.finishedResult.quoteCurrencyDelta.toString() });
             properties.push({ key: "Profit", value: state.finishedResult.profitPercentage.toString() + " %" });
         }
 

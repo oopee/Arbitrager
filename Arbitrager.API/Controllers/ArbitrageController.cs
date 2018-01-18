@@ -52,7 +52,7 @@ namespace Arbitrager.API.Controllers
         }
 
         [Route("auto")]
-        public async Task<bool> GetAuto(bool run)
+        public bool GetAuto(bool run)
         {
             if (run)
             {
@@ -60,7 +60,7 @@ namespace Arbitrager.API.Controllers
                 {
                     m_manager.Run();
                 }
-                catch (InvalidOperationException e)
+                catch (InvalidOperationException)
                 {
                     // already running, which is ok
                 }

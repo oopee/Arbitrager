@@ -65,6 +65,7 @@ namespace Arbitrager.API
             services.AddSingleton<IArbitrager, DefaultArbitrager>();
             services.AddSingleton(TimeService.Clock);
             services.AddSingleton<IArbitrageManager, DefaultArbitrageManager>();
+            services.AddSingleton(AssetPair.EthEur);
         }
 
         private KrakenConfiguration GetKrakenConfiguration()

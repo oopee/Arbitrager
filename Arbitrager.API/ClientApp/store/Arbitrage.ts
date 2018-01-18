@@ -59,12 +59,15 @@ export interface ChangeArbitragerStateAction {
 }
 
 export interface ArbitrageContext {
+    baseAsset: string;
+    quoteAsset: string;
     state: number;
     stateName: string;
-    buyOrder_LimitPriceToUse : number;
-    buyOrder_EthAmountToBuy: number;
+    userDefinedQuoteCurrencyToSpend: number;
+    buyOrder_QuoteCurrencyLimitPriceToUse : number;
+    buyOrder_BaseCurrencyAmountToBuy: number;
     error: string;
-    buyEthAmount: number;
+    buyBaseCurrencyAmount: number;
     buyOrderId: string;
     sellOrderId: string;
     buyOrder: Order;
@@ -76,12 +79,12 @@ export interface ArbitrageContext {
 }
 
 interface ArbitrageContextFinishedResult {
-    ethBought: number;
-    ethSold: number;
-    fiatSpent: number;
-    fiatEarned: number;
-    fiatDelta: number;
-    ethDelta: number;
+    baseCurrencyBought: number;
+    baseCurrencySold: number;
+    baseCurrencyDelta: number;
+    quoteCurrencySpent: number;
+    quoteCurrencyEarned: number;
+    quoteCurrencyDelta: number;
     profitPercentage: number;
     buyerBalance: Balance;
     sellerBalance: Balance;
@@ -105,7 +108,9 @@ interface Order {
 }
 
 interface ArbitrageInfoResponse {
-    maxNegativeSpreadEur: number;
+    baseAsset: string;
+    quoteAsset: string;
+    maxNegativeSpread: number;
     maxNegativeSpreadPercentage: number;
     buyerName: string;
     sellerName: string;
@@ -115,10 +120,10 @@ interface ArbitrageInfoResponse {
     estimatedAvgNegativeSpread: number;
     estimatedAvgNegativeSpreadPercentage: number;
     estimatedAvgSellUnitPrice: number;
-    ethBalance: number;
-    eurBalance: number;
-    isEurBalanceSufficient: boolean;
-    isEthBalanceSufficient: boolean;
+    baseCurrencyBalance: number;
+    quoteCurrencyBalance: number;
+    isBaseBalanceSufficient: boolean;
+    isQuoteBalanceSufficient: boolean;
     isProfitable: boolean;
 
     profitCalculation: ProfitCalculation;
@@ -127,17 +132,17 @@ interface ArbitrageInfoResponse {
 }
 
 interface ProfitCalculation {
-    fiatSpent: number;
-    ethBuyCount: number;
-    ethSellCount: string;
+    quoteCurrencyEarned: number;
+    quoteCurrencySpent: number;
+    baseCurrencyBuyCount: number;
+    baseCurrencySellCount: string;
     buyLimitPriceUnit: string;
     profit: number;
     profitAfterTax: number;
-    profitPercentage: number;
-    fiatEarned: number;
+    profitPercentage: number;    
     buyFee: number;
     sellFee: number;
-    allFiatSpent: boolean;
+    allQuoteCurrencySpent: boolean;
 }
 
 interface ExchangeStatus
@@ -150,8 +155,10 @@ interface ExchangeStatus
 
 interface Balance {
     all: any;
-    eth: number;
-    eur: number;
+    base: number;
+    quote: number;
+    baseAsset: string;
+    quoteAsset: string;
 }
 
 // Declare a 'discriminated union' type. This guarantees that all references to 'type' properties contain one of the

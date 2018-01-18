@@ -7,6 +7,9 @@ namespace Arbitrager.API.Models
 {
     public class ArbitrageInfo
     {
+        public string BaseAsset { get; set; }
+        public string QuoteAsset { get; set; }
+
         public ExchangeStatus Buyer { get; set; }
         public ExchangeStatus Seller { get; set; }
         public ArbitrageProfitCalculation ProfitCalculation { get; set; }
@@ -14,14 +17,14 @@ namespace Arbitrager.API.Models
         public string BuyerName { get; set; }
         public string SellerName { get; set; }
         public decimal MaxNegativeSpreadPercentage { get; set; }
-        public decimal MaxNegativeSpreadEur { get; set; }
-        public decimal EurBalance { get; set; }
-        public decimal EthBalance { get; set; }
+        public decimal MaxNegativeSpread { get; set; }
+        public decimal BaseCurrencyBalance { get; set; }
+        public decimal QuoteCurrencyBalance { get; set; }
 
-        public decimal MaxEthAmountToArbitrage { get; set; }
-        public decimal MaxEursToSpend { get; set; }
-        public decimal MaxEursToEarn { get; set; }
-        public decimal MaxEurProfit { get; set; }
+        public decimal MaxBaseCurrencyAmountToArbitrage { get; set; }
+        public decimal MaxQuoteCurrencyAmountToSpend { get; set; }
+        public decimal MaxQuoteCurrencyToEarn { get; set; }
+        public decimal MaxQuoteCurrencyProfit { get; set; }
         public decimal MaxProfitPercentage { get; set; }
         public decimal MaxBuyFee { get; set; }
         public decimal MaxSellFee { get; set; }
@@ -36,33 +39,35 @@ namespace Arbitrager.API.Models
 
         public decimal BuyLimitPricePerUnit { get; set; }
 
-        public bool IsEurBalanceSufficient { get; set; }
-        public bool IsEthBalanceSufficient { get; set; }
+        public bool IsBaseBalanceSufficient { get; set; }
+        public bool IsQuoteBalanceSufficient { get; set; }
         public bool IsProfitable { get; set; }
 
         public static ArbitrageInfo From(Interface.ArbitrageInfo info)
         {
             return new Models.ArbitrageInfo()
             {
+                BaseAsset = info.AssetPair.Base.Name,
+                QuoteAsset = info.AssetPair.Quote.Name,
                 BestBuyPrice = info.BestBuyPrice.Value,
                 BestSellPrice = info.BestSellPrice.Value,
                 BuyerName = info.BuyerName,
-                MaxEurProfit = info.MaxEurProfit.Value,
+                MaxQuoteCurrencyProfit = info.MaxQuoteCurrencyProfit.Value,
                 BuyLimitPricePerUnit = info.BuyLimitPricePerUnit.Value,
                 EstimatedAvgBuyUnitPrice = info.EstimatedAvgBuyUnitPrice.Value,
                 EstimatedAvgNegativeSpread = info.EstimatedAvgNegativeSpread.Value,
                 EstimatedAvgNegativeSpreadPercentage = info.EstimatedAvgNegativeSpreadPercentage.Percentage,
                 EstimatedAvgSellUnitPrice = info.EstimatedAvgSellUnitPrice.Value,
-                EthBalance = info.EthBalance.Value,
-                EurBalance = info.EurBalance.Value,
-                IsEthBalanceSufficient = info.IsEthBalanceSufficient,
-                IsEurBalanceSufficient = info.IsEurBalanceSufficient,
+                BaseCurrencyBalance = info.BaseCurrencyBalance.Value,
+                QuoteCurrencyBalance = info.QuoteCurrencyBalance.Value,
+                IsBaseBalanceSufficient = info.IsBaseCurrencyBalanceSufficient,
+                IsQuoteBalanceSufficient = info.IsQuoteCurrencyBalanceSufficient,
                 IsProfitable = info.IsProfitable,
                 MaxBuyFee = info.MaxBuyFee.Value,
-                MaxEthAmountToArbitrage = info.MaxEthAmountToArbitrage.Value,
-                MaxEursToEarn = info.MaxEursToEarn.Value,
-                MaxEursToSpend = info.MaxEursToSpend.Value,
-                MaxNegativeSpreadEur = info.MaxNegativeSpreadEur.Value,
+                MaxBaseCurrencyAmountToArbitrage = info.MaxBaseCurrencyAmountToArbitrage.Value,
+                MaxQuoteCurrencyToEarn = info.MaxQuoteCurrencyToEarn.Value,
+                MaxQuoteCurrencyAmountToSpend = info.MaxQuoteCurrencyAmountToSpend.Value,
+                MaxNegativeSpread = info.MaxNegativeSpread.Value,
                 MaxNegativeSpreadPercentage = info.MaxNegativeSpreadPercentage.Percentage,
                 MaxProfitPercentage = info.MaxProfitPercentage.Percentage,
                 MaxSellFee = info.MaxSellFee.Value,
@@ -97,16 +102,20 @@ namespace Arbitrager.API.Models
     public class Balance
     {
         public Dictionary<string, decimal> All { get; set; }
-        public decimal Eth { get; set; }
-        public decimal Eur { get; set; }
+        public string BaseAsset { get; set; }
+        public string QuoteAsset { get; set; }
+        public decimal Base { get; set; }
+        public decimal Quote { get; set; }
 
         public static Balance From(Interface.BalanceResult balance)
         {
             return new Balance()
             {
                 All = balance.All,
-                Eth = balance.Eth.Value,
-                Eur = balance.Eur.Value,
+                Base = balance.BaseCurrency.Value,
+                Quote = balance.QuoteCurrency.Value,
+                BaseAsset = balance.AssetPair.Base.Name,
+                QuoteAsset = balance.AssetPair.Quote.Name,
             };
         }
     }
@@ -120,8 +129,8 @@ namespace Arbitrager.API.Models
         {
             return new OrderBook()
             {
-                Asks = book.Asks.Select(o => new OrderBookOrder() { PricePerUnit = o.PricePerUnit, Timestamp = o.Timestamp, VolumeUnits = o.VolumeUnits }).ToList(),
-                Bids = book.Bids.Select(o => new OrderBookOrder() { PricePerUnit = o.PricePerUnit, Timestamp = o.Timestamp, VolumeUnits = o.VolumeUnits }).ToList(),
+                Asks = book.Asks.Select(o => new OrderBookOrder() { PricePerUnit = o.PricePerUnit.Value, Timestamp = o.Timestamp, VolumeUnits = o.VolumeUnits.Value }).ToList(),
+                Bids = book.Bids.Select(o => new OrderBookOrder() { PricePerUnit = o.PricePerUnit.Value, Timestamp = o.Timestamp, VolumeUnits = o.VolumeUnits.Value }).ToList(),
             };
         }
     }

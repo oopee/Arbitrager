@@ -9,24 +9,26 @@ namespace Arbitrager.API.Models
     public class ArbitrageProfitCalculation
     {
         /// <summary>
-        /// FIAT spent for buying ETH at exchange B (includes fees).
+        /// QUOTE currency spent for buying BASE currency at exchange B (includes fees).
         /// </summary>
-        public decimal FiatSpent { get; set; }
+        public decimal QuoteCurrencySpent { get; set; }
 
         /// <summary>
-        /// Amount of ETH that was bought (using FiatSpent EUR) at exchange B.
+        /// Amount of BASE currency that was bought (using QuoteCurrencySpent amount of quote currency) at exchange B.
         /// </summary>
-        public decimal EthBuyCount { get; set; }
+        public decimal BaseCurrencyBuyCount { get; set; }
 
         /// <summary>
-        /// Amount of ETH that could be sold at exchange S. This should be the max amount of ETH to arbitrage. This is always less or equal than EthBuyCount.
+        /// Amount of BASE currency that could be sold at exchange S. This should be the max amount of BASE currency to arbitrage. 
+        /// This is always less or equal than BaseCurrencyBuyCount.
         /// </summary>
-        public decimal EthSellCount { get; set; }
+        public decimal BaseCurrencySellCount { get; set; }
 
         /// <summary>
-        /// Same as EthSellCount (Amount of ETH that could be sold at exchange S. This should be the max amount of ETH to arbitrage. This is always less or equal than EthBuyCount.)
+        /// Same as BaseCurrencySellCount (Amount of BASE currency that could be sold at exchange S. This should be the max amount of BASE currency to arbitrage. 
+        /// This is always less or equal than BaseCurrencyBuyCount.)
         /// </summary>
-        public decimal EthsToArbitrage => EthSellCount;
+        public decimal BaseCurrencyAmountToArbitrage => BaseCurrencySellCount;
 
         /// <summary>
         /// The price of most expensive ask to fulfill this trade. This should be used as limit price when placing buy order.
@@ -49,36 +51,36 @@ namespace Arbitrager.API.Models
         public decimal ProfitPercentage { get; set; }
 
         /// <summary>
-        /// FIAT earned by selling EthCount of ETH at exhange S (includes fees).
+        /// QUOTE currency earned by selling BaseCurrencySellCount of BASE currency at exhange S (includes fees).
         /// </summary>
-        public decimal FiatEarned { get; set; }
+        public decimal QuoteCurrencyEarned { get; set; }
 
         /// <summary>
-        /// Amount of fees that have been added to FiatSpent
+        /// Amount of fees that have been added to QuoteCurrencySpent
         /// </summary>
         public decimal BuyFee { get; set; }
 
         /// <summary>
-        /// Amount of fees that have been subtracted from FiatEarned
+        /// Amount of fees that have been subtracted from QuoteCurrencyEarned
         /// </summary>
         public decimal SellFee { get; set; }
 
         /// <summary>
-        /// A flag indicating if all incoming FIAT could be used for buying ETH at exchange B (i.e. if there was enough liquidity to fill the order).
+        /// A flag indicating if all incoming QUOTE currency could be used for buying BASE currency at exchange B (i.e. if there was enough volume to fill the order).
         /// </summary>
-        public bool AllFiatSpent { get; set; }
+        public bool AllQuoteCurrencySpent { get; set; }
 
         public static ArbitrageProfitCalculation From(ProfitCalculation pc)
         {
             return new ArbitrageProfitCalculation()
             {
-                AllFiatSpent = pc.AllFiatSpent,
+                AllQuoteCurrencySpent = pc.AllQuoteCurrencySpent,
                 BuyFee = pc.BuyFee.Value,
                 BuyLimitPricePerUnit = pc.BuyLimitPricePerUnit.Value,
-                EthBuyCount = pc.EthBuyCount.Value,
-                EthSellCount = pc.EthSellCount.Value,
-                FiatEarned = pc.FiatEarned.Value,
-                FiatSpent = pc.FiatSpent.Value,
+                BaseCurrencyBuyCount = pc.BaseCurrencyBuyCount.Value,
+                BaseCurrencySellCount = pc.BaseCurrencySellCount.Value,
+                QuoteCurrencyEarned = pc.QuoteCurrencyEarned.Value,
+                QuoteCurrencySpent = pc.QuoteCurrencySpent.Value,
                 Profit = pc.Profit.Value,
                 ProfitAfterTax = pc.ProfitAfterTax.Value,
                 ProfitPercentage = pc.ProfitPercentage.Percentage,
