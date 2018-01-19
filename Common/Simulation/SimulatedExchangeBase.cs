@@ -112,6 +112,13 @@ namespace Common.Simulation
 
             var newOrder = new Common.Simulation.SimulatedOrder(new FullOrder()
             {
+                SourceExchange = Name,
+                TargetExchange = Name,
+                SourceAsset = price.Asset,
+                TargetAsset = volume.Asset,
+                BaseAsset = assetPair.Base,
+                QuoteAsset = assetPair.Quote,
+
                 Volume = volume,
                 FilledVolume = filledVolume,
                 CostExcludingFee = sum,
@@ -162,6 +169,13 @@ namespace Common.Simulation
 
             var newOrder = new Common.Simulation.SimulatedOrder(new FullOrder()
             {
+                SourceExchange = Name,
+                TargetExchange = Name,
+                SourceAsset = volume.Asset,
+                TargetAsset = minLimitPrice.Asset,
+                BaseAsset = assetPair.Base,
+                QuoteAsset = assetPair.Quote,
+
                 Volume = volume,
                 FilledVolume = filledVolume,
                 CostExcludingFee = sum,

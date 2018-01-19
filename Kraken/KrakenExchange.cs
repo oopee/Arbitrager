@@ -320,6 +320,12 @@ namespace Kraken
             var order = new FullOrder()
             {
                 Id = new OrderId(id),
+
+                SourceExchange = Name,
+                TargetExchange = Name,
+                // TODO: SourceAsset
+                // TODO: TargetAsset
+
                 BaseAsset = baseAsset,
                 QuoteAsset = quoteAsset,
                 LimitPrice = null,

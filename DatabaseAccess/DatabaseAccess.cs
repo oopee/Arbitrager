@@ -54,10 +54,6 @@ namespace DatabaseAccess
 
         public async Task StoreTransaction(FullOrder transaction)
         {
-            // TODO: More of this stuff should really come within FullMyOrder
-            var EUR = Asset.EUR.Name;
-            var ETH = Asset.ETH.Name;
-
             if (transaction != null)
             {
                 Guard(transaction.State == OrderState.Closed || transaction.State == OrderState.Cancelled, "Tried to store a transaction which wasn't closed");
@@ -71,19 +67,18 @@ namespace DatabaseAccess
                         Timestamp = transaction.OpenTime, // <-- TODO: Can we use OpenTime for this?
                         ExtOrderId = transaction.Id.Id,
                         Description = transaction.ToString(),
-                        BaseAsset = ETH,
-                        QuoteAsset = EUR,
+                        BaseAsset = transaction.BaseAsset.Name,
+                        QuoteAsset = transaction.QuoteAsset.Name,
                         UnitPrice = transaction.LimitPrice?.Value ?? 0m
                     };
 
                     // Then do type dependent stuff
                     if (transaction.Side == OrderSide.Buy)
                     {
-                        // At the moment buying means buying ETH with EUR at Kraken
-                        tx.Source = "Kraken";
-                        tx.Target = "Kraken";
-                        tx.SourceAsset = EUR;
-                        tx.TargetAsset = ETH;
+                        tx.Source = transaction.SourceExchange;
+                        tx.Target = transaction.TargetExchange;
+                        tx.SourceAsset = transaction.SourceAsset.Name;
+                        tx.TargetAsset = transaction.TargetAsset.Name;
                         tx.SourceSentAmount = transaction.CostIncludingFee.Value;// TODO: does Krakens Cost include Fee or not?
                         tx.SourceFee = transaction.Fee.Value;
                         tx.TargetFee = 0.0m;
@@ -91,11 +86,10 @@ namespace DatabaseAccess
                     }
                     else // Sell 
                     {
-                        // At the moment selling means selling ETH for EUR at GDAX
-                        tx.Source = "GDAX";
-                        tx.Target = "GDAX";
-                        tx.SourceAsset = ETH;
-                        tx.TargetAsset = EUR;
+                        tx.Source = transaction.SourceExchange;
+                        tx.Target = transaction.TargetExchange;
+                        tx.SourceAsset = transaction.SourceAsset.Name;
+                        tx.TargetAsset = transaction.TargetAsset.Name;
                         tx.SourceSentAmount = transaction.FilledVolume.Value;
                         tx.SourceFee = 0.0m;
                         tx.TargetFee = transaction.Fee.Value; // TODO: Does GDAX Cost include Fee or not?

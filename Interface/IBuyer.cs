@@ -51,6 +51,26 @@ namespace Interface
     public class FullOrder
     {
         /// <summary>
+        /// Name of the Source Bank or Exchange. Possibly even a wallet Id.
+        /// </summary>
+        public string SourceExchange { get; set; }
+
+        /// <summary>
+        /// Name of the Target Bank or Exchange. Possibly even a wallet Id.
+        /// </summary>
+        public string TargetExchange { get; set; }
+
+        /// <summary>
+        /// Source Asset code this transaction transfers assets from. 
+        /// </summary>
+        public Asset SourceAsset { get; set; }
+
+        /// <summary>
+        /// Target Asset code this transaction transfers assets to.
+        /// </summary>
+        public Asset TargetAsset { get; set; }
+
+        /// <summary>
         /// Base asset/currency. The base currency represents how much of the quote currency is needed for you to get one unit of the base currency.
         /// </summary>
         public Asset BaseAsset { get; set; }
@@ -132,6 +152,10 @@ namespace Interface
         /// Average unit price, basically CostIncludingFee / FilledVolume.
         /// </summary>
         public PriceValue AverageUnitPrice => FilledVolume.Value == 0 ? new PriceValue(0m, FilledVolume.Asset) : CostIncludingFee / FilledVolume.Value;
+
+        public FullOrder()
+        {
+        }
 
         public override string ToString()
         {
