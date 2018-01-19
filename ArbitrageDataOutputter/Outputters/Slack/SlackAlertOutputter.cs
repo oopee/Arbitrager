@@ -141,7 +141,7 @@ namespace ArbitrageDataOutputter
             // If there is no last alert, post current spread
             if (LastAlertTime == null && highestRule == null)
             {
-                return new AlertRule(0, TimeSpan.FromDays(1), "Current spread", "");
+                // return new AlertRule(0, TimeSpan.FromDays(1), "Current spread", "");
             }
 
             if (highestRule == null)
@@ -150,7 +150,7 @@ namespace ArbitrageDataOutputter
             }
 
             // If at least minimum time has passed, post again
-            if (LastAlertTime + highestRule.MinTimeSinceLastAlert < DateTime.Now)
+            if (LastAlertTime == null || LastAlertTime + highestRule.MinTimeSinceLastAlert < DateTime.Now)
             {
                 return highestRule;
             }

@@ -16,7 +16,7 @@ namespace ArbitrageDataOutputter
     {
         // If modifying these scopes, delete your previously saved credentials
         static string[] Scopes = { SheetsService.Scope.Spreadsheets };
-        
+
         public string SpreadSheetId { get; private set; }
 
         private UserCredential Credentials { get; set; }
@@ -24,7 +24,7 @@ namespace ArbitrageDataOutputter
         private Google.Apis.Sheets.v4.Data.Spreadsheet Spreadsheet { get; set; }
 
         public GoogleSheetsArbitrageDataOutputter(IArbitrageDataSource dataSource, string spreadSheetId)
-            : base(dataSource) 
+            : base(dataSource)
         {
             SpreadSheetId = spreadSheetId;
         }
@@ -63,7 +63,7 @@ namespace ArbitrageDataOutputter
             {
                 HttpClientInitializer = Credentials
             });
-            
+
             var rowData = new List<object>();
             rowData.Add(info.BestAsk);
             rowData.Add(info.BestBid);
@@ -89,9 +89,18 @@ namespace ArbitrageDataOutputter
                 return;
             }
 
-            var clientSecret = Properties.Resources.arbitrager_client_secret;
+            var clientSecretLocation = Utils.AppConfigLoader.Instance.AppSettings("ArbitrageGoogleClientSecretLocation") ?? "";
+            if (string.IsNullOrWhiteSpace(clientSecretLocation))
+            {
+                throw new FileNotFoundException("Client secret location not set in App.config");
+            }
+            else if (!File.Exists(clientSecretLocation))
+            {
+                throw new FileNotFoundException(clientSecretLocation);
+            }
 
-            using (var stream = new MemoryStream(clientSecret))
+            var clientSecret = File.ReadAllText(clientSecretLocation);
+            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(clientSecret)))
             {
                 string credPath = ".credentials/sheets.googleapis.com-arbitrager.json";
                 bool credentialFileExisted = Directory.Exists(credPath);

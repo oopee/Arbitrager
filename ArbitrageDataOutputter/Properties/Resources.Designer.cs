@@ -59,15 +59,5 @@ namespace ArbitrageDataOutputter.Properties {
                 resourceCulture = value;
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] arbitrager_client_secret {
-            get {
-                object obj = ResourceManager.GetObject("arbitrager_client_secret", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
     }
 }
