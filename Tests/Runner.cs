@@ -10,6 +10,7 @@ using Common;
 using System.Numerics;
 using System.Globalization;
 using Newtonsoft.Json;
+using Binance.API.Csharp.Client.Utils;
 
 namespace Tests
 {
@@ -17,6 +18,26 @@ namespace Tests
     public class Runner : TestBase
     {
         public static AssetPair EthEur = new AssetPair(Asset.ETH, Asset.EUR);
+
+
+        [Explicit]
+        [Test]
+        public async Task ProfitCalculator_Misc()
+        {
+            AssetPair assetPair1 = new AssetPair(Asset.NEO, Asset.USDT);
+                        
+            DefaultProfitCalculator calculator = new DefaultProfitCalculator();
+            var exchange = GetBinance(true);           
+            DefaultArbitrager arb = new DefaultArbitrager(assetPair1, new List<IExchange>() { exchange, exchange }, calculator, DataAccess, Logger);
+            var status = await arb.GetStatus(false);
+            //var orderBook = await exchange.GetOrderBook(assetPair1);
+            //var json = Newtonsoft.Json.JsonConvert.SerializeObject(orderBook);
+            //Logger.Info(json);
+
+            var quote = PriceValue.FromUSDT(1000m);
+            var calculation = calculator.CalculateProfit(status.Exchanges[0], status.Exchanges[1], quote);
+            Logger.Info(calculation.ToString());
+        }
 
         [Explicit]
         [Test]
@@ -27,13 +48,26 @@ namespace Tests
             */
 
             var conf = Binance.BinanceConfiguration.FromAppConfig();
+            var apiClient = new Binance.API.Csharp.Client.ApiClient(conf.Key, conf.Secret);
+            var client = new Binance.API.Csharp.Client.BinanceClient(apiClient);
+
+            var currentTime = Utilities.GenerateTimeStamp(TimeService.UtcNow.ToUniversalTime());
+            var serverTime = await client.GetServerTime();
+
+            /* TODO:
+             * eka kutsu hakee servertimen ja laskee erotuksen sekuntteina pyöristettynä ylöpäin paljonko client on edellä 
+             * -> ko. erotuksen verran (+ 1 sec) vähennetään timestampiin asetettavasta arvosta
+             */
+
+            var currentDateOf = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(currentTime));
+            var serverDateOf = DateTimeOffset.FromUnixTimeMilliseconds(serverTime.ServerTime);
 
             // AssetPair assetPair = new AssetPair(Asset.ETH, Asset.BTC);
             // AssetPair assetPair = new AssetPair(Asset.BTC, Asset.ETH);
             AssetPair assetPair = new AssetPair(Asset.NEO, Asset.USDT);
 
             //var result = await GetBinance().GetCurrentBalance(assetPair);
-
+            
             var result = await GetBinance().GetOrderBook(assetPair);
             
             await Task.Delay(1000);
@@ -127,6 +161,40 @@ namespace Tests
             Logger.Info(GetDebugString(info));*/
         }
 
+        private void NEOTests(bool positive)
+        {
+            int factor = positive ? 1 : -1;
+            var p1 = PercentageValue.FromPercentage(0.2663m);
+            PercentageValue p2 = PercentageValue.FromRatio(0.112m);
+
+            // 1000000000000000000 wei = 1 ETH
+            var v1 = 11m;
+            var v2 = 20m;
+            var v3 = 50000000m;
+
+            PriceValue neoValue1 = PriceValue.FromNEO(v1); 
+            PriceValue neoValue2 = PriceValue.FromNEO(v2) * factor;
+            PriceValue neoValue3 = PriceValue.FromNEO(v3);
+
+            PriceValue neo = neoValue1 / neoValue2;
+            // Assert.AreEqual(eth.Value, 0.22248674277891086221506229601022m * factor);
+            var neo1 = neo.Round();
+
+            var neo2 = neo.Round(decimalPlaces: 1);
+
+            //Assert.AreEqual(eth.Value, 0.222486742778910862m * factor);
+
+            /*neo = ethValue2 * ethValue3;
+            Assert.AreEqual(eth.Value, 2507785049.28491961763034m * factor);
+            eth = eth.Round();
+            Assert.AreEqual(eth.Value, 2507785049.28491961763034m * factor);
+
+            eth = ethValue2 - ethValue1;
+            Assert.AreEqual(eth.Value, positive ? v2 - v1 : (v2 * -1) - v1);
+            eth = ethValue2 + ethValue1;
+            Assert.AreEqual(eth.Value, positive ? v2 + v1 : (v2 * -1) + v1);*/
+        }
+        
         private void EURTests (bool positive)
         {
             int factor = positive ? 1 : -1;
@@ -274,7 +342,7 @@ namespace Tests
 
             ETHTests(true);
             ETHTests(false);
-            
+                        
             await Task.Delay(0);
         }        
     }

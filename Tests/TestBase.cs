@@ -15,9 +15,16 @@ namespace Tests
         protected ILogger Logger = new TestLogger();
         protected IDatabaseAccess DataAccess = new DatabaseAccess.DatabaseAccess("testdb.sqlite");
 
-        protected IExchange GetBinance()
+        protected IExchange GetBinance(bool fake = false)
         {
-            return new Binance.BinanceExchange(Binance.BinanceConfiguration.FromAppConfig(), Logger);
+            if (fake)
+            {
+                return new Binance.FakeBinanceExchange(Logger);
+            }
+            else
+            {
+                return new Binance.BinanceExchange(Binance.BinanceConfiguration.FromAppConfig(), Logger);
+            }
         }
 
         protected IExchange GetKraken()

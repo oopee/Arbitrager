@@ -13,18 +13,18 @@ namespace Common
             var baseAsset = seller.OrderBook.AssetPair.Base;
             var quoteAsset = seller.OrderBook.AssetPair.Quote;
 
-            // First check how much ETH can we buy for the cash limit.
+            // First check how much base can we buy for the cash limit.
             // We have to calculate this first in case the bids we have (top 1 or top 50)
             // do not cover the whole amount we are willing to buy from other exchange
             PriceValue baseCurrencyTotalBids = new PriceValue(seller.OrderBook.Bids.Select(x => x.VolumeUnits.Value).DefaultIfEmpty().Sum(), seller.OrderBook.AssetPair.Base);
 
-            // Cap max amount of ETH to buy (if requested)
+            // Cap max amount of base to buy (if requested)
             if (baseCurrencyLimit != null)
             {                
                 baseCurrencyTotalBids = PriceValue.Min(baseCurrencyLimit.Value, baseCurrencyTotalBids);
             }
 
-            // Use all money until cash limit or available eth count is reached,
+            // Use all money until cash limit or available base count is reached,
             // starting from the best ask
             PriceValue baseCurrencyCount = new PriceValue(0, baseAsset);
             PriceValue quoteCurrencySpent = new PriceValue(0, quoteAsset);
@@ -42,18 +42,25 @@ namespace Common
 
                 var quoteCurrencyToUse = PriceValue.Min(quoteCurrencyLimit - quoteCurrencySpent, maxQuoteCurrencyToUseAtThisPrice);
 
-                var buyAmount = new PriceValue((quoteCurrencyToUse / buyPricePerUnitWithFee).Value, baseAsset);
+                var buyAmount = new PriceValue((quoteCurrencyToUse / buyPricePerUnitWithFee).Value, baseAsset).Round(); // REMIND: round at this point so that buy cannot be done with amount that is not valid for current asset (ie for valid NEO amount there is no decimals at all)
                 var fee = (buyPricePerUnitWithFee - pricePerUnit) * buyAmount.Value;
 
-                quoteCurrencySpent += quoteCurrencyToUse;
-                baseCurrencyCount += buyAmount;
-                buyLimitPrice = pricePerUnit; // we want to use last price as limit price
-                buyFee += fee;
+                if (buyAmount > 0m)
+                {
+                    quoteCurrencySpent += quoteCurrencyToUse; 
+                    baseCurrencyCount += buyAmount;
+                    buyLimitPrice = pricePerUnit; // we want to use last price as limit price
+                    buyFee += fee;
+                }
+                else  // if not single base currency could be bought -> we are done
+                {
+                    break;
+                }
 
                 ++askNro;
             }
 
-            // How much can this ETH be sold for at other exchange
+            // How much can this base be sold for at other exchange
             PriceValue baseCurrencyLeftToSell = baseCurrencyCount;
             PriceValue baseCurrencySold = new PriceValue(0m, baseAsset);
             int bidNro = 0;
@@ -62,8 +69,7 @@ namespace Common
             while (baseCurrencyLeftToSell > 0 && seller.OrderBook.Bids.Count > bidNro)
             {
                 var orders = seller.OrderBook.Bids[bidNro];
-                var maxBaseCurrencyToSellAtThisPrice = orders.VolumeUnits;
-                var baseCurrencyToSell = PriceValue.Min(baseCurrencyLeftToSell, maxBaseCurrencyToSellAtThisPrice);
+                var baseCurrencyToSell = PriceValue.Min(baseCurrencyLeftToSell, orders.VolumeUnits).Round(); // REMIND: round sell amount so that invalid amount of current asset is not taken account (ie for valid NEO amount there is no decimals at all)
                 var pricePerUnit = orders.PricePerUnit;
                 var sellPricePerUnitWithFee = pricePerUnit.SubtractPercentage(seller.TakerFee);
                 var fee = (pricePerUnit - sellPricePerUnitWithFee) * baseCurrencyToSell.Value;

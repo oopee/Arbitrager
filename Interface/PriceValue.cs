@@ -168,6 +168,11 @@ namespace Interface
             Quote = quoteAsset;
         }
 
+        private AssetPair()
+        {
+
+        }
+
         public override int GetHashCode()
         {
             return Base.GetHashCode() * 13 + Quote.GetHashCode();
@@ -227,6 +232,11 @@ namespace Interface
             IsValid = true;
         }
 
+        public static PriceValue FromNEO(decimal value)
+        {
+            return new PriceValue(value, Asset.NEO);
+        }
+
         public static PriceValue FromETH(decimal value)
         {
             return new PriceValue(value, Asset.ETH);
@@ -235,6 +245,11 @@ namespace Interface
         public static PriceValue FromEUR(decimal value)
         {
             return new PriceValue(value, Asset.EUR);
+        }
+
+        public static PriceValue FromUSDT(decimal value)
+        {
+            return new PriceValue(value, Asset.USDT);
         }
 
         public static PriceValue? FromETH(decimal? value)
@@ -349,12 +364,12 @@ namespace Interface
         public static PriceValue operator /(PriceValue a, PriceValue b)
         {
             Guard.IsTrue(a.Asset == b.Asset, "cannot divide different assets");
-            return new PriceValue(a.Value / b.Value, a.Asset);
+            return b.Value != 0m ? new PriceValue(a.Value / b.Value, a.Asset) : new PriceValue(0m, a.Asset);
         }
 
         public static PriceValue operator /(PriceValue a, decimal b)
         {
-            return new PriceValue(a.Value / b, a.Asset);
+            return b != 0m ? new PriceValue(a.Value / b, a.Asset) : new PriceValue(0m, a.Asset);
         }        
 
         public static bool operator ==(PriceValue a, PriceValue b)

@@ -45,7 +45,7 @@ namespace Binance.API.Csharp.Client
 
                 // var time = Utilities.GenerateTimeStamp(DateTime.Now.ToUniversalTime());
                 // REMINDER: substract 1.1 seconds so that server side timestamp < serverTime check would not fail..
-                var time = Utilities.GenerateTimeStamp(TimeService.UtcNow.AddSeconds(-1.1).ToUniversalTime());
+                var time = Utilities.GenerateTimeStamp(TimeService.UtcNow.AddSeconds(-2).ToUniversalTime());
                 parameters += (!string.IsNullOrWhiteSpace(parameters) ? "&timestamp=" : "timestamp=") + time;
 
                 // Creating request signature
