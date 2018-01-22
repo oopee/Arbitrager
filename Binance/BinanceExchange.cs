@@ -123,5 +123,15 @@ namespace Binance
         {
             throw new NotImplementedException();
         }
+
+        public Task<Product> GetProduct(AssetPair assetPair)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ProductResult> GetAllProducts()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

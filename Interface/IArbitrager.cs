@@ -271,11 +271,12 @@ namespace Interface
     {
         public string Name => Exchange.Name;
         public IExchange Exchange { get; set; }
-        public BalanceResult Balance { get; set; }
-        public IOrderBook OrderBook { get; set; }
+        public BalanceResult Balance { get; set; } = new BalanceResult();
+        public IOrderBook OrderBook { get; set; } = new OrderBook();
+        public Product Product { get; set; }
 
-        public PercentageValue TakerFee { get; set; }
-        public PercentageValue MakerFee { get; set; }
+        public PercentageValue TakerFee => Product.TakerFeePercentage;
+        public PercentageValue MakerFee => Product.MakerFeePercentage;
 
         public override string ToString()
         {

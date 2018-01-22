@@ -93,6 +93,22 @@ namespace Common
 
             var result = await ForAllExchanges(async exchange =>
             {
+                var productInfo = await exchange.GetProduct(AssetPairToUse);
+                if (productInfo == null)
+                {
+                    // not supported!
+                    m_logger.Error("Exchange {0} does not support asset pair {1}", exchange.Name, AssetPairToUse);
+                    return new ExchangeStatus()
+                    {
+                        Exchange = exchange,
+                        Balance = new BalanceResult()
+                        {
+                            AssetPair = AssetPairToUse,
+                        },
+                        Product = new Product()
+                    };
+                }
+
                 BalanceResult balance = null;
                 if (includeBalance)
                 {
@@ -106,8 +122,6 @@ namespace Common
                 {
                     Balance = balance,
                     Exchange = exchange,
-                    MakerFee = exchange.MakerFeePercentage,
-                    TakerFee = exchange.TakerFeePercentage,
                     OrderBook = orderBook
                 };
             });

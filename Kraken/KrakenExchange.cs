@@ -11,6 +11,7 @@ namespace Kraken
     {
         KrakenApi.Kraken m_client;
         ILogger m_logger;
+        Common.ProductCache m_productCache;
 
         public string Name => "Kraken";
         public PercentageValue TakerFeePercentage => PercentageValue.FromPercentage(0.26m); // 0.26%
@@ -30,6 +31,8 @@ namespace Kraken
                 configuration.Key,
                 configuration.Secret,
                 3000);
+
+            m_productCache = new Common.ProductCache(GetAllProductsFromKraken);
         }
 
         public Task<MinimalOrder> PlaceImmediateBuyOrder(AssetPair assetPair, PriceValue limitPrice, PriceValue volume)
@@ -355,6 +358,31 @@ namespace Kraken
             quoteAsset = Asset.Get(quoteCurrency);
         }
 
+        private void ParseAsset(string assetStr, out Asset asset)
+        {
+            asset = default(Asset);
+
+            if (assetStr.Length < 1)
+            {
+                return;
+            }
+
+            if (assetStr[0] == 'X' || assetStr[0] == 'Z')
+            {
+                var str = assetStr.Substring(1);
+                if (str == "XBT")
+                {
+                    str = "BTC";
+                }
+                else if (str == "XDG")
+                {
+                    str = "DOGE";
+                }
+
+                asset = Asset.Get(str);
+            }
+        }
+
         private OrderState ParseState(string value)
         {
             switch (value)
@@ -414,22 +442,22 @@ namespace Kraken
         // https://support.kraken.com/hc/en-us/articles/205893708-What-is-the-minimum-order-size-
         private static Dictionary<Asset, decimal> s_minimumOrderSizes = new Dictionary<Asset, decimal>()
         {
-            // { Asset.REP, 0.3m }, // Augur
+            { Asset.REP, 0.3m }, // Augur
             { Asset.BTC, 0.002m }, // Bitcoin
             { Asset.BCH, 0.002m }, // Bitcoin Cash
-            // { Asset.DASH, 0.03m }, // Dash
-            // { Asset.DOGE, 3000m }, // Dogecoin
-            // { Asset.EOS, 3m }, // EOS
+            { Asset.DASH, 0.03m }, // Dash
+            { Asset.DOGE, 3000m }, // Dogecoin
+            { Asset.EOS, 3m }, // EOS
             { Asset.ETH, 0.02m }, // Ethereum
-            // { Asset.ETC, 0.3m }, // Ethereum Classic
-            // { Asset.GNO, 0.03m }, // Gnosis
-            // { Asset.ICN, 2m }, // Iconomi
+            { Asset.ETC, 0.3m }, // Ethereum Classic
+            { Asset.GNO, 0.03m }, // Gnosis
+            { Asset.ICN, 2m }, // Iconomi
             { Asset.LTC, 0.1m }, // Litecoin
-            // { Asset.MLN, 0.1m }, // Melon
-            // { Asset.XMR, 0.1m }, // Monero
-            // { Asset.XRP, 30m }, // Ripple
-            // { Asset.XLM, 300m }, // Stellar Lumens
-            // { Asset.ZEC, 0.03m }, // Zcash
+            { Asset.MLN, 0.1m }, // Melon
+            { Asset.XMR, 0.1m }, // Monero
+            { Asset.XRP, 30m }, // Ripple
+            { Asset.XLM, 300m }, // Stellar Lumens
+            { Asset.ZEC, 0.03m }, // Zcash
             { Asset.USDT, 5m }, // Tether
         };
 
@@ -441,6 +469,69 @@ namespace Kraken
             }
 
             return new PriceValue(0m, baseAsset);
+        }
+
+        public Task<Product> GetProduct(AssetPair assetPair)
+        {
+            return m_productCache.Get(assetPair);
+        }
+
+        public Task<ProductResult> GetAllProducts()
+        {
+            return m_productCache.GetAll();
+        }
+
+        private async Task<ProductResult> GetAllProductsFromKraken()
+        {
+            var prods = await Task.Run(() =>
+            {
+                var result = m_client.GetAssetPairs();
+                var products = result
+                .Where(x => !x.Key.EndsWith(".d"))
+                .Select(x =>
+                {
+                    ParseAsset(x.Value.Base, out Asset baseAsset);
+                    ParseAsset(x.Value.Quote, out Asset quoteAsset);
+
+                    if (baseAsset == default(Asset) || quoteAsset == default(Asset))
+                    {
+                        return null;
+                    }
+
+                    if (!s_minimumOrderSizes.TryGetValue(baseAsset, out decimal minBase))
+                    {
+                        minBase = 1m / (decimal)Math.Pow(10, x.Value.LotDecimals);
+                    }
+
+                    if (!s_minimumOrderSizes.TryGetValue(quoteAsset, out decimal minQuote))
+                    {
+                        minQuote = 1m / (decimal)Math.Pow(10, x.Value.PairDecimals);
+                    }
+
+                    return new Product()
+                    {
+                        AssetPair = new AssetPair(baseAsset, quoteAsset),
+                        BaseDecimals = x.Value.LotDecimals,
+                        MinimumBase = new PriceValue(minBase, baseAsset),
+                        MinimumQuote = new PriceValue(minQuote, quoteAsset),
+                        MaximumBase = new PriceValue(decimal.MaxValue, baseAsset),
+                        MaximumQuote = new PriceValue(decimal.MaxValue, quoteAsset),
+                        QuoteDecimals = x.Value.PairDecimals,
+                        TakerFeePercentage = PercentageValue.FromPercentage(0.24m), // TODO
+                        MakerFeePercentage = PercentageValue.FromPercentage(0.16m) // TODO
+                        // QuoteDecimals = x.Value.
+                    };
+                })
+                .Where(x => x != null)
+                .ToList();
+
+                return products;
+            });
+
+            return new ProductResult()
+            {
+                Products = prods
+            };
         }
     }
 }

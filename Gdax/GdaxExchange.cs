@@ -14,6 +14,7 @@ namespace Gdax
         GDAXClient.Authentication.Authenticator m_authenticator;
         GDAXClient.GDAXClient m_client;
         ILogger m_logger;
+        Common.ProductCache m_productCache;
 
         Dictionary<string, FullOrder> s_orders = new Dictionary<string, FullOrder>();
 
@@ -28,6 +29,7 @@ namespace Gdax
             m_logger = logger.WithName(GetType().Name);
             m_authenticator = new GDAXClient.Authentication.Authenticator(configuration.Key, configuration.Signature, configuration.Passphrase);
             m_client = new GDAXClient.GDAXClient(m_authenticator, sandBox: isSandbox);
+            m_productCache = new Common.ProductCache(GetAllProductsFromGdax);
         }
 
         public async Task<IOrderBook> GetOrderBook(AssetPair assetPair)
@@ -328,6 +330,48 @@ namespace Gdax
             {
                 throw new NotImplementedException("Invalid currency code!");
             }
+        }
+
+        public Task<Product> GetProduct(AssetPair assetPair)
+        {
+            return m_productCache.Get(assetPair);
+        }
+
+        public Task<ProductResult> GetAllProducts()
+        {
+            return m_productCache.GetAll();
+        }
+
+        private async Task<ProductResult> GetAllProductsFromGdax()
+        {
+            var result = await m_client.ProductsService.GetAllProductsAsync();
+            var products = result.Select(x =>
+            {
+                var baseAsset = Asset.Get(x.Base_currency.ToUpper());
+                var quoteAsset = Asset.Get(x.Quote_currency.ToUpper());
+
+                return new Product()
+                {
+                    AssetPair = new AssetPair(baseAsset, quoteAsset),
+
+                    BaseDecimals = 5, // TODO
+                    MinimumBase = new PriceValue(decimal.Parse(x.Base_min_size, System.Globalization.CultureInfo.InvariantCulture), baseAsset),
+                    MaximumBase = new PriceValue(decimal.Parse(x.Base_max_size, System.Globalization.CultureInfo.InvariantCulture), baseAsset),
+
+                    QuoteDecimals = Common.Utils.GetNumberOfDecimalsAfterDecimalPoint(x.Quote_increment),
+                    MinimumQuote = new PriceValue(decimal.Parse(x.Quote_increment, System.Globalization.CultureInfo.InvariantCulture), quoteAsset), // TODO
+                    MaximumQuote = new PriceValue(decimal.MaxValue, quoteAsset),
+
+                    MakerFeePercentage = PercentageValue.FromPercentage(0m), // TODO
+                    TakerFeePercentage = PercentageValue.FromPercentage(0.3m) // TODO
+
+                };
+            }).ToList();
+
+            return new ProductResult()
+            {
+                Products = products
+            };
         }
     }
 }

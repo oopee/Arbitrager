@@ -1272,8 +1272,14 @@ namespace KrakenApi
             foreach (var item in param)
                 b.Append(string.Format("&{0}={1}", item.Key, item.Value));
 
-            try { return b.ToString().Substring(1); }
-            catch (Exception) { return ""; }
+
+            var str = b.ToString();
+            if (str.Length > 1)
+            {
+                return str.Substring(1);
+            }
+
+            return "";
         }
 
         private string QueryPrivate(string method, Dictionary<string, string> param = null, int retryCount = 10)

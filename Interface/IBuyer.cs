@@ -9,7 +9,7 @@ namespace Interface
     public class BalanceResult
     {
         public AssetPair AssetPair { get; set; }
-        public Dictionary<string, decimal> All { get; set; }
+        public Dictionary<string, decimal> All { get; set; } = new Dictionary<string, decimal>();
         public PriceValue BaseCurrency { get; set; }
         public PriceValue QuoteCurrency { get; set; }
     }

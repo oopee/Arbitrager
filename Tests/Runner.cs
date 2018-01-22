@@ -344,6 +344,22 @@ namespace Tests
             ETHTests(false);
                         
             await Task.Delay(0);
-        }        
+        }
+
+        [Explicit]
+        [Test]
+        public async Task Kraken_GetProducts()
+        {
+            var exchange = GetKraken();
+            var products = await exchange.GetAllProducts();
+        }
+
+        [Explicit]
+        [Test]
+        public async Task Gdax_GetProducts()
+        {
+            var exchange = GetGdax();
+            var products = await exchange.GetAllProducts();
+        }
     }
 }

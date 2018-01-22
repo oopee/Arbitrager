@@ -11,30 +11,60 @@ namespace Interface
         AlwaysRoundDown,
     }
 
-    public enum AssetType
+    public static class AssetConstants
     {
-        EUR,
-        ETH,
-        BTC,
-        LTC,
-        BCH,
-        USDT,
-        USD,
-        NEO
+        public const string EUR = "EUR";
+        public const string ETH = "ETH";
+        public const string BTC = "BTC";
+        public const string LTC = "LTC";
+        public const string BCH = "BCH";
+        public const string USDT = "USDT";
+        public const string USD = "USD";
+        public const string NEO = "NEO";
+        public const string GBP = "GBP";
+        public const string REP = "REP";
+        public const string DASH = "DASH";
+        public const string DOGE = "DOGE";
+        public const string EOS = "EOS";
+        public const string ETC = "ETC";
+        public const string GNO = "GNO";
+        public const string ICN = "ICN";
+        public const string MLN = "MLN";
+        public const string XMR = "XMR";
+        public const string XRP = "XRP";
+        public const string XLM = "XLM";
+        public const string ZEC = "ZEC";
+        public const string CAD = "CAD";
+        public const string JPY = "JPY";
     }
 
     public class AssetSettings
     {
-        public static Dictionary<AssetType, AssetSettings> DefaultSettings = new Dictionary<AssetType, AssetSettings>()
+        public static Dictionary<string, AssetSettings> DefaultSettings = new Dictionary<string, AssetSettings>()
         {
-            { AssetType.EUR, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2 } },
-            { AssetType.USD, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2 } },
-            { AssetType.ETH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
-            { AssetType.BTC, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
-            { AssetType.LTC, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
-            { AssetType.BCH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
-            { AssetType.USDT, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2  } },
-            { AssetType.NEO, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 0  } },
+            { AssetConstants.EUR, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2 } },
+            { AssetConstants.USD, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2 } },
+            { AssetConstants.ETH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
+            { AssetConstants.BTC, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
+            { AssetConstants.LTC, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
+            { AssetConstants.BCH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
+            { AssetConstants.USDT, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2  } },
+            { AssetConstants.NEO, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 0  } },
+            { AssetConstants.GBP, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2  } },
+            { AssetConstants.REP, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
+            { AssetConstants.DASH, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2  } }, // TODO
+            { AssetConstants.DOGE, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 8  } },
+            { AssetConstants.EOS, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
+            { AssetConstants.ETC, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
+            { AssetConstants.GNO, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
+            { AssetConstants.ICN, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
+            { AssetConstants.MLN, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 18  } },
+            { AssetConstants.XMR, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 12  } },
+            { AssetConstants.XRP, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 15  } },
+            { AssetConstants.XLM, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 7  } },
+            { AssetConstants.ZEC, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 6  } },
+            { AssetConstants.CAD, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 2  } },
+            { AssetConstants.JPY, new AssetSettings() { DefaultRoundingStrategy = RoundingStrategy.AlwaysRoundDown, DecimalPlaces = 0  } },
         };
 
         public RoundingStrategy DefaultRoundingStrategy { get; set; }
@@ -44,38 +74,46 @@ namespace Interface
     public struct Asset
     {
         // 1 ETH = 1000000000000000000 wei (normalized: 100000000000000000000)
-        public static readonly Asset ETH = new Asset(AssetType.ETH);
+        public static readonly Asset ETH = new Asset(AssetConstants.ETH);
 
         // 1 EUR = 100 cents  (normalized: 10000)
-        public static readonly Asset EUR = new Asset(AssetType.EUR);
+        public static readonly Asset EUR = new Asset(AssetConstants.EUR);
 
-        public static readonly Asset USD = new Asset(AssetType.USD);
-        public static readonly Asset BTC = new Asset(AssetType.BTC);
-        public static readonly Asset LTC = new Asset(AssetType.LTC);
-        public static readonly Asset BCH = new Asset(AssetType.BCH);
-        public static readonly Asset USDT = new Asset(AssetType.USDT);
-        public static readonly Asset NEO = new Asset(AssetType.NEO);
+        public static readonly Asset USD = new Asset(AssetConstants.USD);
+        public static readonly Asset BTC = new Asset(AssetConstants.BTC);
+        public static readonly Asset LTC = new Asset(AssetConstants.LTC);
+        public static readonly Asset BCH = new Asset(AssetConstants.BCH);
+        public static readonly Asset USDT = new Asset(AssetConstants.USDT);
+        public static readonly Asset NEO = new Asset(AssetConstants.NEO);
+        public static readonly Asset GBP = new Asset(AssetConstants.GBP);
+        public static readonly Asset REP = new Asset(AssetConstants.REP);
+        public static readonly Asset DASH = new Asset(AssetConstants.DASH);
+        public static readonly Asset DOGE = new Asset(AssetConstants.DOGE);
+        public static readonly Asset EOS = new Asset(AssetConstants.EOS);
+        public static readonly Asset ETC = new Asset(AssetConstants.ETC);
+        public static readonly Asset GNO = new Asset(AssetConstants.GNO);
+        public static readonly Asset ICN = new Asset(AssetConstants.ICN);
+        public static readonly Asset MLN = new Asset(AssetConstants.MLN);
+        public static readonly Asset XMR = new Asset(AssetConstants.XMR);
+        public static readonly Asset XRP = new Asset(AssetConstants.XRP);
+        public static readonly Asset XLM = new Asset(AssetConstants.XLM);
+        public static readonly Asset ZEC = new Asset(AssetConstants.ZEC);
+        public static readonly Asset CAD = new Asset(AssetConstants.CAD);
+        public static readonly Asset JPY = new Asset(AssetConstants.JPY);
 
-        public AssetType Type { get; set; }
-        public string Name { get; set; }
+        public string Name { get; private set; }
+        public string Type => Name;
         public RoundingStrategy RoundingStrategy { get; private set; }
         public int DecimalPlaces { get; private set; }
 
         public static Asset Get(string name)
         {
-            var val = (AssetType)Enum.Parse(typeof(AssetType), name);
-            if (Enum.IsDefined(typeof(AssetType), val))
-            {
-                return new Asset(val);
-            }
-
-            throw new NotSupportedException(string.Format("Invalid currency/asset: {0}", name));
+            return new Asset(name.ToUpper());
         }
 
-        public Asset(AssetType type, RoundingStrategy? rounding = null, int? decimalPlaces = null)
+        public Asset(string type, RoundingStrategy? rounding = null, int? decimalPlaces = null)
         {
-            Name = type.ToString().ToUpper();
-            Type = type;
+            Name = type.ToUpper();
             RoundingStrategy = rounding ?? AssetSettings.DefaultSettings[type].DefaultRoundingStrategy;
             DecimalPlaces = decimalPlaces ?? AssetSettings.DefaultSettings[type].DecimalPlaces;
         }
@@ -475,7 +513,7 @@ namespace Interface
 
         public override int GetHashCode()
         {
-            return (Value + (decimal)Asset.Type).GetHashCode();
+            return (Value + Asset.Name.GetHashCode()).GetHashCode();
         }
     }
 

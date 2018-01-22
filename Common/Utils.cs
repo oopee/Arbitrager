@@ -60,6 +60,17 @@ namespace Common
             return (int)offset.ToUnixTimeSeconds();
         }
 
+        public static int GetNumberOfDecimalsAfterDecimalPoint(decimal num)
+        {
+            return GetNumberOfDecimalsAfterDecimalPoint(num.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        public static int GetNumberOfDecimalsAfterDecimalPoint(string num)
+        {
+            // kinda ugly way (calculate number of zeros)
+            return num.Replace('.', ' ').TrimEnd('0').Count(x => x == '0');
+        }
+
         private static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);       
     }
 }

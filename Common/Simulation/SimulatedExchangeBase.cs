@@ -204,6 +204,54 @@ namespace Common.Simulation
 
         public abstract Task<IOrderBook> GetOrderBook(AssetPair assetPair);
 
+        public async Task<Product> GetProduct(AssetPair assetPair)
+        {
+            return (await GetAllProducts()).Products.Where(x => x.AssetPair == assetPair).FirstOrDefault();
+        }
+
+        public async Task<ProductResult> GetAllProducts()
+        {
+            await Task.Yield();
+
+            return new ProductResult()
+            {
+                Products = new List<Product>()
+                {
+                    new Product()
+                    {
+                        AssetPair = AssetPair.EthEur,
+
+                        BaseDecimals = 5,
+                        MinimumBase = new PriceValue(0.01m, Asset.ETH),
+                        MaximumBase = new PriceValue(decimal.MaxValue, Asset.ETH),
+
+                        QuoteDecimals = 2,
+                        MinimumQuote = new PriceValue(0.01m, Asset.EUR),
+                        MaximumQuote = new PriceValue(decimal.MaxValue, Asset.EUR),
+
+                        MakerFeePercentage = PercentageValue.FromPercentage(0.1m),
+                        TakerFeePercentage = PercentageValue.FromPercentage(0.3m)
+                    },
+
+                    new Product()
+                    {
+                        AssetPair = AssetPair.NeoUsdt,
+
+                        BaseDecimals = 1,
+                        MinimumBase = new PriceValue(1m, Asset.NEO),
+                        MaximumBase = new PriceValue(decimal.MaxValue, Asset.NEO),
+
+                        QuoteDecimals = 2,
+                        MinimumQuote = new PriceValue(0.01m, Asset.USD),
+                        MaximumQuote = new PriceValue(decimal.MaxValue, Asset.USD),
+
+                        MakerFeePercentage = PercentageValue.FromPercentage(0.1m),
+                        TakerFeePercentage = PercentageValue.FromPercentage(0.3m)
+                    },
+                }
+            };
+        }
+
         public class SimpleOrderBook
         {
             public List<SimpleOrderBookOrder> Asks { get; set; }
