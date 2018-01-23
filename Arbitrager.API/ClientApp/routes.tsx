@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { Route } from 'react-router-dom';
-import { Layout } from './components/Layout';
+import { MainLayout } from './components/MainLayout';
 import Home from './components/Home';
 import Arbitrage from './components/Arbitrage';
 
-export const routes = <Layout>
+export const routes = <MainLayout>
     <Route exact path='/' component={ Arbitrage } />
-</Layout>;
+</MainLayout>;

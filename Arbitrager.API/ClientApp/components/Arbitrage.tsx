@@ -3,6 +3,7 @@ import { RouteComponentProps } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { ApplicationState }  from '../store';
 import * as ArbitrageState from '../store/Arbitrage';
+import { Form, Row, Col, Input, Button, Icon, Radio  } from 'antd';
 
 // At runtime, Redux will merge together...
 type ArbitrageProps =
@@ -20,7 +21,6 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
     }
 
     executeArbitrage() {
-        //this.props.requestArbitrageInfo(this.props.eurAmount); // to update data visible to match command
         this.props.requestExecuteArbitrage(this.props.eurAmount);
     }
     
@@ -29,18 +29,55 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
         this.props.requestAutomaticArbitrage(run);
     }
 
+    setArbitrageMode(mode: string) {
+        let typedMode = ArbitrageState.ArbitrageMode[mode as any] as ArbitrageState.ArbitrageMode;
+        this.props.setArbitrageMode(typedMode);
+    }
+
     public render() {
         let baseAsset = this.props.infoData.baseAsset;
         let quoteAsset = this.props.infoData.quoteAsset;
 
+        const formItemLayout = {
+            labelCol: {
+                xs: { span: 24 },
+                sm: { span: 8 },
+            },
+            wrapperCol: {
+                xs: { span: 24 },
+                sm: { span: 8 },
+            },
+        };
+
         return <div>
             <h1>Arbitrage</h1>
+
+            <Form className="arbitrage-settings">
+                    <Form.Item
+                        label="Mode"
+                        { ...formItemLayout }
+                    >
+                        <Radio.Group value={ this.props.mode } onChange={ (event) => this.setArbitrageMode(event.target.value) }>
+                            <Radio.Button value={ ArbitrageState.ArbitrageMode.Manual }>Manual</Radio.Button>
+                            <Radio.Button value={ ArbitrageState.ArbitrageMode.Automatic }>Automatic</Radio.Button>
+                        </Radio.Group>
+                    </Form.Item>
+
+                    { this.props.mode == ArbitrageState.ArbitrageMode.Manual ?
+                        <Form.Item
+                            label="Amount"
+                            { ...formItemLayout }
+                        >
+                            <Input />
+                        </Form.Item>
+                    : [] }
+            </Form>
             
             <input value={ this.props.eurAmount } onChange={ (event) => { this.props.setEurAmount(parseFloat(event.target.value)) } } />
             <span>€</span>
-            <button onClick={ () => { this.getArbitrageInfo() } }>Get info</button>
-            <button onClick={ () => { this.executeArbitrage() } }>Execute</button>
-            <button onClick={ () => { this.toggleAutomaticArbitrager() } }>{ this.props.automaticArbitragerRunning ? "Stop" : "Start" } automatic arbitrager</button>
+            <Button type="primary" onClick={ () => { this.getArbitrageInfo() } }>Get info</Button>
+            <Button type="primary" onClick={ () => { this.executeArbitrage() } }>Execute</Button>
+            <Button type="primary" onClick={ () => { this.toggleAutomaticArbitrager() } }>{ this.props.automaticArbitragerRunning ? "Stop" : "Start" } automatic arbitrager</Button>
             { this.props.isLoading ? <span>Loading...</span> : [] }
 
             <div className='container-fluid'>

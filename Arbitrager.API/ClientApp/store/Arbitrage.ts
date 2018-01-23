@@ -11,6 +11,7 @@ export interface ArbitrageState {
     readonly infoData: ArbitrageInfoResponse;
     readonly executeData: any;
     readonly states: ArbitrageContext[];
+    readonly mode: ArbitrageMode;
     readonly automaticArbitragerRunning: boolean;
 }
 
@@ -43,6 +44,11 @@ interface SetEurAmountAction {
     eurAmount: number;
 }
 
+interface SetArbitragerModeAction {
+    type: 'SET_ARBITRAGER_MODE';
+    mode: ArbitrageMode;
+}
+
 interface RequestAutomaticArbitragerAction {
     type: 'REQUEST_AUTOMATIC_ARBITRAGER';
     run: boolean;
@@ -51,6 +57,11 @@ interface RequestAutomaticArbitragerAction {
 interface ReceiveAutomaticArbitragerAction {
     type: 'RECEIVE_AUTOMATIC_ARBITRAGER';
     isRunning: boolean;
+}
+
+export enum ArbitrageMode {
+    Manual = "Manual",
+    Automatic = "Automatic",
 }
 
 export interface ChangeArbitragerStateAction {
@@ -170,7 +181,8 @@ type KnownAction = RequestArbitrageInfoAction
     | SetEurAmountAction
     | ChangeArbitragerStateAction
     | RequestAutomaticArbitragerAction
-    | ReceiveAutomaticArbitragerAction;
+    | ReceiveAutomaticArbitragerAction
+    | SetArbitragerModeAction;
 
 // ----------------
 // ACTION CREATORS - These are functions exposed to UI components that will trigger a state transition.
@@ -218,6 +230,9 @@ export const actionCreators = {
     },
     setEurAmount: (eurAmount: number): AppThunkAction<KnownAction> => (dispatch, getState) => {
         dispatch({ type: 'SET_EUR_AMOUNT', eurAmount });
+    },
+    setArbitrageMode: (mode: ArbitrageMode): AppThunkAction<KnownAction> => (dispatch, getState) => {
+        dispatch({ type: 'SET_ARBITRAGER_MODE', mode });
     }
 };
 
@@ -238,6 +253,7 @@ const defaultState: ArbitrageState = {
     },
     executeData: {},
     states: [],
+    mode: ArbitrageMode.Manual,
     automaticArbitragerRunning: false,
 };
 
@@ -285,6 +301,11 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 ...state,
                 states: [action.data, ...state.states],
                 infoData: action.data.info ? action.data.info : state.infoData, // update info if it was received
+            };
+        case 'SET_ARBITRAGER_MODE':
+            return {
+                ...state,
+                mode: action.mode,
             };
         default:
             // The following line guarantees that every action in the KnownAction union has been covered by a case above
