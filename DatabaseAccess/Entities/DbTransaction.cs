@@ -8,6 +8,11 @@ namespace DatabaseAccess.Entities
     public class DbTransaction : DbEntityBase
     {
         /// <summary>
+        /// Optional link to a Arbitrage this transaction belongs to. Optional as we might have transfer transactions etc which won't belong to any Arbitrage.
+        /// </summary>
+        public int? ArbitrageId { get; set; }
+
+        /// <summary>
         /// External identifier for the order
         /// </summary>
         public string ExtOrderId { get; set; }
@@ -77,5 +82,10 @@ namespace DatabaseAccess.Entities
         /// Actual amount received after conversion and TargetFee.
         /// </summary>
         public decimal TargetReceivedAmount { get; set; }
+
+
+
+
+        public virtual DbArbitrage Arbitrage { get; set; }
     }
 }

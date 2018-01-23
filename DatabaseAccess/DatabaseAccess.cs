@@ -51,6 +51,58 @@ namespace DatabaseAccess
                 await db.Database.EnsureDeletedAsync();
             }
         }
+        
+        public async Task<int> StoreArbitrageInfo(int? existingArbitrageId, ArbitrageInfo info)
+        {
+            Guard(info != null, "Tried to store NULL arbitrage");
+            return await GetContext(async db =>
+            {
+                // Check which DbArbitrage to use
+                DbArbitrage a;
+                if (existingArbitrageId.HasValue)
+                {
+                    // Existing Id given --> load from database
+                    a = await db.Arbitrages.SingleOrDefaultAsync(x => x.Id == existingArbitrageId.Value);
+                    Guard(a != null, "Tried to store non-existing arbitrage with Id: " + existingArbitrageId.Value);
+                }
+                else
+                {
+                    // No existing Id given -> create new
+                    a = new DbArbitrage();
+                }
+
+                // Store values
+                a.BaseAsset = info.AssetPair.Base.Name;
+                a.QuoteAsset = info.AssetPair.Quote.Name;
+                a.BuyingExchange = info.BuyerName;
+                a.SellingExchange = info.SellerName;
+                a.MaxNegativeSpreadPercentage = DbPercentageValue.FromDomain(info.MaxNegativeSpreadPercentage);
+                a.MaxNegativeSpread = DbPriceValue.FromDomain(info.MaxNegativeSpread);
+                a.BaseCurrencyBalance = DbPriceValue.FromDomain(info.BaseCurrencyBalance);
+                a.QuoteCurrencyBalance = DbPriceValue.FromDomain(info.QuoteCurrencyBalance);
+                a.MaxBaseCurrencyAmountToArbitrage = DbPriceValue.FromDomain(info.MaxBaseCurrencyAmountToArbitrage);
+                a.MaxQuoteCurrencyAmountToSpend = DbPriceValue.FromDomain(info.MaxQuoteCurrencyAmountToSpend);
+                a.MaxQuoteCurrencyToEarn = DbPriceValue.FromDomain(info.MaxQuoteCurrencyToEarn);
+                a.MaxQuoteCurrencyProfit = DbPriceValue.FromDomain(info.MaxQuoteCurrencyProfit);
+                a.MaxProfitPercentage = DbPercentageValue.FromDomain(info.MaxProfitPercentage);
+                a.MaxBuyFee = DbPriceValue.FromDomain(info.MaxBuyFee);
+                a.MaxSellFee = DbPriceValue.FromDomain(info.MaxSellFee);
+                a.EstimatedAvgBuyUnitPrice = DbPriceValue.FromDomain(info.EstimatedAvgBuyUnitPrice);
+                a.EstimatedAvgSellUnitPrice = DbPriceValue.FromDomain(info.EstimatedAvgSellUnitPrice);
+                a.EstimatedAvgNegativeSpread = DbPriceValue.FromDomain(info.EstimatedAvgNegativeSpread);
+                a.EstimatedAvgNegativeSpreadPercentage = DbPercentageValue.FromDomain(info.EstimatedAvgNegativeSpreadPercentage);
+                a.BestBuyPrice = DbPriceValue.FromDomain(info.BestBuyPrice);
+                a.BestSellPrice = DbPriceValue.FromDomain(info.BestSellPrice);
+                a.BuyLimitPricePerUnit = DbPriceValue.FromDomain(info.BuyLimitPricePerUnit);
+                a.IsBaseCurrencyBalanceSufficient = info.IsBaseCurrencyBalanceSufficient;
+                a.IsQuoteCurrencyBalanceSufficient = info.IsQuoteCurrencyBalanceSufficient;
+                a.IsProfitable = info.IsProfitable;
+
+                // Finally save changes return the arbitrage id
+                await db.SaveChangesAsync();
+                return a.Id;
+            });
+        }
 
         public async Task StoreTransaction(FullOrder transaction)
         {
@@ -69,16 +121,17 @@ namespace DatabaseAccess
                         Description = transaction.ToString(),
                         BaseAsset = transaction.BaseAsset.Name,
                         QuoteAsset = transaction.QuoteAsset.Name,
-                        UnitPrice = transaction.LimitPrice?.Value ?? 0m
-                    };
+                        UnitPrice = transaction.LimitPrice?.Value ?? 0m,
+                        Source = transaction.Exchange,
+                        Target = transaction.Exchange
+                };
 
                     // Then do type dependent stuff
                     if (transaction.Side == OrderSide.Buy)
                     {
-                        tx.Source = transaction.SourceExchange;
-                        tx.Target = transaction.TargetExchange;
-                        tx.SourceAsset = transaction.SourceAsset.Name;
-                        tx.TargetAsset = transaction.TargetAsset.Name;
+                        // Buying: Giving out QuoteAsset to receive BaseAsset
+                        tx.SourceAsset = transaction.QuoteAsset.Name;
+                        tx.TargetAsset = transaction.BaseAsset.Name;
                         tx.SourceSentAmount = transaction.CostIncludingFee.Value;// TODO: does Krakens Cost include Fee or not?
                         tx.SourceFee = transaction.Fee.Value;
                         tx.TargetFee = 0.0m;
@@ -86,10 +139,9 @@ namespace DatabaseAccess
                     }
                     else // Sell 
                     {
-                        tx.Source = transaction.SourceExchange;
-                        tx.Target = transaction.TargetExchange;
-                        tx.SourceAsset = transaction.SourceAsset.Name;
-                        tx.TargetAsset = transaction.TargetAsset.Name;
+                        // Selling: Giving out BaseAsset to receive QuoteAsset
+                        tx.SourceAsset = transaction.BaseAsset.Name;
+                        tx.TargetAsset = transaction.QuoteAsset.Name;
                         tx.SourceSentAmount = transaction.FilledVolume.Value;
                         tx.SourceFee = 0.0m;
                         tx.TargetFee = transaction.Fee.Value; // TODO: Does GDAX Cost include Fee or not?

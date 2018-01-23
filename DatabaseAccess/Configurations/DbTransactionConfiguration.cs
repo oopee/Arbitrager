@@ -8,6 +8,7 @@ namespace DatabaseAccess.Configurations
     {
         protected override void DoConfigure(EntityTypeBuilder<DbTransaction> b)
         {
+            b.Property(x => x.ArbitrageId).IsRequired(false);
         }
     }
 }

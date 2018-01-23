@@ -16,8 +16,4 @@
     <ProjectReference Include="..\Interface\Interface.csproj" />
     <ProjectReference Include="..\Common\Common.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Configurations\" />
-    <Folder Include="Entities\" />
-  </ItemGroup>
 </Project>

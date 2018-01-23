@@ -249,10 +249,7 @@ namespace Gdax
 
             return new FullOrder()
             {
-                SourceExchange = Name,
-                TargetExchange = Name,
-                // TODO: SourceAsset
-                // TODO: TargetAsset
+                Exchange = Name,
 
                 Id = new OrderId(order.Id.ToString()),
                 BaseAsset = baseAsset,

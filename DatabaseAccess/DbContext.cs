@@ -16,6 +16,7 @@ namespace DatabaseAccess
          *  Tables
          */
 
+        public DbSet<DbArbitrage> Arbitrages { get; set; }
         public DbSet<DbTransaction> Transactions { get; set; }
 
         /*

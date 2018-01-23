@@ -51,24 +51,9 @@ namespace Interface
     public class FullOrder
     {
         /// <summary>
-        /// Name of the Source Bank or Exchange. Possibly even a wallet Id.
+        /// Name of the Exchange this order took place.
         /// </summary>
-        public string SourceExchange { get; set; }
-
-        /// <summary>
-        /// Name of the Target Bank or Exchange. Possibly even a wallet Id.
-        /// </summary>
-        public string TargetExchange { get; set; }
-
-        /// <summary>
-        /// Source Asset code this transaction transfers assets from. 
-        /// </summary>
-        public Asset SourceAsset { get; set; }
-
-        /// <summary>
-        /// Target Asset code this transaction transfers assets to.
-        /// </summary>
-        public Asset TargetAsset { get; set; }
+        public string Exchange { get; set; }
 
         /// <summary>
         /// Base asset/currency. The base currency represents how much of the quote currency is needed for you to get one unit of the base currency.

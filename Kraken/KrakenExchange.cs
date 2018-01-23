@@ -321,10 +321,7 @@ namespace Kraken
             {
                 Id = new OrderId(id),
 
-                SourceExchange = Name,
-                TargetExchange = Name,
-                // TODO: SourceAsset
-                // TODO: TargetAsset
+                Exchange = Name,
 
                 BaseAsset = baseAsset,
                 QuoteAsset = quoteAsset,
