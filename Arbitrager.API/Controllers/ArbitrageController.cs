@@ -24,7 +24,6 @@ namespace Arbitrager.API.Controllers
 
         public static void ArbitragerStateChanged(object sender, ArbitrageContext e)
         {
-            Console.WriteLine("State changed");
             var ctx = Models.ArbitrageContext.From(e);
             s_hubContext.Clients.All.InvokeAsync("StateChanged", new object[] { ctx });
         }

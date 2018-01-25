@@ -11,6 +11,7 @@ export interface ArbitrageState {
     readonly infoData: ArbitrageInfoResponse;
     readonly executeData: any;
     readonly states: ArbitrageContext[];
+    readonly trades: ITrade[];
     readonly mode: ArbitrageMode;
     readonly automaticArbitragerRunning: boolean;
 }
@@ -59,6 +60,19 @@ interface ReceiveAutomaticArbitragerAction {
     isRunning: boolean;
 }
 
+// -----------------
+// PUBLIC TYPES
+
+export interface ITrade {
+    id: string;
+    date: Date;
+    profit: number;
+    profitPercentage: number;
+    inProgress: boolean;
+    stateChanges: ArbitrageContext[];
+    message: string; // error or other message
+}
+
 export enum ArbitrageMode {
     Manual = "Manual",
     Automatic = "Automatic",
@@ -88,6 +102,9 @@ export interface ArbitrageContext {
     finishedResult: ArbitrageContextFinishedResult;
     info: ArbitrageInfoResponse;
 }
+
+// -----------------
+// PRIVATE TYPES
 
 interface ArbitrageContextFinishedResult {
     baseCurrencyBought: number;
@@ -253,6 +270,7 @@ const defaultState: ArbitrageState = {
     },
     executeData: {},
     states: [],
+    trades: [],
     mode: ArbitrageMode.Manual,
     automaticArbitragerRunning: false,
 };
@@ -297,10 +315,47 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 automaticArbitragerRunning: action.isRunning,
             };
         case 'CHANGE_ARBITRAGER_STATE':
+            let trade = null;
+            let tradeArray = state.trades;
+
+            // Start a new trade when we receive state 0
+            if (action.data.state == 0) {
+                trade = <ITrade>{
+                    id: (state.trades.length + 1).toString(),
+                    date: new Date(),
+                    profit: 0,
+                    profitPercentage: 0,
+                    stateChanges: [ action.data ],
+                    inProgress: true,
+                };
+                tradeArray = [ trade, ...tradeArray ]; // add to beginning
+            }
+            // Otherwise just add state changes to an existing trade
+            else {
+                if (state.trades.length > 0) {
+                    trade = state.trades[0]; // get last trade from beginning
+                    trade.stateChanges = [ ...trade.stateChanges, action.data ];                    
+                }
+            }
+
+            // Finish trade when we receive state 7
+            if (trade && (action.data.state == 7 || action.data.error)) {
+                trade.inProgress = false;
+
+                if (action.data.error) {
+                    trade.message = "Error: " + action.data.error;
+                }
+
+                if (!trade.message) {
+                    trade.message = "Successfully executed!";
+                }
+            }
+
             return {
                 ...state,
                 states: [action.data, ...state.states],
                 infoData: action.data.info ? action.data.info : state.infoData, // update info if it was received
+                trades: tradeArray,
             };
         case 'SET_ARBITRAGER_MODE':
             return {
