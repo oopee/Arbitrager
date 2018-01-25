@@ -66,8 +66,7 @@ interface ReceiveAutomaticArbitragerAction {
 export interface ITrade {
     id: string;
     date: Date;
-    profit: number;
-    profitPercentage: number;
+    profitPercentage: number | null;
     inProgress: boolean;
     stateChanges: ArbitrageContext[];
     message: string; // error or other message
@@ -315,7 +314,7 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 automaticArbitragerRunning: action.isRunning,
             };
         case 'CHANGE_ARBITRAGER_STATE':
-            let trade = null;
+            let trade: ITrade | null = null;
             let tradeArray = state.trades;
 
             // Start a new trade when we receive state 0
@@ -323,8 +322,7 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 trade = <ITrade>{
                     id: (state.trades.length + 1).toString(),
                     date: new Date(),
-                    profit: 0,
-                    profitPercentage: 0,
+                    profitPercentage: null,
                     stateChanges: [ action.data ],
                     inProgress: true,
                 };
@@ -338,9 +336,18 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 }
             }
 
-            // Finish trade when we receive state 7
+            // Treat not profitable as error
+            if (action.data.info && !action.data.info.isProfitable) {
+                action.data.error = "Not profitable!";
+            }
+
+            // Finish trade when we receive state 7 or error
             if (trade && (action.data.state == 7 || action.data.error)) {
                 trade.inProgress = false;
+
+                if (action.data.finishedResult) {
+                    trade.profitPercentage = action.data.finishedResult.profitPercentage;
+                }
 
                 if (action.data.error) {
                     trade.message = "Error: " + action.data.error;

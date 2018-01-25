@@ -29,9 +29,28 @@ const columns: ColumnProps<ITrade>[] = [
         },
     },
     {
-        key: 'profit',
+        key: 'profitPercentage',
         title: 'Profit',
-        dataIndex: 'profit',
+        dataIndex: 'profitPercentage',
+        render: (text, record, index) => {
+            if (record.profitPercentage) {
+                let color = "";
+                if (record.profitPercentage < 2) {
+                    color = "rgb(0, 128, 0)";
+                }
+                else if (record.profitPercentage >= 2 && record.profitPercentage < 4) {
+                    color = "rgb(0, 179, 0)"
+                }
+                else if (record.profitPercentage >= 4 && record.profitPercentage < 6) {
+                    color = "rgb(0, 230, 0)";
+                }
+                else {
+                    color = "rgb(0, 255, 0)";
+                }
+
+                return <span style={{ color:color }}>{ record.profitPercentage.toFixed(2) } %</span>
+            }
+        },
     },
     {
         key: 'message',
@@ -72,11 +91,11 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
         const formItemLayout = {
             labelCol: {
                 xs: { span: 24 },
-                sm: { span: 8 },
+                sm: { span: 4 },
             },
             wrapperCol: {
                 xs: { span: 24 },
-                sm: { span: 8 },
+                sm: { span: 20 },
             },
         };
 
