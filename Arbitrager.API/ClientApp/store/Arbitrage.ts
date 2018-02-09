@@ -11,7 +11,7 @@ export interface ArbitrageState {
     readonly infoData: ArbitrageInfoResponse;
     readonly executeData: any;
     readonly states: ArbitrageContext[];
-    readonly trades: ITrade[];
+    readonly trades: Trade[];
     readonly mode: ArbitrageMode;
     readonly automaticArbitragerRunning: boolean;
 }
@@ -22,7 +22,7 @@ export interface ArbitrageState {
 
 interface RequestArbitrageInfoAction {
     type: 'REQUEST_ARBITRAGE_INFO';
-    eurAmount: number;
+    amount: number;
 }
 
 interface ReceiveArbitrageInfoAction {
@@ -32,7 +32,7 @@ interface ReceiveArbitrageInfoAction {
 
 interface RequestArbitrageExecuteAction {
     type: 'REQUEST_ARBITRAGE_EXECUTE';
-    eurAmount: number;
+    amount: number;
 }
 
 interface ReceiveArbitrageExecuteAction {
@@ -40,9 +40,9 @@ interface ReceiveArbitrageExecuteAction {
     data: ArbitrageInfoResponse;
 }
 
-interface SetEurAmountAction {
-    type: 'SET_EUR_AMOUNT';
-    eurAmount: number;
+interface SetAmountAction {
+    type: 'SET_AMOUNT';
+    amount: number;
 }
 
 interface SetArbitragerModeAction {
@@ -63,7 +63,7 @@ interface ReceiveAutomaticArbitragerAction {
 // -----------------
 // PUBLIC TYPES
 
-export interface ITrade {
+export interface Trade {
     id: string;
     date: Date;
     profitPercentage: number | null;
@@ -194,7 +194,7 @@ type KnownAction = RequestArbitrageInfoAction
     | ReceiveArbitrageInfoAction
     | RequestArbitrageExecuteAction
     | ReceiveArbitrageExecuteAction
-    | SetEurAmountAction
+    | SetAmountAction
     | ChangeArbitragerStateAction
     | RequestAutomaticArbitragerAction
     | ReceiveAutomaticArbitragerAction
@@ -205,8 +205,8 @@ type KnownAction = RequestArbitrageInfoAction
 // They don't directly mutate state, but they can have external side-effects (such as loading data).
 
 export const actionCreators = {
-    requestArbitrageInfo: (eurAmount: number): AppThunkAction<KnownAction> => (dispatch, getState) => {
-        let fetchTask = fetch(`api/arbitrage/info?amount=${ eurAmount }`)
+    requestArbitrageInfo: (amount: number): AppThunkAction<KnownAction> => (dispatch, getState) => {
+        let fetchTask = fetch(`api/arbitrage/info?amount=${ amount }`)
             .then(response => response.json() as Promise<ArbitrageInfoResponse>)
             .then(data => {
                 dispatch({
@@ -216,10 +216,10 @@ export const actionCreators = {
             });
 
         addTask(fetchTask); // Ensure server-side prerendering waits for this to complete
-        dispatch({ type: 'REQUEST_ARBITRAGE_INFO', eurAmount });
+        dispatch({ type: 'REQUEST_ARBITRAGE_INFO', amount });
     },
-    requestExecuteArbitrage: (eurAmount: number): AppThunkAction<KnownAction> => (dispatch, getState) => {
-        let fetchTask = fetch(`api/arbitrage/execute?amount=${ eurAmount }`)
+    requestExecuteArbitrage: (amount: number): AppThunkAction<KnownAction> => (dispatch, getState) => {
+        let fetchTask = fetch(`api/arbitrage/execute?amount=${ amount }`)
             .then(response => response.json() as Promise<ArbitrageInfoResponse>)
             .then(data => {
                 dispatch({
@@ -229,7 +229,7 @@ export const actionCreators = {
             });
 
         addTask(fetchTask); // Ensure server-side prerendering waits for this to complete
-        dispatch({ type: 'REQUEST_ARBITRAGE_EXECUTE', eurAmount });
+        dispatch({ type: 'REQUEST_ARBITRAGE_EXECUTE', amount });
     },
     requestAutomaticArbitrage: (run: boolean): AppThunkAction<KnownAction> => (dispatch, getState) => {
         let fetchTask = fetch(`api/arbitrage/auto?run=${ run }`)
@@ -244,8 +244,8 @@ export const actionCreators = {
         addTask(fetchTask); // Ensure server-side prerendering waits for this to complete
         dispatch({ type: 'REQUEST_AUTOMATIC_ARBITRAGER', run });
     },
-    setEurAmount: (eurAmount: number): AppThunkAction<KnownAction> => (dispatch, getState) => {
-        dispatch({ type: 'SET_EUR_AMOUNT', eurAmount });
+    setAmount: (amount: number): AppThunkAction<KnownAction> => (dispatch, getState) => {
+        dispatch({ type: 'SET_AMOUNT', amount });
     },
     setArbitrageMode: (mode: ArbitrageMode): AppThunkAction<KnownAction> => (dispatch, getState) => {
         dispatch({ type: 'SET_ARBITRAGER_MODE', mode });
@@ -299,10 +299,10 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 isLoading: false,
                 executeData: action.data,                
             };            
-        case 'SET_EUR_AMOUNT':
+        case 'SET_AMOUNT':
             return {
                 ...state,
-                eurAmount: action.eurAmount,
+                eurAmount: action.amount,
             };
         case 'REQUEST_AUTOMATIC_ARBITRAGER':
             return {
@@ -314,12 +314,12 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 automaticArbitragerRunning: action.isRunning,
             };
         case 'CHANGE_ARBITRAGER_STATE':
-            let trade: ITrade | null = null;
+            let trade: Trade | null = null;
             let tradeArray = state.trades;
 
             // Start a new trade when we receive state 0
             if (action.data.state == 0) {
-                trade = <ITrade>{
+                trade = <Trade>{
                     id: (state.trades.length + 1).toString(),
                     date: new Date(),
                     profitPercentage: null,
@@ -341,7 +341,7 @@ export const reducer: Reducer<ArbitrageState> = (state: ArbitrageState, incoming
                 action.data.error = "Not profitable!";
             }
 
-            // Finish trade when we receive state 7 or error
+            // Finish trade when we receive state 7 or an error
             if (trade && (action.data.state == 7 || action.data.error)) {
                 trade.inProgress = false;
 

@@ -3,10 +3,10 @@ import { RouteComponentProps } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { ApplicationState }  from '../store';
 import * as ArbitrageState from '../store/Arbitrage';
-import { Form, Row, Col, Input, InputNumber, Button, Icon, Radio, Table  } from 'antd';
+import { Form, Row, Col, Input, InputNumber, Button, Icon, Radio, Table, Steps  } from 'antd';
 import { ColumnProps } from 'antd/lib/table';
 
-type ITrade = ArbitrageState.ITrade;
+type ITrade = ArbitrageState.Trade;
 
 // At runtime, Redux will merge together...
 type ArbitrageProps =
@@ -62,6 +62,10 @@ const columns: ColumnProps<ITrade>[] = [
 class TradeTable extends Table<ITrade> { }
 
 class Arbitrage extends React.Component<ArbitrageProps, {}> {
+    constructor(props: ArbitrageProps) {
+        super(props);
+    }
+
     componentWillMount() {
         this.getArbitrageInfo();
     }
@@ -102,57 +106,101 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
         return <div>
             <h1>Arbitrage</h1>
 
-            <Form className="arbitrage-settings">
-                    <Form.Item
-                        label="Mode"
-                        { ...formItemLayout }
-                    >
-                        <Radio.Group value={ this.props.mode } onChange={ (event) => this.setArbitrageMode(event.target.value) }>
-                            <Radio.Button value={ ArbitrageState.ArbitrageMode.Manual }>Manual</Radio.Button>
-                            <Radio.Button value={ ArbitrageState.ArbitrageMode.Automatic }>Automatic</Radio.Button>
-                        </Radio.Group>
-                    </Form.Item>
-
-                    { this.props.mode == ArbitrageState.ArbitrageMode.Manual ?
-                        <div>
+            <Row gutter={8}>
+                <Col span={18}>
+                    <div className="arbitrage-settings">
+                        <Form>
                             <Form.Item
-                                label="Amount"
+                                label="Mode"
                                 { ...formItemLayout }
                             >
-                                <InputNumber
-                                    value={ this.props.eurAmount }
-                                    onChange={ (value) => { this.props.setEurAmount(value as number) } }
-                                />
+                                <Radio.Group value={ this.props.mode } onChange={ (event) => this.setArbitrageMode(event.target.value) }>
+                                    <Radio.Button value={ ArbitrageState.ArbitrageMode.Manual }>Manual</Radio.Button>
+                                    <Radio.Button value={ ArbitrageState.ArbitrageMode.Automatic }>Automatic</Radio.Button>
+                                </Radio.Group>
                             </Form.Item>
 
-                            <Form.Item
-                                label="Actions"
-                                { ...formItemLayout }
-                            >
-                                <Button type="primary" onClick={ () => { this.getArbitrageInfo() } }>Get info</Button>
-                                <Button type="primary" onClick={ () => { this.executeArbitrage() } }>Execute</Button>
-                            </Form.Item>
-                        </div>
-                    : [] }
+                            { this.props.mode == ArbitrageState.ArbitrageMode.Manual ?
+                                <div>
+                                    <Form.Item
+                                        label="Amount"
+                                        { ...formItemLayout }
+                                    >
+                                        <InputNumber
+                                            value={ this.props.eurAmount }
+                                            onChange={ (value) => { this.props.setAmount(value as number) } }
+                                        />
+                                    </Form.Item>
 
-                    { this.props.mode == ArbitrageState.ArbitrageMode.Automatic ?
-                        <div>
-                            <Form.Item
-                                label="Actions"
-                                { ...formItemLayout }
-                            >
-                                <Button type="primary" onClick={ () => { this.toggleAutomaticArbitrager() } }>{ this.props.automaticArbitragerRunning ? "Stop" : "Start" } automatic arbitrager</Button>
-                            </Form.Item>
-                        </div>
-                    : [] }
-            </Form>
+                                    <Form.Item
+                                        label="Actions"
+                                        { ...formItemLayout }
+                                    >
+                                        <Button type="primary" onClick={ () => { this.getArbitrageInfo() } }>Get info</Button>
+                                        <Button type="primary" onClick={ () => { this.executeArbitrage() } }>Execute</Button>
+                                    </Form.Item>
+                                </div>
+                            : [] }
+
+                            { this.props.mode == ArbitrageState.ArbitrageMode.Automatic ?
+                                <div>
+                                    <Form.Item
+                                        label="Actions"
+                                        { ...formItemLayout }
+                                    >
+                                        <Button type="primary" onClick={ () => { this.toggleAutomaticArbitrager() } }>{ this.props.automaticArbitragerRunning ? "Stop" : "Start" } automatic arbitrager</Button>
+                                    </Form.Item>
+                                </div>
+                            : [] }
+                        </Form>
+                    </div>
+                </Col>
+
+                <Col span={6} style={{ height:"100%" }}>
+                    <div className="arbitrage-settings">
+                        <p className='title'>Balances</p>
+
+                        <table className='table'>
+                            <tbody>
+                                <tr>
+                                    <td>Buyer {quoteAsset}</td>
+                                    <td>{ this.props.infoData.buyer.balance.quote }</td>
+                                </tr>
+                                <tr>
+                                    <td>Buyer {baseAsset}</td>
+                                    <td>{ this.props.infoData.buyer.balance.base }</td>
+                                </tr>
+                                <tr>
+                                    <td>Seller {quoteAsset}</td>
+                                    <td>{ this.props.infoData.seller.balance.quote }</td>
+                                </tr>
+                                <tr>
+                                    <td>Seller {baseAsset}</td>
+                                    <td>{ this.props.infoData.seller.balance.base }</td>
+                                </tr>
+                                <hr />
+                                <tr>
+                                    <td>Total {baseAsset}</td>
+                                    <td>{ this.props.infoData.buyer.balance.base + this.props.infoData.seller.balance.base }</td>
+                                </tr>
+                                <tr>
+                                    <td>Total {quoteAsset}</td>
+                                    <td>{ this.props.infoData.buyer.balance.quote + this.props.infoData.seller.balance.quote }</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </Col>
+            </Row>
             
             { this.props.isLoading ? <span>Loading...</span> : [] }
+
+            <h2>Trades</h2>
 
             <TradeTable
                 columns={ columns }
                 dataSource={ this.props.trades }
-                expandedRowRender={ this.renderDetailedInfo }
+                expandedRowRender={ (trade: ITrade) => { return this.renderDetailedInfo(trade) } }
             />
 
             <div className='container-fluid'>
@@ -279,37 +327,36 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
                         </table>
                     </div>
                 </div>
-
-                <div className='row'>
-                    <div className='col-sm-12'>
-                        <p className='title'>State changes</p>
-
-                        <table className='table'>
-                            <tbody>
-                                { this.props.states.map((state, index) => {
-                                    return this.renderState(state, index)                                    
-                                }) }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>;
     }
 
     private renderDetailedInfo(trade: ITrade) {
-        const lastTrade = trade.stateChanges[trade.stateChanges.length-1];
-        const currentState = lastTrade.stateName;
-        const profit = lastTrade.finishedResult ? lastTrade.finishedResult.profitPercentage : null;
+        const lastStateIndex = trade.stateChanges.length - 1;
+        const lastState = trade.stateChanges[lastStateIndex];
+        const currentState = lastState.stateName;
+        const profit = lastState.finishedResult ? lastState.finishedResult.profitPercentage : null;
 
         return <div>
-            <p>
-                Current state: { currentState }
-            </p>
-            <p>
-                Profit: { profit }
-            </p>
+            <Steps current={lastStateIndex} size="small" direction="vertical">
+                <Steps.Step title="Check status" description={ this.renderDescription(trade, 1) } />
+                <Steps.Step title="Place buy order" description={ this.renderDescription(trade, 2) } />
+                <Steps.Step title="Get buy order" description={ this.renderDescription(trade, 3) } />
+                <Steps.Step title="Place sell order" description={ this.renderDescription(trade, 4) } />
+                <Steps.Step title="Get sell order" description={ this.renderDescription(trade, 5) } />
+                <Steps.Step title="Calculate final result" description={ this.renderDescription(trade, 6) } />
+                <Steps.Step title="Finished" description={ this.renderDescription(trade, 7) } />
+            </Steps>
         </div>
+    }
+
+    private renderDescription(trade: ITrade, stateIndex: number) {
+        const state = trade.stateChanges[stateIndex];
+        if (state == undefined) {
+            return null;
+        }
+
+        return this.renderState(state, stateIndex);
     }
 
     private renderState(state: ArbitrageState.ArbitrageContext, index: number) {
@@ -320,7 +367,7 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
 
         let properties = [] as KVP[];
 
-        if (state.stateName == "CheckStatus") {            
+        if (state.stateName == "CheckStatus") {
             properties.push({ key: state.baseAsset + " amount to buy", value: state.buyOrder_BaseCurrencyAmountToBuy.toString() });
             properties.push({ key: state.quoteAsset + " limit price", value: state.buyOrder_QuoteCurrencyLimitPriceToUse.toString() });
         }
@@ -364,18 +411,13 @@ class Arbitrage extends React.Component<ArbitrageProps, {}> {
             properties.push({ key: "Error", value: state.error });
         }
 
-        return <tr key={ index }>
-            <td>
-                { state.stateName }
-            </td>
-            <td>
-                { properties.map((col, index) => {
-                    return <p key={ index }>
-                        { col.key } : { col.value }
-                    </p>
-                })}
-            </td>
-        </tr>
+        return <ul key={ index }>
+            { properties.map((col, index) => {
+                return <li key={ index }>
+                    { col.key } : { col.value }
+                </li>
+            })}
+        </ul>
     }
 }
 
